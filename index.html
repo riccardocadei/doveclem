@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Clem Groovebox</title>
+<title>Dov’è Clem</title>
 <meta name="description" content="A step sequencer that turns voice memos into an instrument.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Clem">
+<meta name="apple-mobile-web-app-title" content="Dov’è Clem">
 <meta name="theme-color" content="#E7EAEF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0B0E12" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -26,6 +26,7 @@
     --ink:#10151C; --ink-2:#5B6573; --ink-3:#8B95A3;
     --line:#C9D0DA; --line-2:#DCE1E8;
     --accent:#DE4F08; --accent-ink:#FFFFFF; --accent-wash:#FAE7DB;
+    --sun-hi:#F0A81E; --sun-lo:#B81F5B;   /* the italo sunset, top to bottom */
     --synth:#34404F; --synth-wash:#DEE4EC;
     --tone:#1F6F8B; --tone-wash:#DCEAEF;
     --bar:#C3CBD6;
@@ -41,6 +42,7 @@
       --ink:#EDF0F5; --ink-2:#949FAE; --ink-3:#6B7583;
       --line:#29313D; --line-2:#202730;
       --accent:#FF8340; --accent-ink:#1A0C03; --accent-wash:#2E1C10;
+      --sun-hi:#FFCE5C; --sun-lo:#FF4D8D;
       --synth:#9DB0C6; --synth-wash:#222B36;
       --tone:#67C7E0; --tone-wash:#152A32;
       --bar:#39424F;
@@ -54,6 +56,7 @@
     --ink:#EDF0F5; --ink-2:#949FAE; --ink-3:#6B7583;
     --line:#29313D; --line-2:#202730;
     --accent:#FF8340; --accent-ink:#1A0C03; --accent-wash:#2E1C10;
+      --sun-hi:#FFCE5C; --sun-lo:#FF4D8D;
     --synth:#9DB0C6; --synth-wash:#222B36;
     --tone:#67C7E0; --tone-wash:#152A32;
     --bar:#39424F;
@@ -334,16 +337,17 @@
     gap:1.15rem; background:var(--paper);
   }
   .veil[hidden] { display:none; }
-  .veil-mark { display:flex; align-items:center; gap:7px; height:62px; }
-  .veil-mark i { width:11px; border-radius:5px; background:var(--accent); }
-  .veil-mark i:nth-child(1){height:38%} .veil-mark i:nth-child(2){height:70%}
-  .veil-mark i:nth-child(3){height:100%} .veil-mark i:nth-child(4){height:58%}
-  .veil-mark i:nth-child(5){height:28%}
+  /* the sun the sleeves of every italo record set behind the horizon */
+  .veil-mark { display:block; width:148px; height:108px; }
+  .veil-mark svg { display:block; width:100%; height:100%; overflow:visible; }
+  .veil-mark .disc { animation:rise 1.1s cubic-bezier(.16,.9,.24,1) both; }
+  @keyframes rise { from { transform:translateY(13px); opacity:0 } to { transform:none; opacity:1 } }
   .veil-word {
     font-size:1.9rem; font-weight:700; font-variation-settings:'wdth' 122;
     line-height:1; color:var(--ink);
   }
   .veil-word em { font-style:normal; color:var(--accent); }
+  .veil-word i { font-style:normal; letter-spacing:-.02em; }
   .veil-cue {
     font-family:var(--mono); font-size:.6875rem; letter-spacing:.13em;
     text-transform:uppercase; color:var(--ink-3);
@@ -356,14 +360,45 @@
 </style>
 
 <button class="veil" id="veil" type="button">
-  <span class="veil-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-  <span class="veil-word">Clem<em>.</em></span>
+  <span class="veil-mark" aria-hidden="true">
+    <svg viewBox="0 0 104 76">
+      <defs>
+        <filter id="soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
+        <linearGradient id="sunset" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--sun-hi)"/>
+          <stop offset=".52" stop-color="var(--accent)"/>
+          <stop offset="1" stop-color="var(--sun-lo)"/>
+        </linearGradient>
+        <linearGradient id="horizon" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="var(--ink-3)" stop-opacity="0"/>
+          <stop offset=".5" stop-color="var(--ink-3)" stop-opacity=".85"/>
+          <stop offset="1" stop-color="var(--ink-3)" stop-opacity="0"/>
+        </linearGradient>
+        <!-- black bars cut the lower half into slats, widening as they fall -->
+        <mask id="slats">
+          <rect width="104" height="76" fill="#fff"/>
+          <g fill="#000">
+            <rect y="34.5" width="104" height="1.7"/>
+            <rect y="39.6" width="104" height="2.3"/>
+            <rect y="45.4" width="104" height="3.1"/>
+            <rect y="52.2" width="104" height="4.2"/>
+          </g>
+        </mask>
+      </defs>
+      <g class="disc">
+        <circle cx="52" cy="34" r="24" fill="url(#sunset)" filter="url(#soft)" opacity=".42"/>
+        <circle cx="52" cy="34" r="24" fill="url(#sunset)" mask="url(#slats)"/>
+      </g>
+      <rect y="63" width="104" height="1.6" rx=".8" fill="url(#horizon)"/>
+    </svg>
+  </span>
+  <span class="veil-word">Dov<i>’</i>è Clem<em>.</em></span>
   <span class="veil-cue">Tap to start</span>
 </button>
 
 <main class="unit">
   <header class="plate">
-    <h1 class="wordmark">Clem<em>.</em></h1>
+    <h1 class="wordmark">Dov’è Clem<em>.</em></h1>
     <span class="tag" id="tag" data-live="0" aria-live="polite">Stopped</span>
   </header>
 

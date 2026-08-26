@@ -1,8 +1,13 @@
-# Clem Groovebox
+# Dov’è Clem
 
 A 16-step drum machine built around voice memos. Seven synthesised voices plus a
 swappable pack of recordings, each with speed, start-point, chop-length and
 reverse controls, so a spoken phrase can be played as a rhythmic part.
+
+The name is an homage to *Dov’è Liana?*, the record the sound comes from — and
+the reason the opening screen is an italo sunset. The packs are the point: it
+started with Clementina, but any voice works, so the app is not named after one
+person.
 
 Everything is client-side: no build step, no dependencies, no runtime network
 calls. The drums, bass and chords are generated with the Web Audio API; the
@@ -42,7 +47,7 @@ const PACKS = [
 fits on the mixer chip, so keep it under about ten characters. A pack can hold
 any number of clips — the mixer grid grows to fit.
 
-Then bump `CACHE` in `sw.js` (`clem-v3` → `clem-v4`) so installed copies pick up
+Then bump `CACHE` in `sw.js` (`doveclem-v4` → `doveclem-v5`) so installed copies pick up
 the new `index.html`. The audio itself needs no `sw.js` change: new files are
 cached the first time they play.
 
@@ -61,8 +66,8 @@ python3 -m http.server 8000
 
 ## Deploy
 
-It is live at https://www.riccardocadei.com/clem/ from the `main` branch of
-`riccardocadei/clem` via GitHub Pages (Settings → Pages → main / root). Push to
+It is live at https://www.riccardocadei.com/doveclem/ from the `main` branch of
+`riccardocadei/doveclem` via GitHub Pages (Settings → Pages → main / root). Push to
 `main` and it redeploys. HTTPS enforcement is on, which the service worker needs.
 
 Pages sites are publicly readable — anyone with the URL can play the recordings.

@@ -1,7 +1,7 @@
 {
-  "name": "Clem Groovebox",
-  "short_name": "Clem",
-  "description": "A step sequencer that turns five voice memos into an instrument.",
+  "name": "Dov’è Clem",
+  "short_name": "Dov’è Clem",
+  "description": "A step sequencer that turns voice memos into an instrument.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
