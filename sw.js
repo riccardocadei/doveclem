@@ -1,4 +1,5 @@
-const CACHE = 'clem-v1';
+// Bump CACHE on every release or installed copies keep serving the old build.
+const CACHE = 'clem-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -30,18 +31,36 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Cache-first for everything in scope, plus opportunistic caching of the web fonts.
+const isDoc = req =>
+  req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
+
+  // The app shell goes network-first, so a fix always reaches an installed
+  // copy on the next load instead of being masked by a stale cache entry.
+  if (isDoc(req)) {
+    e.respondWith(
+      fetch(req)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Audio, icons and fonts are immutable per release: cache-first is right.
   e.respondWith(
-    caches.match(req).then(hit => {
-      if (hit) return hit;
-      return fetch(req).then(res => {
+    caches.match(req).then(hit =>
+      hit || fetch(req).then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return res;
-      }).catch(() => caches.match('./index.html'));
-    })
+      })
+    )
   );
 });

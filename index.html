@@ -570,24 +570,58 @@
     position: fixed;
     inset: 0;
     z-index: 20;
+    width: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 1.15rem;
     background: var(--paper);
+  }
+  .veil[hidden] { display: none; }
+  .veil-mark {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 62px;
+  }
+  .veil-mark i {
+    width: 11px;
+    border-radius: 5px;
+    background: var(--accent);
+  }
+  .veil-mark i:nth-child(1) { height: 38%; }
+  .veil-mark i:nth-child(2) { height: 70%; }
+  .veil-mark i:nth-child(3) { height: 100%; }
+  .veil-mark i:nth-child(4) { height: 58%; }
+  .veil-mark i:nth-child(5) { height: 28%; }
+  .veil-word {
+    font-size: 1.9rem;
+    font-weight: 700;
+    font-variation-settings: 'wdth' 122;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .veil-word em { font-style: normal; color: var(--accent); }
+  .veil-cue {
     font-family: var(--mono);
     font-size: .6875rem;
     letter-spacing: .13em;
     text-transform: uppercase;
     color: var(--ink-3);
   }
-  .veil[hidden] { display: none; }
+  .veil:active .veil-cue { color: var(--accent); }
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
 </style>
 
-<div class="veil" id="veil">Loading voices…</div>
+<button class="veil" id="veil" type="button">
+  <span class="veil-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+  <span class="veil-word">Clem<em>.</em></span>
+  <span class="veil-cue">Tap to start</span>
+</button>
 
 <main class="unit">
   <header class="plate">
@@ -696,8 +730,11 @@ function b64ToBuf(b64) {
   return u8.buffer;
 }
 
-async function boot() {
-  if (ctx) return ctx.state === 'suspended' ? ctx.resume() : undefined;
+let booted = false;
+
+// Everything here must stay synchronous: Safari only counts the graph as
+// user-initiated while the gesture's own task is still on the stack.
+function openAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
   ctx = new AC({ latencyHint: 'interactive' });
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
@@ -707,17 +744,74 @@ async function boot() {
   master = ctx.createGain();
   master.gain.value = 0.9;
   master.connect(glue).connect(ctx.destination);
-  await ctx.resume();
+  // Canonical iOS unlock: a one-frame silent buffer started inside the gesture.
+  try {
+    const s = ctx.createBufferSource();
+    s.buffer = ctx.createBuffer(1, 1, 22050);
+    s.connect(ctx.destination);
+    s.start(0);
+  } catch (e) {}
+  ctx.resume().catch(() => {});   // never awaited — on Safari it can stay pending
+}
 
-  await Promise.all(CLIPS.map(async (clip, i) => {
+function decode(ab) {
+  return new Promise((res, rej) => {
+    let settled = false;
+    const done = b => { if (!settled) { settled = true; res(b); } };
+    const oops = e => { if (!settled) { settled = true; rej(e || new Error('decode failed')); } };
+    let p;
+    try { p = ctx.decodeAudioData(ab, done, oops); } catch (e) { return oops(e); }
+    if (p && p.then) p.then(done, oops);
+  });
+}
+
+// One clip failing must not take the other four down with it.
+async function loadClips() {
+  const outcomes = await Promise.allSettled(CLIPS.map(async (clip, i) => {
     const ab = clip.b64 ? b64ToBuf(clip.b64) : await (await fetch(clip.url)).arrayBuffer();
-    buffers[i] = await new Promise((res, rej) => {
-      const p = ctx.decodeAudioData(ab, res, rej);
-      if (p && p.then) p.then(res, rej);
-    });
+    buffers[i] = await decode(ab);
   }));
-  ready = true;
-  veil.hidden = true;
+  ready = buffers.filter(Boolean).length > 0;
+  return outcomes.filter(o => o.status === 'rejected');
+}
+
+async function boot() {
+  if (booted) {
+    // Re-nudge on every later gesture: the first tap may not have carried
+    // activation, and resume() only succeeds while a gesture is in flight.
+    if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+    return;
+  }
+  booted = true;
+  try {
+    openAudio();
+  } catch (e) {
+    say('No audio on this browser: ' + msg(e));
+    veil.hidden = true;
+    return;
+  }
+  veil.hidden = true;          // never gate the UI on decoding finishing
+  tag.textContent = 'Loading';
+  let bad = [];
+  try {
+    bad = await loadClips();
+  } catch (e) {
+    say('Could not load the voices: ' + msg(e));
+  }
+  tag.textContent = playing ? 'Running' : 'Stopped';
+  if (bad.length) say(bad.length + ' of ' + CLIPS.length + ' clips failed to load. Drums still work.');
+  watchdog();
+}
+
+const msg = e => (e && e.message) ? e.message : String(e);
+
+// If the context never reaches 'running', say so instead of failing silently.
+function watchdog() {
+  setTimeout(() => {
+    if (ctx && ctx.state !== 'running') {
+      say('Sound is held: tap Play once more. If it stays quiet, check the ringer switch.');
+    }
+  }, 1200);
 }
 
 function revOf(i) {
@@ -902,7 +996,7 @@ const laneName = $('laneName'), laneMeta = $('laneMeta');
 const voicebox = $('voicebox'), scopeWave = $('scopeWave'), scopeRegion = $('scopeRegion');
 const rate = $('rate'), rateOut = $('rateOut'), startI = $('start'), startOut = $('startOut');
 const chopSeg = $('chop'), reverse = $('reverse');
-const bpmVal = $('bpmVal'), swingBtn = $('swing');
+const bpmVal = $('bpmVal'), swingBtn = $('swing'), hint = $('hint');
 
 let sel = 0;
 
@@ -1139,10 +1233,14 @@ select(0);
 loadGroove(1);
 select(VOICE0);
 
-const kick = () => { boot().then(() => { veil.hidden = true; }); };
-addEventListener('pointerdown', kick, { once: true });
-addEventListener('keydown', kick, { once: true });
-veil.textContent = 'Tap anywhere to start';
+function say(text) { hint.innerHTML = text; }
+
+// Safari grants user activation on click / touchend / keydown — NOT on
+// pointerdown or touchstart. Bind all three, in the capture phase, so the
+// audio context opens on a gesture the browser will actually accept.
+['click', 'touchend', 'keydown'].forEach(ev =>
+  addEventListener(ev, boot, { capture: true }));
+veil.addEventListener('click', boot);
 </script>
 
 <script>
