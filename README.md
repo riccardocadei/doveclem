@@ -1,27 +1,57 @@
 # Clem Groovebox
 
-A 16-step drum machine built around five voice memos. Four synthesised drum
-voices (kick, snare, hat, clap) plus the five recordings as playable samples —
-each with speed, start-point, chop-length and reverse controls, so a spoken
-phrase can be turned into a rhythmic part.
+A 16-step drum machine built around voice memos. Seven synthesised voices plus a
+swappable pack of recordings, each with speed, start-point, chop-length and
+reverse controls, so a spoken phrase can be played as a rhythmic part.
 
-Everything is client-side: no build step, no dependencies, no network calls at
-runtime. The drums are generated with the Web Audio API; the voices are decoded
-once into memory and triggered by a look-ahead scheduler, so timing does not
-drift the way `setInterval` playback does.
+Everything is client-side: no build step, no dependencies, no runtime network
+calls. The drums, bass and chords are generated with the Web Audio API; the
+voices are decoded once into memory and triggered by a look-ahead scheduler, so
+timing does not drift the way `setInterval` playback does.
 
 ```
 index.html                 the whole app (markup, styles, audio engine)
 manifest.webmanifest       PWA metadata — name, icons, standalone display
-sw.js                      service worker, precaches every asset for offline use
-audio/*.m4a                the five recordings
+sw.js                      service worker: network-first shell, cached audio
+audio/<pack>/*.m4a         one folder per voice pack
 icons/*.png                home-screen and maskable icons
 ```
 
+## Adding a voice pack
+
+This is deliberately a two-step change, because packs are the thing most likely
+to grow. Waveforms and durations are measured from the decoded audio at runtime,
+so there is nothing to precompute.
+
+1. Drop the recordings into a new folder, e.g. `audio/nonni/`. Use plain ASCII
+   filenames — no spaces, accents or curly apostrophes.
+2. Add an entry to the `PACKS` array near the top of the `<script>` block in
+   `index.html`:
+
+```js
+const PACKS = [
+  { id:'clem', name:'Clem', clips:[ /* … */ ] },
+  { id:'nonni', name:'Nonni', clips:[
+      { label:'Ma che dici',  short:'Che dici', url:'audio/nonni/01-ma-che-dici.m4a' },
+      { label:'Vieni a cena', short:'Cena',     url:'audio/nonni/02-vieni-a-cena.m4a' }
+  ]}
+];
+```
+
+`label` is the full name shown in the Pattern and Track headers; `short` is what
+fits on the mixer chip, so keep it under about ten characters. A pack can hold
+any number of clips — the mixer grid grows to fit.
+
+Then bump `CACHE` in `sw.js` (`clem-v3` → `clem-v4`) so installed copies pick up
+the new `index.html`. The audio itself needs no `sw.js` change: new files are
+cached the first time they play.
+
+Switching packs from the picker keeps your drum pattern and reloads the voices,
+so a groove you like carries across to different people's recordings.
+
 ## Run it locally
 
-A service worker needs a real origin, so open it over HTTP rather than as a
-`file://` path:
+A service worker needs a real origin, so serve it rather than opening the file:
 
 ```sh
 cd app
@@ -29,62 +59,70 @@ python3 -m http.server 8000
 # then open http://localhost:8000
 ```
 
-## Put it online (GitHub Pages, free, permanent)
+## Deploy
 
-```sh
-cd app
-git init -b main
-git add -A
-git commit -m "Clem Groovebox"
-git remote add origin https://github.com/<your-username>/clem.git
-git push -u origin main
-```
+It is live at https://www.riccardocadei.com/clem/ from the `main` branch of
+`riccardocadei/clem` via GitHub Pages (Settings → Pages → main / root). Push to
+`main` and it redeploys. HTTPS enforcement is on, which the service worker needs.
 
-Then on GitHub: **Settings → Pages → Source: Deploy from a branch → main / (root) → Save.**
-After a minute the app is live at `https://<your-username>.github.io/clem/`.
-
-Note that GitHub Pages sites are publicly readable — anyone with the URL can
-play the recordings. For a private deployment, Cloudflare Pages plus Cloudflare
-Access restricts the site to your own email on the free tier.
+Pages sites are publicly readable — anyone with the URL can play the recordings.
+For a private deployment, Cloudflare Pages plus Cloudflare Access restricts the
+site to your own email on the free tier.
 
 ## Install it on the iPhone
 
-1. Open the URL in **Safari** (not Chrome — only Safari can install to the home screen on iOS).
+1. Open the URL in **Safari**. Chrome and Firefox on iOS cannot install to the
+   home screen — every iOS browser is WebKit, but only Safari offers the option.
 2. Tap **Share → Add to Home Screen → Add**.
 3. Launch it from the new icon.
 
 It opens full-screen with no browser chrome, gets its own card in the app
-switcher, and works with no connection once the service worker has cached the
-assets. It never expires — that seven-day limit applies to Xcode free-signed
-native builds, not to home-screen web apps.
+switcher, and works offline once cached. It never expires — the seven-day limit
+applies to Xcode free-signed native builds, not to home-screen web apps.
 
 **If you hear nothing**, check the ringer switch. iOS routes Web Audio through
 the ringer channel unless the page claims the playback audio session, which this
-app does on launch (`navigator.audioSession`); on older iOS versions the switch
-still wins, so flip it off silent.
+app does on launch (`navigator.audioSession`); on older iOS the switch still wins.
 
 ## Playing it
 
+**Mixer** shows every track at once. Each chip has 16 dots for its pattern, the
+tall bright dot is the playhead, and a chip tints as it fires — so you can see
+what is making the sound. Tap a chip to select and hear it; the bar down its
+right edge mutes.
+
 | Control | What it does |
 | --- | --- |
-| Track chips | Tap to select a track for editing and hear it immediately |
-| Step row | Tap to toggle a step; drag across to paint several |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
 | Swing | Pushes every off-beat 16th late for a shuffled feel |
+| Echo | Dotted-eighth feedback delay, re-synced when the tempo changes |
+| Key | Root note for Bass and Stab |
+| Pattern | Tap steps to toggle, drag to paint; Clear track empties this one |
+| Level | Per-track volume |
+| Track → Echo | How much of that track feeds the delay |
+| Arp / Chord | Bass walks the intervals one per hit; Stab plays them together |
 | Speed | Playback rate, 0.4×–2.2× — changes pitch along with tempo |
 | Start | Where in the clip the trigger begins, for picking out one word |
 | Chop | Cuts playback to 1, 2, 4 or 8 steps — the main way to make speech rhythmic |
-| Reverse | Plays the sample backwards |
-| Talk / Chop / Rush | Starting patterns, from sparse and swung to 132 BPM |
-| Keys 1–9 | Trigger the nine tracks from a keyboard |
+| Forward / Reverse | Sample direction |
+| Keys 1–9 | Trigger the first nine tracks from a keyboard |
+
+### Tracks
+
+Kick, Clap, Snare, Hat (closed), Hat (open), Bass arp, Chord stab, then one
+track per clip in the current pack.
+
+Bass and Stab follow the global Key. Bass advances through its interval set one
+note per hit, so `Oct` gives the octave-jumping pulse italo-disco is built on;
+Stab plays the same intervals as a chord.
+
+### Grooves
+
+- **Italo** — 120 BPM, four-on-the-floor, off-beat open hat, claps on 2 and 4,
+  octave bass on eighths, chord stabs on the off-beats, echo on.
+- **Talk** — 84 BPM, swung and sparse, voices playing in full.
+- **Chop** — 96 BPM, voices sliced to two steps.
+- **Rush** — 132 BPM, sixteenth hats and bass, everything chopped to one step.
 
 Patterns live in memory only, so they reset when the app is closed.
-
-## Changing the sounds
-
-Drop new `.m4a` or `.mp3` files into `audio/`, then update the `CLIPS` array near
-the top of the `<script>` block in `index.html` (each entry needs `label`,
-`short`, `dur`, `peaks` for the waveform, and `url`) and add the filenames to
-`ASSETS` in `sw.js`. Bump `CACHE` in `sw.js` — `clem-v1` to `clem-v2` — so
-installed copies pick up the change instead of serving the old cache.

@@ -1,5 +1,8 @@
 // Bump CACHE on every release or installed copies keep serving the old build.
-const CACHE = 'clem-v2';
+const CACHE = 'clem-v3';
+
+// Shell only. Audio is cached the first time it is fetched, so adding a voice
+// pack needs no change here.
 const ASSETS = [
   './',
   './index.html',
@@ -8,11 +11,11 @@ const ASSETS = [
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
   './icons/apple-touch-icon.png',
-  './audio/01-mi-chiamo-clementina.m4a',
-  './audio/02-marco-1.m4a',
-  './audio/03-marco-2.m4a',
-  './audio/04-suona-un-po-sbagliato.m4a',
-  './audio/05-theory.m4a'
+  './audio/clem/01-mi-chiamo-clementina.m4a',
+  './audio/clem/02-marco-1.m4a',
+  './audio/clem/03-marco-2.m4a',
+  './audio/clem/04-suona-un-po-sbagliato.m4a',
+  './audio/clem/05-theory.m4a'
 ];
 
 self.addEventListener('install', e => {
@@ -38,8 +41,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
-  // The app shell goes network-first, so a fix always reaches an installed
-  // copy on the next load instead of being masked by a stale cache entry.
+  // Network-first for the app shell, so a fix always reaches an installed copy
+  // instead of being masked by a stale cache entry.
   if (isDoc(req)) {
     e.respondWith(
       fetch(req)
@@ -53,7 +56,8 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Audio, icons and fonts are immutable per release: cache-first is right.
+  // Audio, icons and fonts are immutable per release: cache-first, and any new
+  // pack lands in the cache on first play.
   e.respondWith(
     caches.match(req).then(hit =>
       hit || fetch(req).then(res => {
