@@ -1,6 +1,7 @@
 # Dov’è Clem
 
-A 16-step drum machine built around voice memos. Seven synthesised voices plus a
+A 16-step drum machine built around voice memos. Eight synthesised voices — five
+drums, a bass arp, a chord stab and a lead you write note by note — plus a
 swappable pack of recordings, each with speed, start-point, chop-length and
 reverse controls, so a spoken phrase can be played as a rhythmic part.
 
@@ -47,7 +48,7 @@ const PACKS = [
 fits on the mixer chip, so keep it under about ten characters. A pack can hold
 any number of clips — the mixer grid grows to fit.
 
-Then bump `CACHE` in `sw.js` (`doveclem-v4` → `doveclem-v5`) so installed copies pick up
+Then bump `CACHE` in `sw.js` (`doveclem-v5` → `doveclem-v6`) so installed copies pick up
 the new `index.html`. The audio itself needs no `sw.js` change: new files are
 cached the first time they play.
 
@@ -102,8 +103,10 @@ right edge mutes.
 | BPM ± | Tempo, 50–200 |
 | Swing | Pushes every off-beat 16th late for a shuffled feel |
 | Echo | Dotted-eighth feedback delay, re-synced when the tempo changes |
-| Key | Root note for Bass and Stab |
+| Key | Root note for Bass, Stab and Lead |
+| Progression | Four-bar chord move the Bass and Stab follow; **Hold** stays on the root |
 | Pattern | Tap steps to toggle, drag to paint; Clear track empties this one |
+| Pattern (Lead) | Eight rows of the minor scale — tap a row to write that note, tap it again to erase |
 | Level | Per-track volume |
 | Track → Echo | How much of that track feeds the delay |
 | Arp / Chord | Bass walks the intervals one per hit; Stab plays them together |
@@ -115,12 +118,21 @@ right edge mutes.
 
 ### Tracks
 
-Kick, Clap, Snare, Hat (closed), Hat (open), Bass arp, Chord stab, then one
+Kick, Clap, Snare, Hat (closed), Hat (open), Bass arp, Chord stab, Lead, then one
 track per clip in the current pack.
 
-Bass and Stab follow the global Key. Bass advances through its interval set one
-note per hit, so `Oct` gives the octave-jumping pulse italo-disco is built on;
-Stab plays the same intervals as a chord.
+Bass advances through its interval set one note per hit, so `Oct` gives the
+octave-jumping pulse italo-disco is built on; Stab plays the same intervals as a
+chord. Both follow the current chord: pick a **Progression** and they move
+through it, one chord per bar, raising the third on the major chords so the
+harmony stays in key.
+
+**Lead** is the melody, two detuned sawtooths straight into the delay. Select it
+and the Pattern strip becomes eight rows — one per degree of the natural minor
+scale from the Key, root rows tinted so you can find the octave. Tap a row to
+place a note, drag to draw a line, tap a lit cell again to erase. The lead stays
+in the key's scale rather than transposing with the chords, which is what lets a
+tune stay recognisable while the harmony moves under it.
 
 ### Grooves
 
@@ -129,5 +141,14 @@ Stab plays the same intervals as a chord.
 - **Talk** — 84 BPM, swung and sparse, voices playing in full.
 - **Chop** — 96 BPM, voices sliced to two steps.
 - **Rush** — 132 BPM, sixteenth hats and bass, everything chopped to one step.
+
+The four below are melodic. They are written from italo-disco idioms — the minor
+four-bar turnaround, octave bass, off-beat open hat, dotted-eighth echo — not
+transcribed from any particular record.
+
+- **Sunset** — 118 BPM, i–VI–III–VII, an eight-note lead arching up to the octave.
+- **Riviera** — 126 BPM, i–VII–VI–VII, sixteenth bass under a descending lead.
+- **Notturno** — 104 BPM, i–iv–VI–V, slow and sparse, five notes in the bar.
+- **Corsa** — 134 BPM, i–VI–III–VII, sixteenth everything and a running lead.
 
 Patterns live in memory only, so they reset when the app is closed.

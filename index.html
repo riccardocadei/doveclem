@@ -29,6 +29,7 @@
     --sun-hi:#F0A81E; --sun-lo:#B81F5B;   /* the italo sunset, top to bottom */
     --synth:#34404F; --synth-wash:#DEE4EC;
     --tone:#1F6F8B; --tone-wash:#DCEAEF;
+    --lead:#B8306E; --lead-wash:#F7E1EA;
     --bar:#C3CBD6;
     --shadow-lo:0 1px 2px rgba(16,21,28,.09);
     --inset:inset 0 1px 2px rgba(16,21,28,.10);
@@ -45,6 +46,7 @@
       --sun-hi:#FFCE5C; --sun-lo:#FF4D8D;
       --synth:#9DB0C6; --synth-wash:#222B36;
       --tone:#67C7E0; --tone-wash:#152A32;
+      --lead:#FF6FA8; --lead-wash:#331521;
       --bar:#39424F;
       --shadow-lo:0 1px 2px rgba(0,0,0,.4);
       --inset:inset 0 1px 3px rgba(0,0,0,.5);
@@ -59,6 +61,7 @@
       --sun-hi:#FFCE5C; --sun-lo:#FF4D8D;
     --synth:#9DB0C6; --synth-wash:#222B36;
     --tone:#67C7E0; --tone-wash:#152A32;
+    --lead:#FF6FA8; --lead-wash:#331521;
     --bar:#39424F;
     --shadow-lo:0 1px 2px rgba(0,0,0,.4);
     --inset:inset 0 1px 3px rgba(0,0,0,.5);
@@ -144,6 +147,7 @@
   .bpm small { font-family:var(--mono); font-size:.5rem; letter-spacing:.14em; color:var(--ink-3); }
 
   .mods { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.45rem; }
+  .mods .wide { grid-column:1 / -1; }
   .chip {
     font-family:var(--mono); font-size:.625rem; font-weight:500;
     letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2);
@@ -207,6 +211,7 @@
   }
   .trk.voice { --tint:var(--accent); --tint-wash:var(--accent-wash); }
   .trk.tone  { --tint:var(--tone);   --tint-wash:var(--tone-wash); }
+  .trk.note  { --tint:var(--lead);   --tint-wash:var(--lead-wash); }
   .trk[data-sel="1"] { border-color:var(--tint); background:var(--pad-hi); box-shadow:0 0 0 1px var(--tint), var(--shadow-lo); }
   .trk[data-hit="1"] { background:var(--tint-wash); }
   .trk-hit {
@@ -262,6 +267,21 @@
   .cell[data-on="1"] { background:var(--tint); }
   .cell[data-cue="1"] { outline:2px solid var(--tint); outline-offset:1px; }
   .cell[data-on="1"][data-cue="1"] { filter:brightness(1.25); }
+  /* note lane: one row per scale degree, high to low. The two root rows are
+     tinted so you can find the octave without a label gutter. */
+  .roll { --tint:var(--lead); display:flex; flex-direction:column; gap:2px; touch-action:none; }
+  .roll .rrow { display:flex; gap:2px; }
+  .roll .gap { flex:0 0 5px; }
+  .rc {
+    /* the roll is eight rows tall, so a vertical drag has to draw, not scroll */
+    flex:1 1 0; min-width:0; height:1.05rem; border-radius:3px; touch-action:none;
+    background:var(--cell); box-shadow:var(--inset);
+    transition:background .1s ease;
+  }
+  .rrow[data-root="1"] .rc { background:color-mix(in srgb, var(--cell) 87%, var(--tint) 13%); }
+  .rc[data-beat="1"] { box-shadow:var(--inset), inset 0 0 0 1px color-mix(in srgb, var(--ink) 11%, transparent); }
+  .rc[data-on="1"] { background:var(--tint); }
+  .rc[data-cue="1"] { outline:1.5px solid var(--tint); outline-offset:1px; }
   .ruler { display:flex; gap:2px; font-family:var(--mono); font-size:.5rem; color:var(--ink-3); }
   .ruler .gap { flex:0 0 5px; }
   .ruler span { flex:1 1 0; text-align:center; }
@@ -417,6 +437,7 @@
     <button class="chip" id="swing" type="button" aria-pressed="false">Swing</button>
     <button class="chip" id="echo" type="button" aria-pressed="false">Echo</button>
     <select class="keysel" id="key" aria-label="Key"></select>
+    <select class="keysel wide" id="prog" aria-label="Chord progression"></select>
   </section>
 
   <div class="sect">
@@ -435,6 +456,7 @@
       <span class="sect-x" id="laneMeta">tap to program</span>
     </div>
     <div class="steps" id="steps"></div>
+    <div class="roll" id="roll" hidden></div>
     <div class="ruler" id="ruler"></div>
   </section>
 
@@ -501,7 +523,9 @@
   <p class="hint" id="hint">
     <b>Mixer</b> shows every track at once &mdash; the tall dot is the playhead, the bar on
     the right mutes. <b>Pattern</b> programs the selected track; <b>Track</b> sets its level.
-    Speed and Chop are what turn a voice memo into an instrument.
+    Speed and Chop are what turn a voice memo into an instrument. Pick <b>Lead</b> and the
+    lane becomes eight rows of a minor scale &mdash; tap one to write a note. The progression
+    under Key moves the bass and the chord stab through four bars.
   </p>
 </main>
 
@@ -521,6 +545,7 @@ const SYNTHS = [
   { id:'ohat',  name:'Hat, open',       short:'Open hat', echo:0.20 },
   { id:'bass',  name:'Bass arp',        short:'Bass',     echo:0.00, tone:true },
   { id:'stab',  name:'Chord stab',      short:'Stab',     echo:0.38, tone:true },
+  { id:'lead',  name:'Lead',             short:'Lead',     echo:0.45, note:true },
 ];
 const NS = SYNTHS.length;
 
@@ -532,27 +557,53 @@ const SHAPES = [
   { id:'minor', name:'Min',  iv:[0,3,7,12] },
 ];
 
+/* Natural minor, root to octave. The note lane's eight rows are these degrees,
+   so nothing you can tap is out of key. */
+const SCALE = [0, 2, 3, 5, 7, 8, 10, 12];
+const DEGS = SCALE.length;
+
+/* Four bars of minor is the italo backbone. `d` is the chord root in semitones
+   above the key, `m` marks the ones that stay minor. */
+const PROGS = [
+  { name:'Hold on the root',  ch:[{d:0,m:1}] },
+  { name:'i · VI · III · VII', ch:[{d:0,m:1},{d:8,m:0},{d:3,m:0},{d:10,m:0}] },
+  { name:'i · VII · VI · VII', ch:[{d:0,m:1},{d:10,m:0},{d:8,m:0},{d:10,m:0}] },
+  { name:'i · iv · VI · V',    ch:[{d:0,m:1},{d:5,m:1},{d:8,m:0},{d:7,m:0}] },
+];
+
 let packIx = 0;
 let TRACKS = [];
-let pattern = [], vol = [], mute = [], send = [];
+let pattern = [], notes = [], vol = [], mute = [], send = [];
 let vparams = [];                      // per voice: rate / start / chop / rev
 let clipInfo = [];                     // per voice: peaks + duration, filled after decode
 let shapeOf = { bass:1, stab:3 };
-let key = 36;                          // MIDI root for the bass; stab sits two octaves up
+let key = 36;                          // MIDI root for the bass; stab and lead sit two octaves up
+let progIx = 0, bar = 0;
 
 const clips = () => PACKS[packIx].clips;
+// The chord under the bar the scheduler is currently filling.
+function chordAt() {
+  const ch = PROGS[progIx].ch, c = ch[bar % ch.length];
+  return { root: key + c.d, maj: !c.m };
+}
+// A shape's minor third has to become a major one over a major chord.
+const qual = (semi, maj) => (maj && semi % 12 === 3) ? semi + 1 : semi;
 const freq = m => 440 * Math.pow(2, (m - 69) / 12);
 const noteName = m => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 
 function buildTracks() {
-  const prevPat = pattern, prevVol = vol, prevMute = mute, prevSend = send;
-  TRACKS = SYNTHS.map(s => ({ ...s, kind: s.tone ? 'tone' : 'synth' }))
+  const prevPat = pattern, prevNotes = notes, prevVol = vol, prevMute = mute, prevSend = send;
+  TRACKS = SYNTHS.map(s => ({ ...s, kind: s.note ? 'note' : s.tone ? 'tone' : 'synth' }))
     .concat(clips().map((c, i) => ({
       id: 'v' + i, name: c.label, short: c.short, kind: 'voice', ci: i, echo: 0.18
     })));
   pattern = TRACKS.map((t, i) => {
     const old = prevPat[i];
     return old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(false);
+  });
+  notes = TRACKS.map((t, i) => {
+    const old = prevNotes[i];
+    return old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(0);
   });
   vol  = TRACKS.map((t, i) => (prevVol[i] !== undefined ? prevVol[i] : 1));
   mute = TRACKS.map((t, i) => (prevMute[i] !== undefined ? prevMute[i] : false));
@@ -757,7 +808,8 @@ const VOICES = {
     const iv = SHAPES[shapeOf.bass].iv;
     const k = arpN[i] || 0;
     arpN[i] = k + 1;
-    const f = freq(key + iv[k % iv.length]);
+    const c = chordAt();
+    const f = freq(c.root + qual(iv[k % iv.length], c.maj));
     const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 7;
     lp.frequency.setValueAtTime(2600, t);
@@ -771,17 +823,34 @@ const VOICES = {
     sub.start(t); sub.stop(t + 0.22);
   },
   stab(t, i) {
-    const iv = SHAPES[shapeOf.stab].iv, root = key + 24;
+    const c = chordAt(), iv = SHAPES[shapeOf.stab].iv, root = c.root + 24;
     iv.forEach((semi, k) => {
       const o = ctx.createOscillator(); o.type = 'sawtooth';
-      o.frequency.value = freq(root + semi) * (k % 2 ? 1.004 : 1);
+      o.frequency.value = freq(root + qual(semi, c.maj)) * (k % 2 ? 1.004 : 1);
       const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3400;
       const g = ctx.createGain(); env(g, t, 0.13, 0.55);
       o.connect(lp); lp.connect(g); tap(g, i);
       o.start(t); o.stop(t + 0.6);
     });
+  },
+  // Two saws a few cents apart, straight into the delay. The melody stays in
+  // the key's scale rather than following the chord — that is what keeps a
+  // tune sounding like a tune while the harmony moves under it.
+  lead(t, i, s) {
+    const f = freq(leadNote(s == null ? 0 : notes[i][s]));
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4;
+    lp.frequency.setValueAtTime(5200, t);
+    lp.frequency.exponentialRampToValueAtTime(1500, t + 0.34);
+    const g = ctx.createGain(); env(g, t, 0.2, 0.44);
+    lp.connect(g); tap(g, i);
+    [-7, 7].forEach(cents => {
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.value = f; o.detune.value = cents;
+      o.connect(lp); o.start(t); o.stop(t + 0.46);
+    });
   }
 };
+const leadNote = deg => key + 24 + SCALE[deg | 0];
 function hatAt(t, i, dec, hz, peak) {
   const n = noiseSrc(), f = ctx.createBiquadFilter(), p = ctx.createBiquadFilter(), g = ctx.createGain();
   f.type = 'highpass'; f.frequency.value = hz;
@@ -820,11 +889,11 @@ function fireVoice(vi, t, i) {
   voiceLive[vi] = { s, g };
 }
 
-function fire(i, t) {
+function fire(i, t, s) {
   if (mute[i]) return;
   const trk = TRACKS[i];
   if (trk.kind === 'voice') fireVoice(trk.ci, t, i);
-  else VOICES[trk.id](t, i);
+  else VOICES[trk.id](t, i, s);
 }
 
 /* ---------------- sequencer ---------------- */
@@ -836,14 +905,15 @@ const AHEAD = 0.14, TICK = 25;
 function scheduler() {
   while (nextTime < ctx.currentTime + AHEAD) {
     const t = nextTime + (cursor % 2 ? swing * stepDur() * 0.5 : 0);
-    for (let i = 0; i < TRACKS.length; i++) if (pattern[i][cursor]) fire(i, t);
+    for (let i = 0; i < TRACKS.length; i++) if (pattern[i][cursor]) fire(i, t, cursor);
     queue.push({ s: cursor, t: t });
     nextTime += stepDur();
     cursor = (cursor + 1) % STEPS;
+    if (cursor === 0) bar++;          // the chord turns over with the bar
   }
 }
 function start() {
-  playing = true; cursor = 0; arpN.length = 0;
+  playing = true; cursor = 0; bar = 0; arpN.length = 0;
   nextTime = ctx.currentTime + 0.06;
   queue.length = 0;
   timer = setInterval(scheduler, TICK);
@@ -890,10 +960,12 @@ const chopSeg = $('chop'), dirSeg = $('dir'), volI = $('vol'), volOut = $('volOu
 const sndI = $('snd'), sndOut = $('sndOut'), shapeRow = $('shapeRow'), shapeSeg = $('shape');
 const shapeLabel = $('shapeLabel'), voiceOnly = $('voiceOnly');
 const bpmVal = $('bpmVal'), swingBtn = $('swing'), echoBtn = $('echo');
-const keySel = $('key'), packSel = $('pack'), hint = $('hint');
+const keySel = $('key'), progSel = $('prog'), packSel = $('pack'), hint = $('hint');
+const rollEl = $('roll');
 
 let sel = 0;
 let trkEls = [], dotsByStep = [], cellEls = [];
+let rollEls = [], rollCols = [];
 
 function say(text) { hint.innerHTML = text; }
 
@@ -904,7 +976,7 @@ function buildMixer() {
   dotsByStep = Array.from({ length: STEPS }, () => []);
   TRACKS.forEach((trk, i) => {
     const box = document.createElement('div');
-    box.className = 'trk' + (trk.kind === 'voice' ? ' voice' : trk.kind === 'tone' ? ' tone' : '');
+    box.className = 'trk' + (trk.kind === 'voice' ? ' voice' : trk.kind === 'note' ? ' note' : trk.kind === 'tone' ? ' tone' : '');
     box.dataset.sel = i === sel ? '1' : '0';
     box.dataset.mute = mute[i] ? '1' : '0';
 
@@ -967,10 +1039,46 @@ function buildSteps() {
   }
 }
 
+// Eight rows, high degree at the top, sharing the step lane's column geometry
+// so the ruler underneath lines up with both.
+function buildRoll() {
+  rollEl.innerHTML = ''; rollEls = [];
+  rollCols = Array.from({ length: STEPS }, () => []);
+  for (let d = DEGS - 1; d >= 0; d--) {
+    const row = document.createElement('div');
+    row.className = 'rrow';
+    row.dataset.root = (d === 0 || d === DEGS - 1) ? '1' : '0';
+    rollEls[d] = [];
+    for (let s = 0; s < STEPS; s++) {
+      if (s && s % 4 === 0) {
+        const g = document.createElement('span'); g.className = 'gap'; row.appendChild(g);
+      }
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'rc';
+      b.dataset.on = '0';
+      b.dataset.beat = s % 4 === 0 ? '1' : '0';
+      b.dataset.s = String(s); b.dataset.d = String(d);
+      row.appendChild(b);
+      rollEls[d][s] = b; rollCols[s].push(b);
+    }
+    rollEl.appendChild(row);
+  }
+  labelRoll();
+}
+function labelRoll() {
+  for (let d = 0; d < DEGS; d++) {
+    const n = noteName(leadNote(d));
+    for (let s = 0; s < STEPS; s++)
+      rollEls[d][s].setAttribute('aria-label', 'Step ' + (s + 1) + ', ' + n);
+  }
+}
+
 let lastCue = -1, litEls = [];
 function paintCue(s) {
   if (lastCue >= 0 && dotsByStep[lastCue]) dotsByStep[lastCue].forEach(u => { u.dataset.cue = '0'; });
+  if (lastCue >= 0 && rollCols[lastCue]) rollCols[lastCue].forEach(b => { b.dataset.cue = '0'; });
   if (s >= 0 && dotsByStep[s]) dotsByStep[s].forEach(u => { u.dataset.cue = '1'; });
+  if (s >= 0 && rollCols[s]) rollCols[s].forEach(b => { b.dataset.cue = '1'; });
   lastCue = s;
   cellEls.forEach((c, i) => { c.dataset.cue = i === s ? '1' : '0'; });
 
@@ -987,13 +1095,21 @@ function paintDots(i) {
   const us = trkEls[i] ? trkEls[i].querySelectorAll('.dots u') : [];
   pattern[i].forEach((v, s) => { if (us[s]) us[s].dataset.on = v ? '1' : '0'; });
 }
+function paintRoll() {
+  const on = pattern[sel], nt = notes[sel];
+  for (let d = 0; d < DEGS; d++)
+    for (let s = 0; s < STEPS; s++)
+      rollEls[d][s].dataset.on = (on[s] && nt[s] === d) ? '1' : '0';
+}
 function paintLane() {
-  const on = pattern[sel];
-  cellEls.forEach((c, i) => { c.dataset.on = on[i] ? '1' : '0'; });
-  stepsEl.className = 'steps' + (TRACKS[sel].kind === 'voice' ? ' voice' : TRACKS[sel].kind === 'tone' ? ' tone' : '');
+  const on = pattern[sel], kind = TRACKS[sel].kind, melodic = kind === 'note';
+  stepsEl.hidden = melodic; rollEl.hidden = !melodic;
+  if (melodic) paintRoll();
+  else cellEls.forEach((c, i) => { c.dataset.on = on[i] ? '1' : '0'; });
+  stepsEl.className = 'steps' + (kind === 'voice' ? ' voice' : kind === 'tone' ? ' tone' : '');
   laneName.textContent = TRACKS[sel].name;
   const n = on.filter(Boolean).length;
-  laneMeta.textContent = n ? n + ' of 16' : 'tap to program';
+  laneMeta.textContent = n ? n + ' of 16' : melodic ? 'tap a row to write a note' : 'tap to program';
 }
 
 const bars = peaks => peaks.map(p => '<i style="height:' + Math.max(7, p * 100).toFixed(1) + '%"></i>').join('');
@@ -1073,6 +1189,38 @@ stepsEl.addEventListener('pointermove', e => {
 ['pointerup', 'pointercancel'].forEach(ev =>
   stepsEl.addEventListener(ev, () => { painting = null; }));
 
+let writing = null;
+function setNote(s, d, on) {
+  pattern[sel][s] = on;
+  if (on) notes[sel][s] = d;
+  paintRoll(); paintDots(sel);
+  const n = pattern[sel].filter(Boolean).length;
+  laneMeta.textContent = on ? noteName(leadNote(d)) + ' · ' + n + ' of 16'
+                            : n ? n + ' of 16' : 'tap a row to write a note';
+}
+rollEl.addEventListener('pointerdown', async e => {
+  const c = e.target.closest('.rc');
+  if (!c) return;
+  e.preventDefault();
+  await boot();
+  const s = Number(c.dataset.s), d = Number(c.dataset.d);
+  writing = { on: !(pattern[sel][s] && notes[sel][s] === d), d: d };
+  setNote(s, d, writing.on);
+  if (writing.on && !playing && ctx) fire(sel, ctx.currentTime + 0.005, s);
+  rollEl.setPointerCapture(e.pointerId);
+});
+rollEl.addEventListener('pointermove', e => {
+  if (writing === null) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const c = el && el.closest ? el.closest('.rc') : null;
+  if (!c) return;
+  const s = Number(c.dataset.s), d = Number(c.dataset.d);
+  if (pattern[sel][s] === writing.on && (!writing.on || notes[sel][s] === d)) return;
+  setNote(s, writing.on ? d : notes[sel][s], writing.on);
+});
+['pointerup', 'pointercancel'].forEach(ev =>
+  rollEl.addEventListener(ev, () => { writing = null; }));
+
 /* ---- transport ---- */
 run.addEventListener('click', async () => { await boot(); playing ? stop() : start(); });
 function setBpm(v) {
@@ -1100,7 +1248,15 @@ for (let m = 24; m <= 45; m++) {
   keySel.appendChild(o);
 }
 keySel.value = String(key);
-keySel.addEventListener('change', () => { key = Number(keySel.value); });
+keySel.addEventListener('change', () => { key = Number(keySel.value); labelRoll(); });
+
+PROGS.forEach((g, i) => {
+  const o = document.createElement('option');
+  o.value = String(i); o.textContent = g.name;
+  progSel.appendChild(o);
+});
+progSel.value = String(progIx);
+progSel.addEventListener('change', () => { progIx = Number(progSel.value); });
 
 PACKS.forEach((p, i) => {
   const o = document.createElement('option');
@@ -1166,35 +1322,70 @@ dirSeg.addEventListener('click', e => {
 
 /* ---- grooves ---- */
 const GROOVES = [
-  { name:'Italo', bpm:120, swing:0, echo:true, key:36, shape:{bass:1,stab:3},
+  { name:'Italo', bpm:120, swing:0, echo:true, key:36, prog:1, shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
             bass:[0,2,4,6,8,10,12,14], stab:[6,14],
             v0:[0], v3:[12] },
     voice:{ 0:{rate:1,start:0,chop:8}, 3:{rate:1,start:0.05,chop:4} } },
-  { name:'Talk', bpm:84, swing:0.55, echo:false, key:33, shape:{bass:0,stab:3},
+  { name:'Talk', bpm:84, swing:0.55, echo:false, key:33, prog:0, shape:{bass:0,stab:3},
     steps:{ kick:[0,6,10], snare:[4,12], hat:[2,6,10,14], v0:[0], v1:[8] },
     voice:{ 0:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:0} } },
-  { name:'Chop', bpm:96, swing:0, echo:false, key:36, shape:{bass:0,stab:3},
+  { name:'Chop', bpm:96, swing:0, echo:false, key:36, prog:0, shape:{bass:0,stab:3},
     steps:{ kick:[0,3,8,11], snare:[4,12], hat:[2,6,10,14], clap:[7,15],
             bass:[0,4,8,12], v0:[0,2], v1:[4,6], v2:[12,14], v3:[8] },
     voice:{ 0:{rate:1,start:0.06,chop:2}, 1:{rate:1.25,start:0,chop:2},
             2:{rate:0.8,start:0.1,chop:2}, 3:{rate:1,start:0.2,chop:4} } },
-  { name:'Rush', bpm:132, swing:0, echo:true, key:38, shape:{bass:3,stab:2},
+  { name:'Rush', bpm:132, swing:0, echo:true, key:38, prog:0, shape:{bass:3,stab:2},
     steps:{ kick:[0,4,8,12], snare:[2,6,10,14], clap:[6,14],
             hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], ohat:[2,6,10,14],
             bass:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], stab:[0,8],
             v0:[0,1,8,9], v1:[4], v2:[12], v3:[6,7], v4:[10] },
     voice:{ 0:{rate:1.5,start:0.04,chop:1}, 1:{rate:1.5,start:0,chop:1},
             2:{rate:1.5,start:0,chop:1}, 3:{rate:2,start:0.15,chop:1},
-            4:{rate:1.4,start:0.3,chop:2} } }
-];
+            4:{rate:1.4,start:0.3,chop:2} } },
 
+  /* The four below are melodic: `lead` steps carry [step, scale degree]. They
+     are built from italo idioms — octave bass, offbeat open hat, the minor
+     four-bar turnaround — not from any particular record. */
+  { name:'Sunset', bpm:118, swing:0, echo:true, key:36, prog:1, shape:{bass:1,stab:3},
+    steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
+            bass:[0,2,4,6,8,10,12,14], stab:[0,8],
+            lead:[[0,4],[3,3],[4,2],[6,4],[8,7],[11,6],[12,4],[14,2]],
+            v0:[0] },
+    voice:{ 0:{rate:1,start:0,chop:8} } },
+  { name:'Riviera', bpm:126, swing:0, echo:true, key:33, prog:2, shape:{bass:2,stab:3},
+    steps:{ kick:[0,4,8,12], clap:[12], hat:[2,6,10,14], ohat:[6,14],
+            bass:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], stab:[4,12],
+            lead:[[0,7],[2,6],[4,4],[6,3],[8,2],[10,4],[12,3],[14,2]],
+            v1:[8] },
+    voice:{ 1:{rate:1.25,start:0,chop:2} } },
+  { name:'Notturno', bpm:104, swing:0, echo:true, key:34, prog:3, shape:{bass:0,stab:3},
+    steps:{ kick:[0,8], clap:[4,12], hat:[2,6,14], ohat:[10],
+            bass:[0,6,8,14], stab:[0,4,8,12],
+            lead:[[0,2],[6,4],[8,3],[12,2],[14,0]],
+            v2:[12] },
+    voice:{ 2:{rate:0.9,start:0.08,chop:4} } },
+  { name:'Corsa', bpm:134, swing:0, echo:true, key:36, prog:1, shape:{bass:3,stab:2},
+    steps:{ kick:[0,4,8,12], clap:[4,12],
+            hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], ohat:[2,6,10,14],
+            bass:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], stab:[0,8],
+            lead:[[0,0],[1,2],[2,4],[3,2],[4,3],[5,2],[6,0],[8,4],[9,2],[10,0],
+                  [12,2],[14,4],[15,7]],
+            v0:[0,8] },
+    voice:{ 0:{rate:1.5,start:0.04,chop:1} } }
+];
 function loadGroove(gi) {
   const g = GROOVES[gi];
   pattern.forEach(row => row.fill(false));
+  notes.forEach(row => row.fill(0));
   TRACKS.forEach((trk, i) => {
     const k = trk.kind === 'voice' ? 'v' + trk.ci : trk.id;
-    (g.steps[k] || []).forEach(s => { if (s < STEPS) pattern[i][s] = true; });
+    (g.steps[k] || []).forEach(v => {
+      const s = v.length ? v[0] : v;
+      if (s >= STEPS) return;
+      pattern[i][s] = true;
+      notes[i][s] = v.length ? v[1] : 0;
+    });
     mute[i] = false; vol[i] = 1; send[i] = trk.echo;
     if (trkEls[i]) {
       trkEls[i].dataset.mute = '0';
@@ -1208,7 +1399,8 @@ function loadGroove(gi) {
     p.rate = o.rate; p.start = o.start; p.chop = o.chop; p.rev = false;
   });
   shapeOf = { ...g.shape };
-  key = g.key; keySel.value = String(key);
+  key = g.key; keySel.value = String(key); labelRoll();
+  progIx = g.prog || 0; progSel.value = String(progIx);
   echoOn = g.echo; echoBtn.setAttribute('aria-pressed', String(echoOn));
   if (echoWet) echoWet.gain.value = echoOn ? 0.9 : 0;
   swing = g.swing; swingBtn.setAttribute('aria-pressed', String(!!swing));
@@ -1252,6 +1444,7 @@ addEventListener('keydown', async e => {
 /* ---- init ---- */
 buildTracks();
 buildSteps();
+buildRoll();
 buildMixer();
 select(0);
 loadGroove(0);
