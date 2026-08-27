@@ -48,7 +48,7 @@ const PACKS = [
 fits on the mixer chip, so keep it under about ten characters. A pack can hold
 any number of clips — the mixer grid grows to fit.
 
-Then bump `CACHE` in `sw.js` (`doveclem-v5` → `doveclem-v6`) so installed copies pick up
+Then bump `CACHE` in `sw.js` (`doveclem-v6` → `doveclem-v7`) so installed copies pick up
 the new `index.html`. The audio itself needs no `sw.js` change: new files are
 cached the first time they play.
 
@@ -92,10 +92,11 @@ app does on launch (`navigator.audioSession`); on older iOS the switch still win
 
 ## Playing it
 
-**Mixer** shows every track at once. Each chip has 16 dots for its pattern, the
-tall bright dot is the playhead, and a chip tints as it fires — so you can see
-what is making the sound. Tap a chip to select and hear it; the bar down its
-right edge mutes.
+**Mixer** shows every track at once, split into **Machine** — the synthesised
+drums, bass, stab and lead — and the current pack's **voices**. Each chip has 16
+dots for its pattern, the tall bright dot is the playhead, and a chip tints as it
+fires, so you can see what is making the sound. Tap a chip to select and hear it;
+the bar down its right edge mutes.
 
 | Control | What it does |
 | --- | --- |
@@ -103,8 +104,8 @@ right edge mutes.
 | BPM ± | Tempo, 50–200 |
 | Swing | Pushes every off-beat 16th late for a shuffled feel |
 | Echo | Dotted-eighth feedback delay, re-synced when the tempo changes |
-| Key | Root note for Bass, Stab and Lead |
-| Progression | Four-bar chord move the Bass and Stab follow; **Hold** stays on the root |
+| Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
+| Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root |
 | Pattern | Tap steps to toggle, drag to paint; Clear track empties this one |
 | Pattern (Lead) | Eight rows of the minor scale — tap a row to write that note, tap it again to erase |
 | Level | Per-track volume |
@@ -123,9 +124,10 @@ track per clip in the current pack.
 
 Bass advances through its interval set one note per hit, so `Oct` gives the
 octave-jumping pulse italo-disco is built on; Stab plays the same intervals as a
-chord. Both follow the current chord: pick a **Progression** and they move
-through it, one chord per bar, raising the third on the major chords so the
-harmony stays in key.
+chord. Both follow the current chord: pick a **Giro** — Fermo, Tramonto, Onda or
+Nostalgia — and they move through it, one chord per bar, raising the third on the
+major chords so the harmony stays in key. The picker names the chords it will
+actually play in your key, so `Tramonto` in A reads `Am · F · C · G`.
 
 **Lead** is the melody, two detuned sawtooths straight into the delay. Select it
 and the Pattern strip becomes eight rows — one per degree of the natural minor
@@ -140,15 +142,15 @@ tune stay recognisable while the harmony moves under it.
   octave bass on eighths, chord stabs on the off-beats, echo on.
 - **Talk** — 84 BPM, swung and sparse, voices playing in full.
 - **Chop** — 96 BPM, voices sliced to two steps.
-- **Rush** — 132 BPM, sixteenth hats and bass, everything chopped to one step.
-
-The four below are melodic. They are written from italo-disco idioms — the minor
+The five below are melodic. They are written from italo-disco idioms — the minor
 four-bar turnaround, octave bass, off-beat open hat, dotted-eighth echo — not
 transcribed from any particular record.
 
 - **Sunset** — 118 BPM, i–VI–III–VII, an eight-note lead arching up to the octave.
 - **Riviera** — 126 BPM, i–VII–VI–VII, sixteenth bass under a descending lead.
 - **Notturno** — 104 BPM, i–iv–VI–V, slow and sparse, five notes in the bar.
+- **Passeggiata** — 108 BPM, i–iv–VI–V, half-time and wide: kick on 1 and 9 only,
+  three long lead notes, and the whole spoken phrase unchopped underneath.
 - **Corsa** — 134 BPM, i–VI–III–VII, sixteenth everything and a running lead.
 
 Patterns live in memory only, so they reset when the app is closed.

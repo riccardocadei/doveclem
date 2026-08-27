@@ -30,8 +30,10 @@
     --synth:#34404F; --synth-wash:#DEE4EC;
     --tone:#1F6F8B; --tone-wash:#DCEAEF;
     --lead:#B8306E; --lead-wash:#F7E1EA;
+    --kbd-w:#FBFCFD; --kbd-b:#2A323C; --kbd-ink:#5B6573;
     --bar:#C3CBD6;
     --shadow-lo:0 1px 2px rgba(16,21,28,.09);
+    --shadow-pop:0 8px 24px rgba(16,21,28,.18);
     --inset:inset 0 1px 2px rgba(16,21,28,.10);
     --wide:'Archivo','Helvetica Neue',Arial,sans-serif;
     --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
@@ -47,8 +49,10 @@
       --synth:#9DB0C6; --synth-wash:#222B36;
       --tone:#67C7E0; --tone-wash:#152A32;
       --lead:#FF6FA8; --lead-wash:#331521;
+      --kbd-w:#AEB8C6; --kbd-b:#0B0E12; --kbd-ink:#4A5462;
       --bar:#39424F;
       --shadow-lo:0 1px 2px rgba(0,0,0,.4);
+      --shadow-pop:0 8px 24px rgba(0,0,0,.6);
       --inset:inset 0 1px 3px rgba(0,0,0,.5);
     }
   }
@@ -62,8 +66,10 @@
     --synth:#9DB0C6; --synth-wash:#222B36;
     --tone:#67C7E0; --tone-wash:#152A32;
     --lead:#FF6FA8; --lead-wash:#331521;
+    --kbd-w:#AEB8C6; --kbd-b:#0B0E12; --kbd-ink:#4A5462;
     --bar:#39424F;
     --shadow-lo:0 1px 2px rgba(0,0,0,.4);
+    --shadow-pop:0 8px 24px rgba(0,0,0,.6);
     --inset:inset 0 1px 3px rgba(0,0,0,.5);
   }
 
@@ -100,7 +106,7 @@
     margin:0; font-size:1.4rem; font-weight:700;
     font-variation-settings:'wdth' 122; letter-spacing:-.005em; line-height:1;
   }
-  .wordmark em { font-style:normal; color:var(--accent); }
+  .wordmark em { font-style:normal; color:var(--ink); }
   .tag {
     font-family:var(--mono); font-size:.625rem; font-weight:500;
     letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
@@ -146,8 +152,65 @@
   }
   .bpm small { font-family:var(--mono); font-size:.5rem; letter-spacing:.14em; color:var(--ink-3); }
 
-  .mods { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.45rem; }
-  .mods .wide { grid-column:1 / -1; }
+  .mods { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:.45rem; }
+  .pick { position:relative; }
+  .pickbtn { width:100%; display:flex; align-items:baseline; justify-content:center; gap:.4rem; }
+  .pickbtn small { font-size:.5rem; letter-spacing:.15em; color:var(--ink-3); }
+  .pickbtn b { font-weight:600; color:var(--ink); text-transform:none; letter-spacing:.02em; }
+  .pickbtn[aria-expanded="true"] { border-color:var(--accent); }
+  .pickbtn[aria-expanded="true"] b { color:var(--accent); }
+
+  /* one popover panel, spanning the whole mods row so the keyboard has room */
+  .pop {
+    position:absolute; top:calc(100% + .4rem); left:0; right:0; z-index:30;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    box-shadow:var(--shadow-pop); padding:.6rem;
+  }
+  .oct { display:flex; align-items:center; justify-content:center; gap:.55rem; margin-bottom:.5rem; }
+  .oct button {
+    width:1.7rem; height:1.7rem; border-radius:8px; background:var(--sunk);
+    font-size:.85rem; line-height:1; color:var(--ink-2);
+  }
+  .oct span {
+    font-family:var(--mono); font-size:.7rem; font-weight:600;
+    min-width:2.6rem; text-align:center; font-variant-numeric:tabular-nums;
+  }
+  /* no gap: the black keys' percentage offsets land on the white-key seams */
+  .kbd { position:relative; height:4rem; display:flex; gap:0; touch-action:none; }
+  .wk {
+    flex:1 1 0; min-width:0; background:var(--kbd-w); border-radius:0 0 5px 5px;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent);
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:.24rem;
+    font-family:var(--mono); font-size:.5rem; color:var(--kbd-ink);
+  }
+  .bk {
+    position:absolute; top:0; width:9%; height:62%; z-index:2;
+    background:var(--kbd-b); border-radius:0 0 4px 4px;
+  }
+  .wk[data-on="1"], .bk[data-on="1"] { background:var(--accent); color:var(--accent-ink); }
+
+  .plist { display:flex; flex-direction:column; gap:.25rem; }
+  .plist button {
+    display:flex; align-items:baseline; justify-content:space-between; gap:.6rem;
+    padding:.45rem .55rem; border-radius:8px; background:var(--sunk); text-align:left;
+  }
+  .plist button[aria-pressed="true"] { background:var(--accent); }
+  .plist i { font-style:normal; font-family:var(--wide); font-size:.8rem; font-weight:600; color:var(--ink); }
+  .plist small { font-family:var(--mono); font-size:.53rem; letter-spacing:.08em; color:var(--ink-3); }
+  .plist button[aria-pressed="true"] i,
+  .plist button[aria-pressed="true"] small { color:var(--accent-ink); }
+  .pchords {
+    margin-top:.5rem; text-align:center; font-family:var(--mono);
+    font-size:.6rem; letter-spacing:.11em; color:var(--ink-2);
+  }
+
+  /* the mixer is split: the machine first, then whoever is talking */
+  .mix-h {
+    grid-column:1 / -1; padding:.1rem .15rem 0;
+    font-family:var(--mono); font-size:.5625rem; font-weight:600;
+    letter-spacing:.15em; text-transform:uppercase; color:var(--ink-3);
+  }
+  .mix-h:not(:first-child) { margin-top:.35rem; }
   .chip {
     font-family:var(--mono); font-size:.625rem; font-weight:500;
     letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2);
@@ -344,6 +407,7 @@
   .seg button[aria-pressed="true"] { background:var(--accent); color:var(--accent-ink); font-weight:600; }
 
   .grooves { display:grid; grid-template-columns:repeat(4,1fr); gap:.4rem; }
+  .grooves .chip { padding:.55rem .25rem; font-size:.5625rem; letter-spacing:.05em; }
 
   .hint {
     margin:.1rem 0 0; font-family:var(--mono); font-size:.5625rem;
@@ -434,10 +498,31 @@
   </section>
 
   <section class="mods">
+    <div class="pick">
+      <button class="chip pickbtn" id="keyBtn" type="button" aria-expanded="false" aria-haspopup="true">
+        <small>Key</small><b id="keyNow">C2</b>
+      </button>
+    </div>
+    <div class="pick">
+      <button class="chip pickbtn" id="progBtn" type="button" aria-expanded="false" aria-haspopup="true">
+        <small>Giro</small><b id="progNow">Fermo</b>
+      </button>
+    </div>
     <button class="chip" id="swing" type="button" aria-pressed="false">Swing</button>
     <button class="chip" id="echo" type="button" aria-pressed="false">Echo</button>
-    <select class="keysel" id="key" aria-label="Key"></select>
-    <select class="keysel wide" id="prog" aria-label="Chord progression"></select>
+
+    <div class="pop" id="keyPop" hidden>
+      <div class="oct">
+        <button type="button" id="octDown" aria-label="Octave down">&minus;</button>
+        <span id="octNow">C2</span>
+        <button type="button" id="octUp" aria-label="Octave up">+</button>
+      </div>
+      <div class="kbd" id="kbd"></div>
+    </div>
+    <div class="pop" id="progPop" hidden>
+      <div class="plist" id="plist"></div>
+      <div class="pchords" id="pchords"></div>
+    </div>
   </section>
 
   <div class="sect">
@@ -524,8 +609,8 @@
     <b>Mixer</b> shows every track at once &mdash; the tall dot is the playhead, the bar on
     the right mutes. <b>Pattern</b> programs the selected track; <b>Track</b> sets its level.
     Speed and Chop are what turn a voice memo into an instrument. Pick <b>Lead</b> and the
-    lane becomes eight rows of a minor scale &mdash; tap one to write a note. The progression
-    under Key moves the bass and the chord stab through four bars.
+    lane becomes eight rows of a minor scale &mdash; tap one to write a note. <b>Giro</b>, next to
+    Key, moves the bass and the chord stab through four bars.
   </p>
 </main>
 
@@ -565,11 +650,14 @@ const DEGS = SCALE.length;
 /* Four bars of minor is the italo backbone. `d` is the chord root in semitones
    above the key, `m` marks the ones that stay minor. */
 const PROGS = [
-  { name:'Hold on the root',  ch:[{d:0,m:1}] },
-  { name:'i · VI · III · VII', ch:[{d:0,m:1},{d:8,m:0},{d:3,m:0},{d:10,m:0}] },
-  { name:'i · VII · VI · VII', ch:[{d:0,m:1},{d:10,m:0},{d:8,m:0},{d:10,m:0}] },
-  { name:'i · iv · VI · V',    ch:[{d:0,m:1},{d:5,m:1},{d:8,m:0},{d:7,m:0}] },
+  { name:'Fermo',     roman:'one chord',          ch:[{d:0,m:1}] },
+  { name:'Tramonto',  roman:'i · VI · III · VII', ch:[{d:0,m:1},{d:8,m:0},{d:3,m:0},{d:10,m:0}] },
+  { name:'Onda',      roman:'i · VII · VI · VII', ch:[{d:0,m:1},{d:10,m:0},{d:8,m:0},{d:10,m:0}] },
+  { name:'Nostalgia', roman:'i · iv · VI · V',    ch:[{d:0,m:1},{d:5,m:1},{d:8,m:0},{d:7,m:0}] },
 ];
+
+/* Chord roots read better flat in a minor key — Ab, not G#. */
+const FLATS = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
 
 let packIx = 0;
 let TRACKS = [];
@@ -960,8 +1048,11 @@ const chopSeg = $('chop'), dirSeg = $('dir'), volI = $('vol'), volOut = $('volOu
 const sndI = $('snd'), sndOut = $('sndOut'), shapeRow = $('shapeRow'), shapeSeg = $('shape');
 const shapeLabel = $('shapeLabel'), voiceOnly = $('voiceOnly');
 const bpmVal = $('bpmVal'), swingBtn = $('swing'), echoBtn = $('echo');
-const keySel = $('key'), progSel = $('prog'), packSel = $('pack'), hint = $('hint');
-const rollEl = $('roll');
+const packSel = $('pack'), hint = $('hint'), rollEl = $('roll');
+const keyBtn = $('keyBtn'), keyNow = $('keyNow'), keyPop = $('keyPop');
+const kbd = $('kbd'), octNow = $('octNow');
+const progBtn = $('progBtn'), progNow = $('progNow'), progPop = $('progPop');
+const plist = $('plist'), pchords = $('pchords');
 
 let sel = 0;
 let trkEls = [], dotsByStep = [], cellEls = [];
@@ -974,7 +1065,15 @@ function buildMixer() {
   mixerEl.innerHTML = '';
   trkEls = [];
   dotsByStep = Array.from({ length: STEPS }, () => []);
+  let group = '';
   TRACKS.forEach((trk, i) => {
+    const g = trk.kind === 'voice' ? PACKS[packIx].name : 'Machine';
+    if (g !== group) {
+      group = g;
+      const h = document.createElement('div');
+      h.className = 'mix-h'; h.textContent = g;
+      mixerEl.appendChild(h);
+    }
     const box = document.createElement('div');
     box.className = 'trk' + (trk.kind === 'voice' ? ' voice' : trk.kind === 'note' ? ' note' : trk.kind === 'tone' ? ' tone' : '');
     box.dataset.sel = i === sel ? '1' : '0';
@@ -1241,22 +1340,86 @@ echoBtn.addEventListener('click', () => {
   if (echoWet) echoWet.gain.value = echoOn ? 0.9 : 0;
 });
 
-/* ---- key + pack ---- */
-for (let m = 24; m <= 45; m++) {
-  const o = document.createElement('option');
-  o.value = String(m); o.textContent = 'Key ' + noteName(m);
-  keySel.appendChild(o);
+/* ---- key, giro, pack ---- */
+// One octave of piano. Black keys sit over the gaps between the white ones,
+// so they are placed by the index of the white key to their left.
+const WHITE = [0, 2, 4, 5, 7, 9, 11];
+const BLACK = [[1, 0], [3, 1], [6, 3], [8, 4], [10, 5]];
+const BASS_I = SYNTHS.findIndex(v => v.id === 'bass');
+
+function buildKbd() {
+  WHITE.forEach(pc => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'wk'; b.dataset.pc = String(pc);
+    b.textContent = NOTE_NAMES[pc];
+    b.setAttribute('aria-label', NOTE_NAMES[pc]);
+    kbd.appendChild(b);
+  });
+  BLACK.forEach(pair => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'bk'; b.dataset.pc = String(pair[0]);
+    b.style.left = ((pair[1] + 1) * (100 / 7) - 4.5).toFixed(2) + '%';
+    b.setAttribute('aria-label', NOTE_NAMES[pair[0]]);
+    kbd.appendChild(b);
+  });
 }
-keySel.value = String(key);
-keySel.addEventListener('change', () => { key = Number(keySel.value); labelRoll(); });
+
+const octOf = m => Math.floor(m / 12) - 1;
+function setKey(m) {
+  key = Math.max(24, Math.min(47, m));   // C1 to B2: the range the bass sits in
+  keyNow.textContent = octNow.textContent = noteName(key);
+  kbd.querySelectorAll('button').forEach(b => {
+    b.dataset.on = Number(b.dataset.pc) === key % 12 ? '1' : '0';
+  });
+  labelRoll(); paintChords();
+}
+function setProg(i) {
+  progIx = i;
+  progNow.textContent = PROGS[progIx].name;
+  plist.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.p) === progIx)));
+  paintChords();
+}
+function paintChords() {
+  pchords.textContent = PROGS[progIx].ch
+    .map(c => FLATS[(((key + c.d) % 12) + 12) % 12] + (c.m ? 'm' : '')).join('  ·  ');
+}
+
+let popOpen = null;
+function showPop(name) {
+  popOpen = name;
+  keyPop.hidden = name !== 'key';
+  progPop.hidden = name !== 'prog';
+  keyBtn.setAttribute('aria-expanded', String(name === 'key'));
+  progBtn.setAttribute('aria-expanded', String(name === 'prog'));
+}
+keyBtn.addEventListener('click', () => showPop(popOpen === 'key' ? null : 'key'));
+progBtn.addEventListener('click', () => showPop(popOpen === 'prog' ? null : 'prog'));
+// Anything outside the two pickers dismisses whichever panel is open.
+addEventListener('pointerdown', e => {
+  if (!popOpen) return;
+  const t = e.target;
+  if (t && t.closest && (t.closest('.pick') || t.closest('.pop'))) return;
+  showPop(null);
+}, true);
+
+kbd.addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  await boot();
+  setKey(12 * (octOf(key) + 1) + Number(b.dataset.pc));
+  if (ctx) fire(BASS_I, ctx.currentTime + 0.005);   // hear the key you picked
+});
+$('octDown').addEventListener('click', () => setKey(key - 12));
+$('octUp').addEventListener('click', () => setKey(key + 12));
 
 PROGS.forEach((g, i) => {
-  const o = document.createElement('option');
-  o.value = String(i); o.textContent = g.name;
-  progSel.appendChild(o);
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.p = String(i);
+  b.innerHTML = '<i>' + g.name + '</i><small>' + g.roman + '</small>';
+  b.addEventListener('click', () => { setProg(i); showPop(null); });
+  plist.appendChild(b);
 });
-progSel.value = String(progIx);
-progSel.addEventListener('change', () => { progIx = Number(progSel.value); });
 
 PACKS.forEach((p, i) => {
   const o = document.createElement('option');
@@ -1335,15 +1498,6 @@ const GROOVES = [
             bass:[0,4,8,12], v0:[0,2], v1:[4,6], v2:[12,14], v3:[8] },
     voice:{ 0:{rate:1,start:0.06,chop:2}, 1:{rate:1.25,start:0,chop:2},
             2:{rate:0.8,start:0.1,chop:2}, 3:{rate:1,start:0.2,chop:4} } },
-  { name:'Rush', bpm:132, swing:0, echo:true, key:38, prog:0, shape:{bass:3,stab:2},
-    steps:{ kick:[0,4,8,12], snare:[2,6,10,14], clap:[6,14],
-            hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], ohat:[2,6,10,14],
-            bass:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], stab:[0,8],
-            v0:[0,1,8,9], v1:[4], v2:[12], v3:[6,7], v4:[10] },
-    voice:{ 0:{rate:1.5,start:0.04,chop:1}, 1:{rate:1.5,start:0,chop:1},
-            2:{rate:1.5,start:0,chop:1}, 3:{rate:2,start:0.15,chop:1},
-            4:{rate:1.4,start:0.3,chop:2} } },
-
   /* The four below are melodic: `lead` steps carry [step, scale degree]. They
      are built from italo idioms — octave bass, offbeat open hat, the minor
      four-bar turnaround — not from any particular record. */
@@ -1365,6 +1519,11 @@ const GROOVES = [
             lead:[[0,2],[6,4],[8,3],[12,2],[14,0]],
             v2:[12] },
     voice:{ 2:{rate:0.9,start:0.08,chop:4} } },
+  { name:'Passeggiata', bpm:108, swing:0, echo:true, key:33, prog:3, shape:{bass:0,stab:3},
+    steps:{ kick:[0,8], snare:[4,12], ohat:[10],
+            bass:[0,6,8], lead:[[2,4],[10,2],[14,3]],
+            v0:[0] },
+    voice:{ 0:{rate:1,start:0,chop:0} } },
   { name:'Corsa', bpm:134, swing:0, echo:true, key:36, prog:1, shape:{bass:3,stab:2},
     steps:{ kick:[0,4,8,12], clap:[4,12],
             hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], ohat:[2,6,10,14],
@@ -1399,8 +1558,7 @@ function loadGroove(gi) {
     p.rate = o.rate; p.start = o.start; p.chop = o.chop; p.rev = false;
   });
   shapeOf = { ...g.shape };
-  key = g.key; keySel.value = String(key); labelRoll();
-  progIx = g.prog || 0; progSel.value = String(progIx);
+  setKey(g.key); setProg(g.prog || 0);
   echoOn = g.echo; echoBtn.setAttribute('aria-pressed', String(echoOn));
   if (echoWet) echoWet.gain.value = echoOn ? 0.9 : 0;
   swing = g.swing; swingBtn.setAttribute('aria-pressed', String(!!swing));
@@ -1445,6 +1603,7 @@ addEventListener('keydown', async e => {
 buildTracks();
 buildSteps();
 buildRoll();
+buildKbd();
 buildMixer();
 select(0);
 loadGroove(0);
