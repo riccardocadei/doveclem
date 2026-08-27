@@ -48,7 +48,7 @@ const PACKS = [
 fits on the mixer chip, so keep it under about ten characters. A pack can hold
 any number of clips — the mixer grid grows to fit.
 
-Then bump `CACHE` in `sw.js` (`doveclem-v8` → `doveclem-v9`) so installed copies pick up
+Then bump `CACHE` in `sw.js` (`doveclem-v9` → `doveclem-v10`) so installed copies pick up
 the new `index.html`. The audio itself needs no `sw.js` change: new files are
 cached the first time they play.
 

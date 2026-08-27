@@ -1,5 +1,5 @@
 // Bump CACHE on every release or installed copies keep serving the old build.
-const CACHE = 'doveclem-v8';
+const CACHE = 'doveclem-v9';
 
 // Shell only. Audio is cached the first time it is fetched, so adding a voice
 // pack needs no change here.
@@ -42,13 +42,19 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
 
   // Network-first for the app shell, so a fix always reaches an installed copy
-  // instead of being masked by a stale cache entry.
+  // instead of being masked by a stale cache entry. `no-store` is the point:
+  // plain fetch() still reads the browser's own HTTP cache, and Pages sends
+  // max-age=600, so without it an installed copy serves the previous build for
+  // ten minutes after every deploy. Refetched by URL because a navigate Request
+  // cannot be handed to fetch() together with an init.
   if (isDoc(req)) {
     e.respondWith(
-      fetch(req)
+      fetch(req.url, { cache: 'no-store', credentials: 'same-origin' })
         .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+          }
           return res;
         })
         .catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
