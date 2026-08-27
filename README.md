@@ -6,9 +6,9 @@ swappable pack of recordings, each with speed, start-point, chop-length and
 reverse controls, so a spoken phrase can be played as a rhythmic part.
 
 The name is an homage to *Dov’è Liana?*, the record the sound comes from — and
-the reason the opening screen keeps the italo sleeve's gradient and slats, with a
-map of the world where the sun used to be. The packs are the point: it started
-with Clementina, but any voice works, so the app is not named after one person.
+the reason it sounds the way it does. The opening screen is a plain map of the
+world, in ink on paper. The packs are the point: it started with Clementina, but
+any voice works, so the app is not named after one person.
 
 Everything is client-side: no build step, no dependencies, no runtime network
 calls. The drums, bass and chords are generated with the Web Audio API; the
@@ -48,7 +48,7 @@ const PACKS = [
 fits on the mixer chip, so keep it under about ten characters. A pack can hold
 any number of clips — the mixer grid grows to fit.
 
-Then bump `CACHE` in `sw.js` (`doveclem-v7` → `doveclem-v8`) so installed copies pick up
+Then bump `CACHE` in `sw.js` (`doveclem-v8` → `doveclem-v9`) so installed copies pick up
 the new `index.html`. The audio itself needs no `sw.js` change: new files are
 cached the first time they play.
 
