@@ -157,6 +157,8 @@
   .mods > .pick { grid-column:span 6; }
   .mods > .selwrap { grid-column:span 6; }
   .mods > .chip { grid-column:span 3; }
+  .mods > .filt { grid-column:span 9; }
+  .filt label { color:var(--ink-3); }
   .pick { position:relative; }
   .pickbtn { width:100%; display:flex; align-items:baseline; justify-content:center; gap:.4rem; }
   .pickbtn small { font-size:.5rem; letter-spacing:.15em; color:var(--ink-3); }
@@ -350,6 +352,9 @@
   .cell[data-on="1"] { background:var(--tint); }
   .cell[data-cue="1"] { outline:2px solid var(--tint); outline-offset:1px; }
   .cell[data-on="1"][data-cue="1"] { filter:brightness(1.25); }
+  /* accent and ghost: the same step, leaning on it or barely touching it */
+  .cell[data-v="a"] { box-shadow:var(--inset), inset 0 0 0 2px color-mix(in srgb, var(--ink) 55%, transparent); }
+  .cell[data-v="g"] { background:color-mix(in srgb, var(--tint) 38%, var(--cell)); }
   /* note lane: one row per scale degree, high to low. The two root rows are
      tinted so you can find the octave without a label gutter. */
   .roll { --tint:var(--lead); display:flex; flex-direction:column; gap:2px; touch-action:none; }
@@ -404,6 +409,11 @@
     box-shadow:0 1px 2px color-mix(in srgb, var(--ink) 40%, transparent);
   }
   .hnd:focus-visible::after { outline:2px solid var(--ink); outline-offset:2px; }
+  .bars { margin-bottom:.45rem; }
+  /* a hairline on whichever bar the playhead is in, so you can see where the
+     music is while you edit somewhere else */
+  .bars button[data-live="1"] { box-shadow:inset 0 0 0 1px var(--accent); }
+  .dots u[data-bar="1"] { margin-left:2px; }
   .scope-t {
     margin:.3rem .1rem .55rem; font-family:var(--mono); font-size:.5625rem;
     letter-spacing:.09em; color:var(--ink-3); display:flex; justify-content:space-between;
@@ -558,6 +568,13 @@
       <select id="timbre" aria-label="Strumento"></select>
     </div>
 
+    <button class="chip" id="pump" type="button" aria-pressed="false">Pompa</button>
+    <div class="knob filt">
+      <label for="filter">Filtro</label>
+      <input type="range" id="filter" min="0" max="1" step="0.01" value="1">
+      <output id="filterOut">aperto</output>
+    </div>
+
     <div class="pop" id="keyPop" hidden>
       <div class="oct">
         <button type="button" id="octDown" aria-label="Octave down">&minus;</button>
@@ -586,6 +603,12 @@
     <div class="sect" style="padding:0 .1rem .1rem">
       <span class="sect-x" id="laneName" style="color:var(--ink);font-family:var(--wide);font-size:.85rem;font-weight:600;text-transform:none;letter-spacing:0">Kick</span>
       <span class="sect-x" id="laneMeta">tap to program</span>
+    </div>
+    <div class="seg bars" id="bars">
+      <button type="button" data-b="0" aria-pressed="true">1</button>
+      <button type="button" data-b="1">2</button>
+      <button type="button" data-b="2">3</button>
+      <button type="button" data-b="3">4</button>
     </div>
     <div class="steps" id="steps"></div>
     <div class="roll" id="roll" hidden></div>
@@ -697,7 +720,11 @@ const PACKS = [
   {"id": "clem", "name": "Clem", "clips": [{"label": "Mi chiamo Clementina", "short": "Clementina", "url": "audio/clem/01-mi-chiamo-clementina.m4a"}, {"label": "Marco 1", "short": "Marco 1", "url": "audio/clem/02-marco-1.m4a"}, {"label": "Marco 2", "short": "Marco 2", "url": "audio/clem/03-marco-2.m4a"}, {"label": "Suona un po\u2019 sbagliato", "short": "Sbagliato", "url": "audio/clem/04-suona-un-po-sbagliato.m4a"}, {"label": "Theory", "short": "Theory", "url": "audio/clem/05-theory.m4a"}]},
   {"id": "nonni", "name": "Nonni", "clips": [{"label": "Ho un disturbo", "short": "Disturbo", "url": "audio/nonni/01-ho-un-disturbo.m4a"}, {"label": "Che devo fa, uuuu", "short": "Uuu", "url": "audio/nonni/02-che-devo-fa.m4a"}, {"label": "Alea iacta est", "short": "Alea", "url": "audio/nonni/03-alea-iacta-est.m4a"}, {"label": "A Gi\u00e0, sta zitto", "short": "Sta zitto", "url": "audio/nonni/04-a-gia-sta-zitto.m4a"}, {"label": "Cicoria col peperoncino", "short": "Cicoria", "url": "audio/nonni/05-cicoria-peperoncino.m4a"}, {"label": "Mozzarellina de bufala", "short": "Mozzarella", "url": "audio/nonni/06-mozzarellina-de-bufala.m4a"}, {"label": "Quanto mi piace Antonio Tanca", "short": "Antonio", "url": "audio/nonni/07-antonio-tanca.m4a"}]}
 ];
-const STEPS = 16;
+/* Four bars of sixteen. The giro was already four bars long while the pattern
+   was one, so everything repeated underneath a harmony that moved — the single
+   biggest reason a groove read as a loop rather than a piece. The lane shows
+   one bar at a time; the mixer shows all four at beat resolution. */
+const STEPS = 64, BAR = 16, BARS = STEPS / BAR;
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
 /* Synth voices. `echo` is the default send into the delay bus; `tone` marks the
@@ -761,6 +788,12 @@ let progIx = 0, bar = 0;
 /* Italo is saws; fisa re-voices the stab and the lead as accordion reeds. The
    drums and the bass are the same either way. */
 let timbre = 'italo';
+/* A step holds its velocity rather than a flag: 0 off, 1 normal, and the two
+   below. Identical hits are most of what makes a machine sound like one. */
+const VELS = [1, 1.4, 0.5];
+let pump = false, filtV = 1;
+const PUMP = 0.55;                     // how far the kick pushes everything down
+const filtHz = () => 200 * Math.pow(100, filtV);
 
 const clips = () => PACKS[packIx].clips;
 const scale = () => MODES[PROGS[progIx].mode || 'min'];
@@ -782,7 +815,7 @@ function buildTracks() {
     })));
   pattern = TRACKS.map((t, i) => {
     const old = prevPat[i];
-    return old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(false);
+    return old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(0);
   });
   notes = TRACKS.map((t, i) => {
     const old = prevNotes[i];
@@ -797,6 +830,7 @@ function buildTracks() {
 
 /* ---------------- audio ---------------- */
 let ctx = null, bus = null, master = null, delay = null, echoWet = null;
+let duck = null, filt = null;
 let chan = [];
 const buffers = [], reversed = [], voiceLive = [], arpN = [];
 let ready = false, booted = false;
@@ -820,7 +854,16 @@ function openAudio() {
   glue.connect(ctx.destination);
   bus = glue;
 
-  master = ctx.createGain(); master.gain.value = 0.85; master.connect(bus);
+  // One knob across the whole record. Wide open by default, so it does nothing
+  // until you move it.
+  filt = ctx.createBiquadFilter();
+  filt.type = 'lowpass'; filt.Q.value = 0.9; filt.frequency.value = filtHz();
+  filt.connect(bus);
+  master = ctx.createGain(); master.gain.value = 0.85; master.connect(filt);
+
+  // The kick pushes everything else out of its way for a fifth of a second.
+  // Drums bypass this; bass, chords, lead and voices go through it.
+  duck = ctx.createGain(); duck.gain.value = 1; duck.connect(master);
 
   // Dotted-eighth feedback delay — the echo italo-disco runs everything through.
   delay = ctx.createDelay(2);
@@ -828,8 +871,11 @@ function openAudio() {
   const fb = ctx.createGain(); fb.gain.value = 0.33;
   const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 2600;
   delay.connect(damp); damp.connect(fb); fb.connect(delay);
+  // The echo returns through master, not straight to the bus, so the filter is
+  // genuinely across everything — an echo that stays bright while you close the
+  // filter is the giveaway that the knob is only on half the record.
   echoWet = ctx.createGain(); echoWet.gain.value = echoOn ? 0.9 : 0;
-  delay.connect(echoWet); echoWet.connect(bus);
+  delay.connect(echoWet); echoWet.connect(master);
 
   chan = [];
   try {
@@ -845,7 +891,8 @@ function chanOf(i) {
   const out = ctx.createGain(), snd = ctx.createGain();
   out.gain.value = mute[i] ? 0 : vol[i];
   snd.gain.value = mute[i] ? 0 : send[i] * vol[i];
-  out.connect(master); snd.connect(delay);
+  out.connect(TRACKS[i] && TRACKS[i].kind === 'synth' ? master : duck);
+  snd.connect(delay);
   chan[i] = { out, snd };
   return chan[i];
 }
@@ -854,7 +901,18 @@ function reChan(i) {
   chan[i].out.gain.value = mute[i] ? 0 : vol[i];
   chan[i].snd.gain.value = mute[i] ? 0 : send[i] * vol[i];
 }
-function tap(node, i) { const c = chanOf(i); node.connect(c.out); node.connect(c.snd); }
+/* Set by fire() for the length of one voice call. Putting it here rather than
+   threading a gain through all eight voice functions keeps them unchanged, and
+   every one of them already routes through tap. */
+let hitVel = 1;
+function tap(node, i) {
+  const c = chanOf(i);
+  if (hitVel !== 1) {
+    const g = ctx.createGain(); g.gain.value = hitVel;
+    node.connect(g); node = g;
+  }
+  node.connect(c.out); node.connect(c.snd);
+}
 
 function decode(ab) {
   return new Promise((res, rej) => {
@@ -1015,6 +1073,54 @@ function reeds(t, i, midi, peak, hold) {
   air.start(t); air.stop(off);
 }
 
+/* An electric piano is a struck tine: a sine for the body, and a bright partial
+   a little over four times up that is gone almost at once. Nothing sustains —
+   the note is loudest the instant it is hit and falls away from there. */
+function tine(t, i, midi, peak) {
+  midi.forEach(m => {
+    const f = freq(m);
+    const g = ctx.createGain(); env(g, t, peak, 1.5); tap(g, i);
+    [0, 7].forEach(cents => {          // two, barely apart, for the chorus
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.value = f; o.detune.value = cents;
+      o.connect(g); o.start(t); o.stop(t + 1.6);
+    });
+    const bell = ctx.createOscillator(), bg = ctx.createGain();
+    bell.type = 'sine'; bell.frequency.value = f * 4.02;
+    env(bg, t, peak * 0.45, 0.12); bell.connect(bg); tap(bg, i);
+    bell.start(t); bell.stop(t + 0.15);
+  });
+}
+
+/* Drawbars: sines at whole multiples of the note, loudest at the bottom, held
+   flat for as long as the key is down. The tremolo here is the one LFO in this
+   file that belongs — a Leslie really does swing the sound around a room, which
+   is not the same claim as the accordion's, where the wobble is beating. */
+function drawbars(t, i, midi, peak, hold) {
+  const off = t + hold + 0.07;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(peak, t + 0.012);
+  g.gain.setValueAtTime(peak, t + hold);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.05);
+  const trem = ctx.createGain(); trem.gain.value = 1;
+  const lfo = ctx.createOscillator(), lg = ctx.createGain();
+  lfo.frequency.value = 6.2; lg.gain.value = 0.13;
+  lfo.connect(lg); lg.connect(trem.gain);
+  lfo.start(t); lfo.stop(off);
+  g.connect(trem); tap(trem, i);
+  midi.forEach(m => {
+    const f = freq(m);
+    [[1, 1], [2, 0.5], [3, 0.28], [4, 0.2], [6, 0.12]].forEach(r => {
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.value = f * r[0];
+      const og = ctx.createGain(); og.gain.value = r[1];
+      o.connect(og); og.connect(g);
+      o.start(t); o.stop(off);
+    });
+  });
+}
+
 /* The left hand of the box. A stradella bass button sounds two reeds an octave
    apart — round, short, and gone before the chord answers it. No filter sweep
    and no resonance: that sweep is the italo saw, and under an accordion it
@@ -1039,6 +1145,11 @@ function button(t, i, f) {
 
 const VOICES = {
   kick(t, i) {
+    if (pump && duck) {
+      duck.gain.setValueAtTime(1, t);
+      duck.gain.linearRampToValueAtTime(1 - PUMP, t + 0.012);
+      duck.gain.linearRampToValueAtTime(1, t + 0.20);
+    }
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'sine';
     o.frequency.setValueAtTime(148, t);
@@ -1079,8 +1190,10 @@ const VOICES = {
     const k = arpN[i] || 0;
     arpN[i] = k + 1;
     const c = chordAt();
-    const f = freq(c.root + qual(iv[k % iv.length], c.maj));
-    if (timbre === 'fisa') return button(t, i, f);
+    const m = c.root + qual(iv[k % iv.length], c.maj), f = freq(m);
+    if (timbre === 'fisa')   return button(t, i, f);
+    if (timbre === 'rhodes') return tine(t, i, [m], 0.24);
+    if (timbre === 'organo') return drawbars(t, i, [m], 0.26, Math.max(0.1, stepDur()));
     const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 7;
     lp.frequency.setValueAtTime(2600, t);
@@ -1095,9 +1208,10 @@ const VOICES = {
   },
   stab(t, i) {
     const c = chordAt(), iv = SHAPES[shapeOf.stab].iv, root = c.root + 24;
-    if (timbre === 'fisa')
-      return reeds(t, i, iv.map(s => root + qual(s, c.maj)), 0.028,
-                   Math.max(0.24, stepDur() * 3));
+    const md = iv.map(x => root + qual(x, c.maj));
+    if (timbre === 'fisa')   return reeds(t, i, md, 0.028, Math.max(0.24, stepDur() * 3));
+    if (timbre === 'rhodes') return tine(t, i, md, 0.041);
+    if (timbre === 'organo') return drawbars(t, i, md, 0.038, Math.max(0.22, stepDur() * 3));
     iv.forEach((semi, k) => {
       const o = ctx.createOscillator(); o.type = 'sawtooth';
       o.frequency.value = freq(root + qual(semi, c.maj)) * (k % 2 ? 1.004 : 1);
@@ -1112,7 +1226,9 @@ const VOICES = {
   // tune sounding like a tune while the harmony moves under it.
   lead(t, i, s) {
     const n = leadNote(s == null ? 0 : notes[i][s]);
-    if (timbre === 'fisa') return reeds(t, i, [n], 0.075, Math.max(0.2, stepDur() * 2));
+    if (timbre === 'fisa')   return reeds(t, i, [n], 0.075, Math.max(0.2, stepDur() * 2));
+    if (timbre === 'rhodes') return tine(t, i, [n], 0.22);
+    if (timbre === 'organo') return drawbars(t, i, [n], 0.21, Math.max(0.2, stepDur() * 2));
     const f = freq(n);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4;
     lp.frequency.setValueAtTime(5200, t);
@@ -1192,8 +1308,10 @@ function fireVoice(vi, t, i) {
 function fire(i, t, s) {
   if (mute[i]) return;
   const trk = TRACKS[i];
+  hitVel = (s == null ? 1 : pattern[i][s]) || 1;
   if (trk.kind === 'voice') fireVoice(trk.ci, t, i);
   else VOICES[trk.id](t, i, s);
+  hitVel = 1;
 }
 
 /* ---------------- sequencer ---------------- */
@@ -1209,7 +1327,7 @@ function scheduler() {
     queue.push({ s: cursor, t: t });
     nextTime += stepDur();
     cursor = (cursor + 1) % STEPS;
-    if (cursor === 0) bar++;          // the chord turns over with the bar
+    bar = Math.floor(cursor / BAR);   // the giro and the pattern are both four bars
   }
 }
 function start() {
@@ -1268,11 +1386,12 @@ const packSel = $('pack'), msgEl = $('msg'), rollEl = $('roll');
 const keyBtn = $('keyBtn'), keyNow = $('keyNow'), keyPop = $('keyPop');
 const kbd = $('kbd'), octNow = $('octNow');
 const progBtn = $('progBtn'), progNow = $('progNow'), progPop = $('progPop');
-const plist = $('plist'), pchords = $('pchords');
+const plist = $('plist'), pchords = $('pchords'), barsEl = $('bars');
+const pumpBtn = $('pump'), filtI = $('filter'), filtOut = $('filterOut');
 const tbrSel = $('timbre');
 
-let sel = 0;
-let trkEls = [], dotsByStep = [], cellEls = [];
+let sel = 0, page = 0;               // which of the four bars the lane is showing
+let trkEls = [], dotsByBeat = [], cellEls = [];
 let rollEls = [], rollCols = [];
 
 function say(text) { msgEl.innerHTML = text; msgEl.hidden = false; }
@@ -1281,7 +1400,7 @@ function say(text) { msgEl.innerHTML = text; msgEl.hidden = false; }
 function buildMixer() {
   mixerEl.innerHTML = '';
   trkEls = [];
-  dotsByStep = Array.from({ length: STEPS }, () => []);
+  dotsByBeat = Array.from({ length: STEPS / 4 }, () => []);
   let group = '';
   TRACKS.forEach((trk, i) => {
     const g = trk.kind === 'voice' ? PACKS[packIx].name : 'Machine';
@@ -1302,10 +1421,13 @@ function buildMixer() {
     hit.innerHTML = '<span class="trk-name">' + trk.short + '</span>';
     const dots = document.createElement('span');
     dots.className = 'dots';
-    for (let s = 0; s < STEPS; s++) {
+    // Sixty-four dots would be under two pixels each on a phone, so the mixer
+    // reads the pattern a beat at a time: sixteen dots over four bars.
+    for (let b = 0; b < STEPS / 4; b++) {
       const u = document.createElement('u');
+      if (b && b % 4 === 0) u.dataset.bar = '1';
       dots.appendChild(u);
-      dotsByStep[s].push(u);
+      dotsByBeat[b].push(u);
     }
     hit.appendChild(dots);
     hit.addEventListener('pointerdown', async () => {
@@ -1337,7 +1459,7 @@ function buildMixer() {
 
 function buildSteps() {
   stepsEl.innerHTML = ''; rulerEl.innerHTML = ''; cellEls = [];
-  for (let s = 0; s < STEPS; s++) {
+  for (let s = 0; s < BAR; s++) {
     if (s && s % 4 === 0) {
       const g = document.createElement('span'); g.className = 'gap'; stepsEl.appendChild(g);
       const g2 = document.createElement('span'); g2.className = 'gap'; rulerEl.appendChild(g2);
@@ -1347,7 +1469,6 @@ function buildSteps() {
     c.dataset.on = '0';
     c.dataset.beat = s % 4 === 0 ? '1' : '0';
     c.dataset.s = String(s);
-    c.setAttribute('aria-label', 'Step ' + (s + 1));
     stepsEl.appendChild(c); cellEls.push(c);
     const lab = document.createElement('span');
     lab.textContent = s % 4 === 0 ? String(s / 4 + 1) : '·';
@@ -1359,13 +1480,13 @@ function buildSteps() {
 // so the ruler underneath lines up with both.
 function buildRoll() {
   rollEl.innerHTML = ''; rollEls = [];
-  rollCols = Array.from({ length: STEPS }, () => []);
+  rollCols = Array.from({ length: BAR }, () => []);
   for (let d = DEGS - 1; d >= 0; d--) {
     const row = document.createElement('div');
     row.className = 'rrow';
     row.dataset.root = (d === 0 || d === DEGS - 1) ? '1' : '0';
     rollEls[d] = [];
-    for (let s = 0; s < STEPS; s++) {
+    for (let s = 0; s < BAR; s++) {
       if (s && s % 4 === 0) {
         const g = document.createElement('span'); g.className = 'gap'; row.appendChild(g);
       }
@@ -1384,19 +1505,26 @@ function buildRoll() {
 function labelRoll() {
   for (let d = 0; d < DEGS; d++) {
     const n = noteName(leadNote(d));
-    for (let s = 0; s < STEPS; s++)
-      rollEls[d][s].setAttribute('aria-label', 'Step ' + (s + 1) + ', ' + n);
+    for (let i = 0; i < BAR; i++)
+      rollEls[d][i].setAttribute('aria-label',
+        'Bar ' + (page + 1) + ', step ' + (i + 1) + ', ' + n);
   }
 }
 
 let lastCue = -1, litEls = [];
 function paintCue(s) {
-  if (lastCue >= 0 && dotsByStep[lastCue]) dotsByStep[lastCue].forEach(u => { u.dataset.cue = '0'; });
-  if (lastCue >= 0 && rollCols[lastCue]) rollCols[lastCue].forEach(b => { b.dataset.cue = '0'; });
-  if (s >= 0 && dotsByStep[s]) dotsByStep[s].forEach(u => { u.dataset.cue = '1'; });
-  if (s >= 0 && rollCols[s]) rollCols[s].forEach(b => { b.dataset.cue = '1'; });
+  const beat = s >= 0 ? Math.floor(s / 4) : -1;
+  // the lane only lights up when the playhead is on the bar you are looking at
+  const col = (s >= 0 && Math.floor(s / BAR) === page) ? s % BAR : -1;
+  if (lastCue >= 0 && dotsByBeat[Math.floor(lastCue / 4)])
+    dotsByBeat[Math.floor(lastCue / 4)].forEach(u => { u.dataset.cue = '0'; });
+  rollCols.forEach(c => c.forEach(b => { b.dataset.cue = '0'; }));
+  if (beat >= 0 && dotsByBeat[beat]) dotsByBeat[beat].forEach(u => { u.dataset.cue = '1'; });
+  if (col >= 0 && rollCols[col]) rollCols[col].forEach(b => { b.dataset.cue = '1'; });
   lastCue = s;
-  cellEls.forEach((c, i) => { c.dataset.cue = i === s ? '1' : '0'; });
+  cellEls.forEach((c, i) => { c.dataset.cue = i === col ? '1' : '0'; });
+  barsEl.querySelectorAll('button').forEach(b =>
+    b.dataset.live = (s >= 0 && Number(b.dataset.b) === Math.floor(s / BAR)) ? '1' : '0');
 
   litEls.forEach(el => { el.dataset.hit = '0'; });
   litEls = [];
@@ -1409,23 +1537,47 @@ function paintCue(s) {
 }
 function paintDots(i) {
   const us = trkEls[i] ? trkEls[i].querySelectorAll('.dots u') : [];
-  pattern[i].forEach((v, s) => { if (us[s]) us[s].dataset.on = v ? '1' : '0'; });
+  const row = pattern[i];
+  for (let b = 0; b < us.length; b++) {
+    const on = row[b * 4] || row[b * 4 + 1] || row[b * 4 + 2] || row[b * 4 + 3];
+    us[b].dataset.on = on ? '1' : '0';
+  }
 }
 function paintRoll() {
-  const on = pattern[sel], nt = notes[sel];
+  const on = pattern[sel], nt = notes[sel], off = page * BAR;
   for (let d = 0; d < DEGS; d++)
-    for (let s = 0; s < STEPS; s++)
-      rollEls[d][s].dataset.on = (on[s] && nt[s] === d) ? '1' : '0';
+    for (let i = 0; i < BAR; i++)
+      rollEls[d][i].dataset.on = (on[off + i] && nt[off + i] === d) ? '1' : '0';
 }
+/* The lane always shows sixteen cells; which sixteen is `page`. Cells carry the
+   absolute step in dataset.s, so every editing handler reads them unchanged. */
+function setPage(p) {
+  page = Math.max(0, Math.min(BARS - 1, p));
+  const off = page * BAR;
+  cellEls.forEach((c, i) => {
+    c.dataset.s = String(off + i);
+    c.setAttribute('aria-label', 'Bar ' + (page + 1) + ', step ' + (i + 1));
+  });
+  for (let d = 0; d < DEGS; d++)
+    for (let i = 0; i < BAR; i++) rollEls[d][i].dataset.s = String(off + i);
+  barsEl.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.b) === page)));
+  labelRoll(); paintLane();
+}
+barsEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) setPage(Number(b.dataset.b));
+});
+
 function paintLane() {
   const on = pattern[sel], kind = TRACKS[sel].kind, melodic = kind === 'note';
   stepsEl.hidden = melodic; rollEl.hidden = !melodic;
   if (melodic) paintRoll();
-  else cellEls.forEach((c, i) => { c.dataset.on = on[i] ? '1' : '0'; });
+  else cellEls.forEach((c, i) => paintCell(c, on[page * BAR + i]));
   stepsEl.className = 'steps' + (kind === 'voice' ? ' voice' : kind === 'tone' ? ' tone' : '');
   laneName.textContent = TRACKS[sel].name;
   const n = on.filter(Boolean).length;
-  laneMeta.textContent = n ? n + ' of 16' : melodic ? 'tap a row to write a note' : 'tap to program';
+  laneMeta.textContent = n ? n + ' of ' + STEPS : melodic ? 'tap a row to write a note' : 'tap to program';
 }
 
 const bars = peaks => peaks.map(p => '<i style="height:' + Math.max(7, p * 100).toFixed(1) + '%"></i>').join('');
@@ -1489,54 +1641,77 @@ function select(i) {
 }
 
 /* ---- step editing ---- */
-let painting = null;
+let painting = null, startS = -1, moved = false;
+function paintCell(c, v) {
+  c.dataset.on = v ? '1' : '0';
+  c.dataset.v = v === VELS[1] ? 'a' : v === VELS[2] ? 'g' : '';
+}
 function setStep(s, v) {
   if (pattern[sel][s] === v) return;
   pattern[sel][s] = v;
-  cellEls[s].dataset.on = v ? '1' : '0';
+  const c = cellEls[s - page * BAR];
+  if (c) paintCell(c, v);
   paintDots(sel);
   const n = pattern[sel].filter(Boolean).length;
-  laneMeta.textContent = n ? n + ' of 16' : 'tap to program';
+  laneMeta.textContent = n ? n + ' of ' + STEPS : 'tap to program';
 }
-stepsEl.addEventListener('pointerdown', async e => {
+stepsEl.addEventListener('pointerdown', e => {
   const c = e.target.closest('.cell');
   if (!c) return;
   e.preventDefault();
-  await boot();
+  // The step state is settled synchronously: putting it behind `await boot()`
+  // meant a fast tap could have its pointerup land before its pointerdown had
+  // taken effect. Auditioning the hit can catch up afterwards.
   const s = Number(c.dataset.s);
-  painting = !pattern[sel][s];
-  setStep(s, painting);
-  if (painting && !playing && ctx) fire(sel, ctx.currentTime + 0.005);
-  stepsEl.setPointerCapture(e.pointerId);
+  startS = s; moved = false;
+  const lit = !pattern[sel][s];
+  if (lit) { painting = VELS[0]; setStep(s, VELS[0]); }
+  else painting = 0;          // armed to erase, but a tap that stays put cycles
+  try { stepsEl.setPointerCapture(e.pointerId); } catch (err) {}
+  boot().then(() => { if (lit && !playing && ctx) fire(sel, ctx.currentTime + 0.005, s); });
 });
 stepsEl.addEventListener('pointermove', e => {
   if (painting === null) return;
   const el = document.elementFromPoint(e.clientX, e.clientY);
   const c = el && el.closest ? el.closest('.cell') : null;
-  if (c) setStep(Number(c.dataset.s), painting);
+  if (!c) return;
+  const s = Number(c.dataset.s);
+  // jitter inside the cell you pressed is still a tap; you have to reach
+  // another cell before this counts as a drag
+  if (s === startS && !moved) return;
+  if (!moved) { moved = true; setStep(startS, painting); }
+  setStep(s, painting);
 });
 ['pointerup', 'pointercancel'].forEach(ev =>
-  stepsEl.addEventListener(ev, () => { painting = null; }));
+  stepsEl.addEventListener(ev, () => {
+    // tapping a step that was already on walks it round: normal, accent, ghost, off
+    if (!moved && painting === 0 && startS >= 0) {
+      const k = VELS.indexOf(pattern[sel][startS]);
+      setStep(startS, k >= 0 && k + 1 < VELS.length ? VELS[k + 1] : 0);
+      if (pattern[sel][startS] && !playing && ctx) fire(sel, ctx.currentTime + 0.005, startS);
+    }
+    painting = null; startS = -1; moved = false;
+  }));
 
 let writing = null;
 function setNote(s, d, on) {
-  pattern[sel][s] = on;
+  pattern[sel][s] = on ? 1 : 0;
   if (on) notes[sel][s] = d;
   paintRoll(); paintDots(sel);
   const n = pattern[sel].filter(Boolean).length;
-  laneMeta.textContent = on ? noteName(leadNote(d)) + ' · ' + n + ' of 16'
-                            : n ? n + ' of 16' : 'tap a row to write a note';
+  laneMeta.textContent = on ? noteName(leadNote(d)) + ' · ' + n + ' of ' + STEPS
+                            : n ? n + ' of ' + STEPS : 'tap a row to write a note';
 }
-rollEl.addEventListener('pointerdown', async e => {
+rollEl.addEventListener('pointerdown', e => {
   const c = e.target.closest('.rc');
   if (!c) return;
   e.preventDefault();
-  await boot();
   const s = Number(c.dataset.s), d = Number(c.dataset.d);
   writing = { on: !(pattern[sel][s] && notes[sel][s] === d), d: d };
   setNote(s, d, writing.on);
-  if (writing.on && !playing && ctx) fire(sel, ctx.currentTime + 0.005, s);
-  rollEl.setPointerCapture(e.pointerId);
+  const on = writing.on;
+  try { rollEl.setPointerCapture(e.pointerId); } catch (err) {}
+  boot().then(() => { if (on && !playing && ctx) fire(sel, ctx.currentTime + 0.005, s); });
 });
 rollEl.addEventListener('pointermove', e => {
   if (writing === null) return;
@@ -1570,9 +1745,26 @@ echoBtn.addEventListener('click', () => {
   if (echoWet) echoWet.gain.value = echoOn ? 0.9 : 0;
 });
 /* What the pitched tracks are played *on*. The drums never change. */
+pumpBtn.addEventListener('click', () => {
+  pump = !pump;
+  pumpBtn.setAttribute('aria-pressed', String(pump));
+  if (!pump && duck) duck.gain.cancelScheduledValues(ctx.currentTime), duck.gain.value = 1;
+});
+function setFilt(v) {
+  filtV = Math.max(0, Math.min(1, v));
+  filtI.value = String(filtV);
+  const hz = filtHz();
+  filtOut.textContent = filtV >= 0.995 ? 'aperto'
+    : hz < 1000 ? Math.round(hz) + ' Hz' : (hz / 1000).toFixed(1) + ' k';
+  if (filt) filt.frequency.setTargetAtTime(hz, ctx.currentTime, 0.02);
+}
+filtI.addEventListener('input', () => setFilt(Number(filtI.value)));
+
 const TIMBRES = [
-  { id:'italo', name:'Synth italo' },
-  { id:'fisa',  name:'Fisarmonica' },
+  { id:'italo',  name:'Synth italo' },
+  { id:'fisa',   name:'Fisarmonica' },
+  { id:'rhodes', name:'Rhodes' },
+  { id:'organo', name:'Organo' },
 ];
 TIMBRES.forEach(t => {
   const o = document.createElement('option');
@@ -1805,10 +1997,21 @@ const GROOVES = [
      eighths carries the hook, the stab answers off the beat, and the lead stays
      under eight notes so it is a tune and not a run. */
   { name:'Liana', bpm:118, swing:0, echo:true, key:36, prog:'Tramonto', shape:{bass:1,stab:3},
-    steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
-            bass:[0,2,4,6,8,10,12,14], stab:[3,7,11,15],
-            lead:[[0,4],[2,3],[6,2],[8,4],[11,6],[14,4]],
-            v0:[0] },
+    /* Written across all four bars rather than tiled from one, so nothing
+       repeats under a harmony that moves: the lead is a four-bar tune, the stab
+       sits out the last half bar, and there is a fill into the top. Every other
+       groove here is one bar and gets tiled — play them back to back and the
+       difference is the whole point of the change. */
+    steps:{ kick:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,58,60,62],
+            clap:[4,12,20,28,36,44,52,60,63],
+            ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
+            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,
+                  42,44,46,48,50,52,54,56,58,60,62],
+            stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55],
+            lead:[[0,4],[2,3],[6,2],[8,4],[11,6],[14,4],[16,3],[18,2],
+                       [22,0],[24,2],[27,4],[30,2],[32,4],[35,6],[38,7],[40,6],
+                       [44,4],[48,2],[50,4],[54,3],[56,2],[58,1],[62,0]],
+            v0:[0,32] },
     voice:{ 0:{rate:1,start:0,chop:0} } },
   { name:'Sunset', bpm:118, swing:0, echo:true, key:36, prog:'Tramonto', shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
@@ -1893,13 +2096,22 @@ function loadGroove(gi) {
   const g = GROOVES[gi];
   pattern.forEach(row => row.fill(false));
   notes.forEach(row => row.fill(0));
+  // A groove that never names a step past the first bar is written for one bar
+  // and gets tiled across all four; one that does is taken as authored whole,
+  // which is how a groove earns a fill or a bar that drops out.
+  const oneBar = Object.keys(g.steps).every(k =>
+    g.steps[k].every(v => (v.length ? v[0] : v) < BAR));
+  const reps = oneBar ? BARS : 1;
   TRACKS.forEach((trk, i) => {
     const k = trk.kind === 'voice' ? 'v' + trk.ci : trk.id;
     (g.steps[k] || []).forEach(v => {
-      const s = v.length ? v[0] : v;
-      if (s >= STEPS) return;
-      pattern[i][s] = true;
-      notes[i][s] = v.length ? v[1] : 0;
+      const s0 = v.length ? v[0] : v, d = v.length ? v[1] : 0;
+      for (let b = 0; b < reps; b++) {
+        const s = s0 + b * BAR;
+        if (s >= STEPS) break;
+        pattern[i][s] = 1;
+        notes[i][s] = d;
+      }
     });
     mute[i] = false; vol[i] = 1; send[i] = trk.echo;
     if (trkEls[i]) {
@@ -1921,7 +2133,7 @@ function loadGroove(gi) {
   swing = g.swing; swingBtn.setAttribute('aria-pressed', String(!!swing));
   setBpm(g.bpm);
   TRACKS.forEach((_, i) => paintDots(i));
-  paintLane(); paintPanel();
+  setPage(0); paintPanel();
 }
 
 function renderGrooves() {
@@ -1968,6 +2180,7 @@ buildSteps();
 buildRoll();
 buildKbd();
 buildMixer();
+setPage(0);
 select(0);
 loadGroove(0);
 select(NS);   // land on the first voice, the interesting part

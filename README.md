@@ -1,6 +1,6 @@
 # Dov’è Clem
 
-A 16-step drum machine built around voice memos. Eight synthesised voices — five
+A four-bar, 64-step drum machine built around voice memos. Eight synthesised voices — five
 drums, a bass arp, a chord stab and a lead you write note by note — plus a
 swappable pack of recordings, each with speed, start-point, chop-length and
 reverse controls, so a spoken phrase can be played as a rhythmic part.
@@ -131,12 +131,15 @@ the bar down its right edge mutes.
 | --- | --- |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
+| Pompa | Sidechain: the kick pushes bass, chords, lead and voices out of its way for a fifth of a second. It is also where the headroom comes from — a full bar of Liana clips 101 samples without it and none with it |
+| Filtro | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
+| Bar 1–4 | Which of the four bars the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
 | Swing | Pushes the off-beat eighths late for a shuffled feel. Sixteenths ride along inside whichever eighth they sit in |
 | Echo | Dotted-eighth feedback delay, re-synced when the tempo changes |
 | Strumento | What the pitched tracks are played on — **Synth italo** (saws) or **Fisarmonica** (reeds). Stab, Lead and Bass follow it; the drums never change |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
 | Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root. The giro also picks the Lead's scale |
-| Pattern | Tap steps to toggle, drag to paint; Clear track empties this one |
+| Pattern | Tap an empty step to write it. Tap a written one again to walk it round: normal, accent, ghost, off. Drag to paint a run, or drag from a written step to erase |
 | Pattern (Lead) | Eight rows of the giro's scale — tap a row to write that note, tap it again to erase |
 | Volume | Per-track level |
 | More | Opens the rest of the panel — Echo send, Speed, and playback direction |
@@ -148,6 +151,30 @@ the bar down its right edge mutes.
 | Forward / Reverse | Sample direction — the waveform mirrors so you are still looking at what you hear |
 | Cut / Overlap | Whether re-firing a voice stops the one already playing or lets them stack |
 | Keys 1–9 | Trigger the first nine tracks from a keyboard |
+
+### Four bars
+
+The pattern is 64 steps — four bars of sixteen. It used to be one bar, which
+meant the drums, the bass and the lead all repeated underneath a giro that
+moved through four chords, and that mismatch is most of why a groove read as a
+loop rather than a piece. Now the two line up: bar 1 sits on the first chord,
+bar 4 on the fourth.
+
+The lane shows one bar at a time, picked with the four buttons above it; the
+mixer shows all sixty-four steps at once, a dot per beat, because sixty-four
+dots on a mixer chip would be under two pixels each. A groove that never names
+a step past the first bar is written for one bar and gets tiled across all
+four. **Liana** is the one authored across the whole pattern — a four-bar lead,
+a stab that sits out the last half bar, a fill into the top. Put it next to any
+of the others and the difference is the point of the change.
+
+### Accents
+
+A step holds a velocity rather than a flag. Tapping a written step walks it
+round — normal, accent, ghost, off — and identical hits are a good part of what
+makes a machine sound like one. Dragging still paints and erases, so the two
+do not get in each other's way: you have to stay on the step you pressed for a
+tap to count as a tap.
 
 ### Swing
 
@@ -205,9 +232,18 @@ have to agree: a natural-minor lead over a major chord sits a minor third on top
 of a major one, which sours everything. Pick a major giro and the Lead's eight
 rows become major without you doing anything.
 
-**Lead** is the melody, two detuned sawtooths straight into the delay — or, with
-**Suono** on *Fisa*, three accordion reeds a few cents apart, whose beating against
-each other is the wobble you hear in a real box. Select
+**Lead** is the melody. What it is played on is the **Strumento** picker, which
+moves the Stab and the Bass with it:
+
+| | |
+| --- | --- |
+| Synth italo | Detuned sawtooths straight into the delay |
+| Fisarmonica | Three reeds a few cents apart; the beating between them is the wobble |
+| Rhodes | A struck tine — a sine body under a bright partial that dies at once |
+| Organo | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
+
+All four are levelled against each other, so changing instrument changes the
+sound and not the volume. Select
 it and the Pattern strip becomes eight rows — one per degree of the giro's scale
 from the Key, root rows tinted so you can find the octave. Tap a row to
 place a note, drag to draw a line, tap a lit cell again to erase. The lead stays
