@@ -449,11 +449,40 @@
   .grooves { display:grid; grid-template-columns:repeat(4,1fr); gap:.4rem; }
   .grooves .chip { padding:.55rem .25rem; font-size:.5625rem; letter-spacing:.05em; }
 
-  .hint {
-    margin:.1rem 0 0; font-family:var(--mono); font-size:.5625rem;
-    line-height:1.7; letter-spacing:.04em; color:var(--ink-3);
+  /* Anything the app has to tell you. Errors used to overwrite the help text
+     and never come back; they get their own line now. */
+  .msg {
+    margin:.1rem 0 .3rem; padding:.45rem .55rem .45rem .6rem; border-radius:8px;
+    background:var(--sunk); border-left:2px solid var(--accent); color:var(--ink-2);
+    font-family:var(--mono); font-size:.5625rem; line-height:1.6; letter-spacing:.04em;
   }
-  .hint b { color:var(--ink-2); font-weight:500; }
+  .notes { margin:.1rem 0 0; }
+  .notes summary {
+    font-family:var(--mono); font-size:.5625rem; font-weight:600; letter-spacing:.15em;
+    text-transform:uppercase; color:var(--ink-3); cursor:pointer;
+    padding:.35rem .15rem; list-style:none;
+  }
+  .notes summary::-webkit-details-marker { display:none; }
+  .notes summary::after, .adv summary::after { content:'  +'; }
+  .notes[open] summary::after, .adv[open] summary::after { content:'  \2013'; }
+  /* Everything you reach for less often. Volume, the waveform, Chop and Repeat
+     are the panel; the rest lives behind here. */
+  .adv { margin-top:.1rem; }
+  .adv summary {
+    font-family:var(--mono); font-size:.5625rem; font-weight:600; letter-spacing:.15em;
+    text-transform:uppercase; color:var(--ink-3); cursor:pointer;
+    padding:.3rem .1rem; list-style:none;
+  }
+  .adv summary::-webkit-details-marker { display:none; }
+  .adv[open] { padding-bottom:.1rem; }
+  .notes ul { margin:.1rem 0 0; padding:0; list-style:none; }
+  .notes li {
+    position:relative; padding:.2rem 0 .2rem .75rem;
+    font-family:var(--mono); font-size:.5625rem; line-height:1.7;
+    letter-spacing:.04em; color:var(--ink-3);
+  }
+  .notes li::before { content:'\B7'; position:absolute; left:.15rem; }
+  .notes b { color:var(--ink-2); font-weight:500; }
 
   .veil {
     position:fixed; inset:0; z-index:20; width:100%;
@@ -573,16 +602,7 @@
       <input type="range" id="vol" min="0" max="1.4" step="0.02" value="1">
       <output id="volOut">100%</output>
     </div>
-    <div class="knob">
-      <label for="snd">Echo</label>
-      <input type="range" id="snd" min="0" max="0.7" step="0.02" value="0">
-      <output id="sndOut">0%</output>
-    </div>
-    <div class="row2" id="shapeRow" hidden>
-      <span id="shapeLabel">Shape</span>
-      <div class="seg" id="shape"></div>
-    </div>
-    <div id="voiceOnly" hidden>
+    <div class="vonly">
       <div class="scope" id="scope">
         <div class="wave" id="scopeWave"></div>
         <div class="region" id="scopeRegion"></div>
@@ -592,11 +612,6 @@
                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></button>
       </div>
       <p class="scope-t"><span id="selText">0.00 &ndash; 0.00 s</span><span id="selLen">full</span></p>
-      <div class="knob" style="margin-bottom:.5rem">
-        <label for="rate">Speed</label>
-        <input type="range" id="rate" min="0.4" max="2.2" step="0.05" value="1">
-        <output id="rateOut">1.00&times;</output>
-      </div>
       <div class="row2" style="margin-bottom:.5rem">
         <span>Chop</span>
         <div class="seg" id="chop">
@@ -607,13 +622,6 @@
           <button type="button" data-len="0" aria-pressed="true">Full</button>
         </div>
       </div>
-      <div class="row2" style="margin-bottom:.5rem">
-        <span>Play</span>
-        <div class="seg" id="dir">
-          <button type="button" data-rev="0" aria-pressed="true">Forward</button>
-          <button type="button" data-rev="1">Reverse</button>
-        </div>
-      </div>
       <div class="row2">
         <span>Repeat</span>
         <div class="seg" id="over">
@@ -622,6 +630,30 @@
         </div>
       </div>
     </div>
+    <div class="row2" id="shapeRow" hidden>
+      <span id="shapeLabel">Shape</span>
+      <div class="seg" id="shape"></div>
+    </div>
+    <details class="adv">
+      <summary>More</summary>
+      <div class="knob">
+        <label for="snd">Echo</label>
+        <input type="range" id="snd" min="0" max="0.7" step="0.02" value="0">
+        <output id="sndOut">0%</output>
+      </div>
+      <div class="knob vonly" style="margin-top:.55rem">
+        <label for="rate">Speed</label>
+        <input type="range" id="rate" min="0.4" max="2.2" step="0.05" value="1">
+        <output id="rateOut">1.00&times;</output>
+      </div>
+      <div class="row2 vonly" style="margin-top:.55rem">
+        <span>Play</span>
+        <div class="seg" id="dir">
+          <button type="button" data-rev="0" aria-pressed="true">Forward</button>
+          <button type="button" data-rev="1">Reverse</button>
+        </div>
+      </div>
+    </details>
   </section>
 
   <div class="sect">
@@ -630,25 +662,40 @@
   </div>
   <section class="grooves" id="grooves"></section>
 
-  <p class="hint" id="hint">
-    <b>Mixer</b> shows every track at once &mdash; the tall dot is the playhead, the bar on
-    the right mutes. <b>Pattern</b> programs the selected track; <b>Track</b> sets its level.
-    Drag the two handles on the <b>waveform</b> to set where a clip starts and ends &mdash;
-    that, with Speed, is what turns a voice memo into an instrument. Pick <b>Lead</b> and the
-    lane becomes eight rows of the scale &mdash; tap one to write a note. <b>Giro</b>, next to
-    Key, moves the bass and the chord stab through four bars and decides whether that
-    scale is minor, major or the tarantella's. <b>Strumento</b> swaps the stab, lead and
-    bass between italo saws and accordion reeds; the drums never change. <b>Repeat</b>
-    decides whether re-firing a voice cuts the last one or stacks on it. Grooves cut to
-    a particular pack appear only when that pack is loaded.
-  </p>
+  <p class="msg" id="msg" hidden></p>
+
+  <details class="notes" id="notes">
+    <summary>Details</summary>
+    <ul>
+      <li><b>Mixer</b> shows every track at once. The tall bright dot is the playhead, the
+          bar down the right edge mutes. Tap a chip to select it and hear it.</li>
+      <li><b>Pattern</b> programs whichever track is selected &mdash; tap a step to toggle
+          it, drag to paint a run.</li>
+      <li><b>Lead</b> turns that lane into eight rows of the scale. Tap a row to write that
+          note; tap a lit one again to erase it.</li>
+      <li><b>Key</b> sets the root. <b>Giro</b> moves the bass and the chord stab through
+          four bars, and decides whether the scale is minor, major, or the tarantella's.</li>
+      <li><b>Strumento</b> is what the pitched tracks are played on &mdash; italo saws or
+          accordion reeds. The drums never change.</li>
+      <li><b>Swing</b> pushes the off-beat eighths late. <b>Echo</b> is the dotted-eighth
+          delay italo-disco runs everything through.</li>
+      <li><b>Waveform</b>: drag the two handles to set where a clip starts and ends. Press
+          anywhere in the strip and the nearer handle comes to you.</li>
+      <li><b>Chop</b> snaps that end to 1, 2, 4, 8 steps or Full. It is a length in
+          <i>steps</i>, so a chopped voice stays in time when you move the tempo.</li>
+      <li><b>Repeat</b> decides whether firing a voice again cuts the one already playing
+          or lets them stack.</li>
+      <li><b>Grooves</b> are presets. The ones cut to a particular pack show up only while
+          that pack is loaded.</li>
+    </ul>
+  </details>
 </main>
 
 <script>
 'use strict';
 const PACKS = [
-  {"id": "clem", "name": "Clem", "clips": [{"label": "Mi chiamo Clementina", "short": "Chiamo", "url": "audio/clem/01-mi-chiamo-clementina.m4a"}, {"label": "Marco 1", "short": "Marco 1", "url": "audio/clem/02-marco-1.m4a"}, {"label": "Marco 2", "short": "Marco 2", "url": "audio/clem/03-marco-2.m4a"}, {"label": "Suona un po\u2019 sbagliato", "short": "Sbagliato", "url": "audio/clem/04-suona-un-po-sbagliato.m4a"}, {"label": "Theory", "short": "Theory", "url": "audio/clem/05-theory.m4a"}]},
-  {"id": "nonni", "name": "Nonni", "clips": [{"label": "Ho un disturbo", "short": "Disturbo", "url": "audio/nonni/01-ho-un-disturbo.m4a"}, {"label": "Che devo fa, uuuu", "short": "Che devo", "url": "audio/nonni/02-che-devo-fa.m4a"}, {"label": "Alea iacta est", "short": "Alea", "url": "audio/nonni/03-alea-iacta-est.m4a"}, {"label": "A Gi\u00e0, sta zitto", "short": "Sta zitto", "url": "audio/nonni/04-a-gia-sta-zitto.m4a"}, {"label": "Cicoria col peperoncino", "short": "Cicoria", "url": "audio/nonni/05-cicoria-peperoncino.m4a"}, {"label": "Mozzarellina de bufala", "short": "Mozzarella", "url": "audio/nonni/06-mozzarellina-de-bufala.m4a"}, {"label": "Quanto mi piace Antonio Tanca", "short": "Antonio", "url": "audio/nonni/07-antonio-tanca.m4a"}]}
+  {"id": "clem", "name": "Clem", "clips": [{"label": "Mi chiamo Clementina", "short": "Clementina", "url": "audio/clem/01-mi-chiamo-clementina.m4a"}, {"label": "Marco 1", "short": "Marco 1", "url": "audio/clem/02-marco-1.m4a"}, {"label": "Marco 2", "short": "Marco 2", "url": "audio/clem/03-marco-2.m4a"}, {"label": "Suona un po\u2019 sbagliato", "short": "Sbagliato", "url": "audio/clem/04-suona-un-po-sbagliato.m4a"}, {"label": "Theory", "short": "Theory", "url": "audio/clem/05-theory.m4a"}]},
+  {"id": "nonni", "name": "Nonni", "clips": [{"label": "Ho un disturbo", "short": "Disturbo", "url": "audio/nonni/01-ho-un-disturbo.m4a"}, {"label": "Che devo fa, uuuu", "short": "Uuu", "url": "audio/nonni/02-che-devo-fa.m4a"}, {"label": "Alea iacta est", "short": "Alea", "url": "audio/nonni/03-alea-iacta-est.m4a"}, {"label": "A Gi\u00e0, sta zitto", "short": "Sta zitto", "url": "audio/nonni/04-a-gia-sta-zitto.m4a"}, {"label": "Cicoria col peperoncino", "short": "Cicoria", "url": "audio/nonni/05-cicoria-peperoncino.m4a"}, {"label": "Mozzarellina de bufala", "short": "Mozzarella", "url": "audio/nonni/06-mozzarellina-de-bufala.m4a"}, {"label": "Quanto mi piace Antonio Tanca", "short": "Antonio", "url": "audio/nonni/07-antonio-tanca.m4a"}]}
 ];
 const STEPS = 16;
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -1214,9 +1261,10 @@ const selText = $('selText'), selLen = $('selLen');
 const chopSeg = $('chop'), dirSeg = $('dir'), overSeg = $('over');
 const volI = $('vol'), volOut = $('volOut');
 const sndI = $('snd'), sndOut = $('sndOut'), shapeRow = $('shapeRow'), shapeSeg = $('shape');
-const shapeLabel = $('shapeLabel'), voiceOnly = $('voiceOnly');
+const shapeLabel = $('shapeLabel');
+const vonly = [].slice.call(document.querySelectorAll('.vonly'));
 const bpmVal = $('bpmVal'), swingBtn = $('swing'), echoBtn = $('echo');
-const packSel = $('pack'), hint = $('hint'), rollEl = $('roll');
+const packSel = $('pack'), msgEl = $('msg'), rollEl = $('roll');
 const keyBtn = $('keyBtn'), keyNow = $('keyNow'), keyPop = $('keyPop');
 const kbd = $('kbd'), octNow = $('octNow');
 const progBtn = $('progBtn'), progNow = $('progNow'), progPop = $('progPop');
@@ -1227,7 +1275,7 @@ let sel = 0;
 let trkEls = [], dotsByStep = [], cellEls = [];
 let rollEls = [], rollCols = [];
 
-function say(text) { hint.innerHTML = text; }
+function say(text) { msgEl.innerHTML = text; msgEl.hidden = false; }
 
 /* ---- mixer ---- */
 function buildMixer() {
@@ -1398,8 +1446,9 @@ function paintPanel() {
       (shapeOf[trk.id] === k) + '">' + s.name + '</button>').join('');
   }
 
-  voiceOnly.hidden = trk.kind !== 'voice';
-  if (trk.kind === 'voice') {
+  const isVoice = trk.kind === 'voice';
+  vonly.forEach(el => { el.hidden = !isVoice; });
+  if (isVoice) {
     const p = vparams[trk.ci], info = clipInfo[trk.ci];
     const peaks = info ? info.peaks : new Array(56).fill(0.12);
     const dur = info ? info.dur : 1;
@@ -1750,45 +1799,46 @@ overSeg.addEventListener('click', e => {
    loaded. The rest touch v0 alone, at speed and unchopped, and land on whatever
    is in the machine. `prog` is by name: adding a giro must not renumber these. */
 const GROOVES = [
-  { name:'Italo', bpm:120, swing:0, echo:true, key:36, prog:'Tramonto', shape:{bass:1,stab:3},
+  /* Ordered by how much they sound like a record rather than a demonstration.
+     Density is most of it: Italo lands 21 hits in a bar and reads as a groove,
+     while the one that used to sit here landed 59 and read as a wall. Bass on
+     eighths carries the hook, the stab answers off the beat, and the lead stays
+     under eight notes so it is a tune and not a run. */
+  { name:'Liana', bpm:118, swing:0, echo:true, key:36, prog:'Tramonto', shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
-            bass:[0,2,4,6,8,10,12,14], stab:[6,14],
+            bass:[0,2,4,6,8,10,12,14], stab:[3,7,11,15],
+            lead:[[0,4],[2,3],[6,2],[8,4],[11,6],[14,4]],
             v0:[0] },
     voice:{ 0:{rate:1,start:0,chop:0} } },
-  /* Melodic: `lead` steps carry [step, scale degree]. Built from italo idioms —
-     octave bass, offbeat open hat, the minor four-bar turnaround. */
   { name:'Sunset', bpm:118, swing:0, echo:true, key:36, prog:'Tramonto', shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
             bass:[0,2,4,6,8,10,12,14], stab:[0,8],
             lead:[[0,4],[3,3],[4,2],[6,4],[8,7],[11,6],[12,4],[14,2]],
             v0:[0] },
     voice:{ 0:{rate:1,start:0,chop:0} } },
+  { name:'Italo', bpm:120, swing:0, echo:true, key:36, prog:'Tramonto', shape:{bass:1,stab:3},
+    steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
+            bass:[0,2,4,6,8,10,12,14], stab:[6,14],
+            v0:[0] },
+    voice:{ 0:{rate:1,start:0,chop:0} } },
+  /* The fast one. Sixteenths only where they push — two pickups into the bar
+     and an open hat off the last eighth — instead of on every lane at once. */
+  { name:'Autostrada', bpm:128, swing:0, echo:true, key:33, prog:'Onda', shape:{bass:1,stab:3},
+    steps:{ kick:[0,4,8,12], clap:[4,12], hat:[2,6,10,14], ohat:[7,15],
+            bass:[0,2,3,4,6,8,10,11,12,14], stab:[6,14],
+            lead:[[0,7],[4,4],[7,3],[8,2],[12,4],[15,6]],
+            v0:[0,8] },
+    voice:{ 0:{rate:1,start:0,chop:2} } },
   { name:'Passeggiata', bpm:108, swing:0, echo:true, key:33, prog:'Nostalgia', shape:{bass:0,stab:3},
     steps:{ kick:[0,8], snare:[4,12], ohat:[10],
             bass:[0,6,8], lead:[[2,4],[10,2],[14,3]],
             v0:[0] },
     voice:{ 0:{rate:1,start:0,chop:0} } },
-  { name:'Corsa', bpm:134, swing:0, echo:true, key:36, prog:'Tramonto', shape:{bass:3,stab:2},
-    steps:{ kick:[0,4,8,12], clap:[4,12],
-            hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], ohat:[2,6,10,14],
-            bass:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], stab:[0,8],
-            lead:[[0,0],[1,2],[2,4],[3,2],[4,3],[5,2],[6,0],[8,4],[9,2],[10,0],
-                  [12,2],[14,4],[15,7]],
-            v0:[0,8] },
-    voice:{ 0:{rate:1.5,start:0.04,chop:1} } },
 
   /* Clem: five clips, and these four are cut to them. */
-  { name:'Talk', pack:'clem', bpm:84, swing:0.55, echo:false, key:33, prog:'Fermo', shape:{bass:0,stab:3},
-    steps:{ kick:[0,6,10], snare:[4,12], hat:[2,6,10,14], v0:[0], v1:[8] },
-    voice:{ 0:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:0} } },
-  { name:'Chop', pack:'clem', bpm:96, swing:0, echo:false, key:36, prog:'Fermo', shape:{bass:0,stab:3},
-    steps:{ kick:[0,3,8,11], snare:[4,12], hat:[2,6,10,14], clap:[7,15],
-            bass:[0,4,8,12], v0:[0,2], v1:[4,6], v2:[12,14], v3:[8] },
-    voice:{ 0:{rate:1,start:0.06,chop:2}, 1:{rate:1.25,start:0,chop:2},
-            2:{rate:0.8,start:0.1,chop:2}, 3:{rate:1,start:0.2,chop:4} } },
   { name:'Riviera', pack:'clem', bpm:126, swing:0, echo:true, key:33, prog:'Onda', shape:{bass:2,stab:3},
     steps:{ kick:[0,4,8,12], clap:[12], hat:[2,6,10,14], ohat:[6,14],
-            bass:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], stab:[4,12],
+            bass:[0,2,4,6,8,10,12,14], stab:[4,12],
             lead:[[0,7],[2,6],[4,4],[6,3],[8,2],[10,4],[12,3],[14,2]],
             v1:[8] },
     voice:{ 1:{rate:1.25,start:0,chop:2} } },
@@ -1798,6 +1848,14 @@ const GROOVES = [
             lead:[[0,2],[6,4],[8,3],[12,2],[14,0]],
             v2:[12] },
     voice:{ 2:{rate:0.9,start:0.08,chop:4} } },
+  { name:'Chop', pack:'clem', bpm:96, swing:0, echo:false, key:36, prog:'Fermo', shape:{bass:0,stab:3},
+    steps:{ kick:[0,3,8,11], snare:[4,12], hat:[2,6,10,14], clap:[7,15],
+            bass:[0,4,8,12], v0:[0,2], v1:[4,6], v2:[12,14], v3:[8] },
+    voice:{ 0:{rate:1,start:0.06,chop:2}, 1:{rate:1.25,start:0,chop:2},
+            2:{rate:0.8,start:0.1,chop:2}, 3:{rate:1,start:0.2,chop:4} } },
+  { name:'Talk', pack:'clem', bpm:84, swing:0.55, echo:false, key:33, prog:'Fermo', shape:{bass:0,stab:3},
+    steps:{ kick:[0,6,10], snare:[4,12], hat:[2,6,10,14], v0:[0], v1:[8] },
+    voice:{ 0:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:0} } },
 
   /* Nonni: accordion reeds, no delay, and the bass on one and three with the
      chord answering on two and four — the left hand of a box, oom and pah. */
@@ -1808,14 +1866,6 @@ const GROOVES = [
             lead:[[0,2],[3,1],[4,0],[6,2],[8,4],[10,2],[12,1],[14,0]],
             v0:[0], v3:[8] },
     voice:{ 0:{rate:1,start:0,chop:0}, 3:{rate:1,start:0,chop:8} } },
-  { name:'Tarantella', pack:'nonni', timbre:'fisa', bpm:142, swing:0, echo:false,
-    key:33, prog:'Tarantella', shape:{bass:1,stab:3},
-    steps:{ kick:[0,4,8,12], clap:[4,12],
-            hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], ohat:[2,6,10,14],
-            bass:[0,2,4,6,8,10,12,14], stab:[2,6,10,14],
-            lead:[[0,0],[2,2],[3,4],[4,2],[6,0],[8,4],[10,6],[11,4],[12,2],[14,0]],
-            v1:[0] },
-    voice:{ 1:{rate:1.2,start:0,chop:2} } },
   { name:'Osteria', pack:'nonni', timbre:'fisa', bpm:108, swing:0.55, echo:false,
     key:34, prog:'Osteria', shape:{bass:0,stab:3},
     steps:{ kick:[0,8], snare:[4,12], hat:[2,6,10,14],
@@ -1829,7 +1879,15 @@ const GROOVES = [
             bass:[0,10], stab:[6,14],
             lead:[[2,4],[6,2],[10,0],[14,2]],
             v6:[0], v0:[12] },
-    voice:{ 6:{rate:0.9,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } }
+    voice:{ 6:{rate:0.9,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
+  { name:'Tarantella', pack:'nonni', timbre:'fisa', bpm:142, swing:0, echo:false,
+    key:33, prog:'Tarantella', shape:{bass:1,stab:3},
+    steps:{ kick:[0,4,8,12], clap:[4,12],
+            hat:[0,2,4,6,8,10,12,14], ohat:[3,7,11,15],
+            bass:[0,2,4,6,8,10,12,14], stab:[2,6,10,14],
+            lead:[[0,0],[2,2],[3,4],[4,2],[6,0],[8,4],[10,6],[11,4],[12,2],[14,0]],
+            v1:[0] },
+    voice:{ 1:{rate:1.2,start:0,chop:2} } }
 ];
 function loadGroove(gi) {
   const g = GROOVES[gi];

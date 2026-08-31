@@ -139,6 +139,7 @@ the bar down its right edge mutes.
 | Pattern | Tap steps to toggle, drag to paint; Clear track empties this one |
 | Pattern (Lead) | Eight rows of the giro's scale — tap a row to write that note, tap it again to erase |
 | Volume | Per-track level |
+| More | Opens the rest of the panel — Echo send, Speed, and playback direction |
 | Track → Echo | How much of that track feeds the delay |
 | Arp / Chord | Bass walks the intervals one per hit; Stab plays them together |
 | Speed | Playback rate, 0.4×–2.2× — changes pitch along with tempo |
@@ -215,29 +216,35 @@ tune stay recognisable while the harmony moves under it.
 
 ### Grooves
 
-The strip shows the four shared grooves plus whichever four belong to the pack
-you have loaded. Shared grooves only ever trigger the first voice, unchopped and
-at speed, so they work with any recordings.
+Ordered by how much they sound like a record rather than a demonstration, best
+first. Density turns out to be most of it: **Italo** lands 21 hits in a bar and
+reads as a groove; the one that used to sit in this list landed 59 — hats on all
+sixteen, bass on all sixteen, a thirteen-note lead — and read as a wall. It is
+gone. Bass on eighths carries the hook, the stab answers off the beat, and a
+lead under eight notes stays a tune instead of becoming a run.
 
-**Shared.** Written from italo-disco idioms — the minor four-bar turnaround,
-octave bass, off-beat open hat, dotted-eighth echo — not transcribed from any
-particular record.
+The five shared ones only ever trigger the first voice, unchopped and at speed,
+so they work with any recordings.
 
-- **Italo** — 120 BPM, four-on-the-floor, off-beat open hat, claps on 2 and 4,
-  octave bass on eighths, chord stabs on the off-beats, echo on.
-- **Sunset** — 118 BPM, i–VI–III–VII, an eight-note lead arching up to the octave.
+- **Liana** — 118 BPM, i–VI–III–VII. Octave bass on eighths, stabs pushed onto
+  the last sixteenth of every beat, a six-note lead. The one to start from.
+- **Sunset** — 118 BPM, same turnaround, an eight-note lead arching up to the octave.
+- **Italo** — 120 BPM, four-on-the-floor, off-beat open hat, claps on 2 and 4.
+  The plainest of them, and the reference the others are measured against.
+- **Autostrada** — 128 BPM, i–VII–VI–VII. The fast one, with sixteenths only
+  where they push — two pickups into the bar, an open hat off the last eighth —
+  rather than on every lane at once.
 - **Passeggiata** — 108 BPM, i–iv–VI–V, half-time and wide: kick on 1 and 9 only,
-  three long lead notes, and the whole spoken phrase unchopped underneath.
-- **Corsa** — 134 BPM, i–VI–III–VII, sixteenth everything and a running lead.
+  three long lead notes, the whole spoken phrase unchopped underneath.
 
-**Clem.** Cut to those five clips.
+**Clem**, cut to those five clips.
 
-- **Talk** — 84 BPM, swung and sparse, voices playing in full.
-- **Chop** — 96 BPM, four voices sliced to two steps each.
-- **Riviera** — 126 BPM, i–VII–VI–VII, sixteenth bass under a descending lead.
+- **Riviera** — 126 BPM, i–VII–VI–VII, octave bass under a descending lead.
 - **Notturno** — 104 BPM, i–iv–VI–V, slow and sparse, five notes in the bar.
+- **Chop** — 96 BPM, four voices sliced to two steps each.
+- **Talk** — 84 BPM, swung and sparse, voices playing in full.
 
-**Nonni.** Accordion, no delay, and the bass on 1 and 3 with the chord answering
+**Nonni**: accordion, no delay, and the bass on 1 and 3 with the chord answering
 on 2 and 4 — the left hand of a box, oom and pah. The reeds are sawtooths rather
 than squares, because a free reed swings through its slot and so carries even
 harmonics as well as odd; squares are the sound of a toy organ. There is no
@@ -245,10 +252,10 @@ vibrato oscillator anywhere — the wobble is the beating between reeds tuned a
 few cents apart, and an LFO on top of that gives you a fairground.
 
 - **Stornello** — 100 BPM, I–IV–V–I in major, oom-pah, two voices trading.
-- **Tarantella** — 142 BPM, i–i–V–i in harmonic minor, sixteenth hats, off-beat
-  accordion, and a stuttered voice on the downbeat.
 - **Osteria** — 108 BPM, I–V–V–I, swung, with the long clip sliced underneath.
 - **Trastevere** — 84 BPM, I–IV–V–I, half-time and late, the long voice slowed to
   0.9× and given the whole bar to talk.
+- **Tarantella** — 142 BPM, i–i–V–i in harmonic minor, driving eighths and a
+  stuttered voice on the downbeat. The frantic one, so it sits last.
 
 Patterns live in memory only, so they reset when the app is closed.
