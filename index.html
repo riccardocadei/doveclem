@@ -151,20 +151,34 @@
 
   /* six columns so the two pickers halve the top row and the three toggles
      third the bottom one */
-  .mods { position:relative; display:grid; grid-template-columns:repeat(6,1fr); gap:.45rem; }
-  .mods > .pick { grid-column:span 3; }
-  .mods > .chip { grid-column:span 2; }
+  /* twelve columns: the two pickers halve the top row, then the instrument
+     takes half the second one and the two toggles split the rest */
+  .mods { position:relative; display:grid; grid-template-columns:repeat(12,1fr); gap:.45rem; }
+  .mods > .pick { grid-column:span 6; }
+  .mods > .selwrap { grid-column:span 6; }
+  .mods > .chip { grid-column:span 3; }
   .pick { position:relative; }
   .pickbtn { width:100%; display:flex; align-items:baseline; justify-content:center; gap:.4rem; }
   .pickbtn small { font-size:.5rem; letter-spacing:.15em; color:var(--ink-3); }
   .pickbtn b { font-weight:600; color:var(--ink); text-transform:none; letter-spacing:.02em; }
   .pickbtn[aria-expanded="true"] { border-color:var(--accent); }
   .pickbtn[aria-expanded="true"] b { color:var(--accent); }
-  /* a chip that names its own state instead of being on or off */
-  .duo { display:flex; align-items:baseline; justify-content:center; gap:.35rem; }
-  .duo small { font-size:.5rem; letter-spacing:.15em; color:var(--ink-3); }
-  .duo b { font-weight:600; color:var(--ink); text-transform:none; letter-spacing:.02em; }
-  .duo[aria-pressed="true"] small, .duo[aria-pressed="true"] b { color:var(--accent-ink); }
+  /* a chip holding a native select, so the phone gets its own wheel picker */
+  .selwrap {
+    position:relative; display:flex; align-items:baseline; justify-content:center; gap:.4rem;
+    background:var(--panel); border:1px solid var(--line-2); border-radius:10px;
+    padding:.55rem .5rem; box-shadow:var(--shadow-lo);
+  }
+  .selwrap small {
+    font-family:var(--mono); font-size:.5rem; font-weight:500; letter-spacing:.15em;
+    text-transform:uppercase; color:var(--ink-3);
+  }
+  .selwrap select {
+    -webkit-appearance:none; appearance:none; background:none; border:0; padding:0;
+    font-family:var(--wide); font-size:.75rem; font-weight:600; color:var(--ink);
+    letter-spacing:.01em; text-align:center; text-align-last:center; min-width:0;
+  }
+  .selwrap:focus-within { border-color:var(--accent); }
 
   /* one popover panel, spanning the whole mods row so the keyboard has room */
   .pop {
@@ -510,9 +524,10 @@
     </div>
     <button class="chip" id="swing" type="button" aria-pressed="false">Swing</button>
     <button class="chip" id="echo" type="button" aria-pressed="false">Echo</button>
-    <button class="chip duo" id="timbre" type="button" aria-pressed="false" aria-label="Timbre">
-      <small>Suono</small><b id="tbrNow">Italo</b>
-    </button>
+    <div class="selwrap">
+      <small>Strumento</small>
+      <select id="timbre" aria-label="Strumento"></select>
+    </div>
 
     <div class="pop" id="keyPop" hidden>
       <div class="oct">
@@ -554,7 +569,7 @@
   </div>
   <section class="panel-box" id="panel">
     <div class="knob">
-      <label for="vol">Level</label>
+      <label for="vol">Volume</label>
       <input type="range" id="vol" min="0" max="1.4" step="0.02" value="1">
       <output id="volOut">100%</output>
     </div>
@@ -592,11 +607,18 @@
           <button type="button" data-len="0" aria-pressed="true">Full</button>
         </div>
       </div>
-      <div class="row2">
+      <div class="row2" style="margin-bottom:.5rem">
         <span>Play</span>
         <div class="seg" id="dir">
           <button type="button" data-rev="0" aria-pressed="true">Forward</button>
           <button type="button" data-rev="1">Reverse</button>
+        </div>
+      </div>
+      <div class="row2">
+        <span>Repeat</span>
+        <div class="seg" id="over">
+          <button type="button" data-over="0" aria-pressed="true">Cut</button>
+          <button type="button" data-over="1">Overlap</button>
         </div>
       </div>
     </div>
@@ -615,9 +637,10 @@
     that, with Speed, is what turns a voice memo into an instrument. Pick <b>Lead</b> and the
     lane becomes eight rows of the scale &mdash; tap one to write a note. <b>Giro</b>, next to
     Key, moves the bass and the chord stab through four bars and decides whether that
-    scale is minor, major or the tarantella's. <b>Suono</b> swaps the stab and the lead
-    between italo saws and accordion reeds. Grooves cut to a particular pack appear
-    only when that pack is loaded.
+    scale is minor, major or the tarantella's. <b>Strumento</b> swaps the stab, lead and
+    bass between italo saws and accordion reeds; the drums never change. <b>Repeat</b>
+    decides whether re-firing a voice cuts the last one or stacks on it. Grooves cut to
+    a particular pack appear only when that pack is loaded.
   </p>
 </main>
 
@@ -721,7 +744,7 @@ function buildTracks() {
   vol  = TRACKS.map((t, i) => (prevVol[i] !== undefined ? prevVol[i] : 1));
   mute = TRACKS.map((t, i) => (prevMute[i] !== undefined ? prevMute[i] : false));
   send = TRACKS.map((t, i) => (prevSend[i] !== undefined ? prevSend[i] : t.echo));
-  vparams = clips().map(() => ({ rate:1, start:0, chop:0, rev:false }));
+  vparams = clips().map(() => ({ rate:1, start:0, chop:0, rev:false, over:false }));
   clipInfo = clips().map(() => null);
 }
 
@@ -1068,17 +1091,39 @@ function hatAt(t, i, dec, hz, peak) {
 
 function stepDur() { return 60 / bpm / 4; }
 
+/* Swing pushes the second half of every pair late. It has to work on the eighth
+   off-beats, because that is what these patterns are made of: swinging only the
+   odd sixteenths — which is what this did before — was silent on every groove
+   with nothing on an odd step, and that included all three that ship with Swing
+   already on. Sixteenths are pushed too, on top of whichever eighth they sit
+   in, so a sixteenth pattern shuffles instead of stiffening. Full swing puts
+   the off-beat two thirds of the way through the beat, the triplet feel. */
+function swingAt(s) {
+  if (!swing) return 0;
+  const a = swing * stepDur() * (2 / 3);
+  // A sixteenth stays centred inside whichever eighth it belongs to, so it
+  // inherits half that eighth's push instead of stacking on top of it. Stack
+  // them and the last sixteenth of the beat crashes into the downbeat.
+  return s % 2 ? a / 2 : (Math.floor(s / 2) % 2 ? a : 0);
+}
+
 function fireVoice(vi, t, i) {
   const p = vparams[vi];
   const buf = p.rev ? revOf(vi) : buffers[vi];
   if (!buf) return;
-  const prev = voiceLive[vi];
-  if (prev) {
-    try {
-      prev.g.gain.cancelScheduledValues(t);
-      prev.g.gain.setTargetAtTime(0, t, 0.005);
-      prev.s.stop(t + 0.06);
-    } catch (e) {}
+  // One voice is normally monophonic: retriggering cuts whatever it was
+  // saying, the way a sampler pad does. With Overlap on it stacks instead, so
+  // a phrase fired every few steps piles up on itself.
+  const live = voiceLive[vi] || (voiceLive[vi] = []);
+  if (!p.over) {
+    live.forEach(v => {
+      try {
+        v.g.gain.cancelScheduledValues(t);
+        v.g.gain.setTargetAtTime(0, t, 0.005);
+        v.s.stop(t + 0.06);
+      } catch (e) {}
+    });
+    live.length = 0;
   }
   const s = ctx.createBufferSource(), g = ctx.createGain();
   s.buffer = buf; s.playbackRate.value = p.rate;
@@ -1092,7 +1137,9 @@ function fireVoice(vi, t, i) {
     g.gain.linearRampToValueAtTime(0, t + len);
     s.stop(t + len + 0.02);
   }
-  voiceLive[vi] = { s, g };
+  const rec = { s: s, g: g };
+  live.push(rec);
+  s.onended = () => { const k = live.indexOf(rec); if (k >= 0) live.splice(k, 1); };
 }
 
 function fire(i, t, s) {
@@ -1110,7 +1157,7 @@ const AHEAD = 0.14, TICK = 25;
 
 function scheduler() {
   while (nextTime < ctx.currentTime + AHEAD) {
-    const t = nextTime + (cursor % 2 ? swing * stepDur() * 0.5 : 0);
+    const t = nextTime + swingAt(cursor);
     for (let i = 0; i < TRACKS.length; i++) if (pattern[i][cursor]) fire(i, t, cursor);
     queue.push({ s: cursor, t: t });
     nextTime += stepDur();
@@ -1133,9 +1180,9 @@ function stop() {
   playing = false;
   clearInterval(timer); cancelAnimationFrame(raf);
   queue.length = 0;
-  voiceLive.forEach(v => {
-    if (v) try { v.g.gain.setTargetAtTime(0, ctx.currentTime, 0.01); v.s.stop(ctx.currentTime + 0.1); } catch (e) {}
-  });
+  voiceLive.forEach(list => (list || []).forEach(v => {
+    try { v.g.gain.setTargetAtTime(0, ctx.currentTime, 0.01); v.s.stop(ctx.currentTime + 0.1); } catch (e) {}
+  }));
   voiceLive.length = 0;
   run.setAttribute('aria-pressed', 'false');
   runLabel.textContent = 'Play';
@@ -1164,7 +1211,8 @@ const scopeWave = $('scopeWave'), scopeRegion = $('scopeRegion');
 const rate = $('rate'), rateOut = $('rateOut');
 const scopeEl = $('scope'), hStart = $('hStart'), hEnd = $('hEnd');
 const selText = $('selText'), selLen = $('selLen');
-const chopSeg = $('chop'), dirSeg = $('dir'), volI = $('vol'), volOut = $('volOut');
+const chopSeg = $('chop'), dirSeg = $('dir'), overSeg = $('over');
+const volI = $('vol'), volOut = $('volOut');
 const sndI = $('snd'), sndOut = $('sndOut'), shapeRow = $('shapeRow'), shapeSeg = $('shape');
 const shapeLabel = $('shapeLabel'), voiceOnly = $('voiceOnly');
 const bpmVal = $('bpmVal'), swingBtn = $('swing'), echoBtn = $('echo');
@@ -1173,7 +1221,7 @@ const keyBtn = $('keyBtn'), keyNow = $('keyNow'), keyPop = $('keyPop');
 const kbd = $('kbd'), octNow = $('octNow');
 const progBtn = $('progBtn'), progNow = $('progNow'), progPop = $('progPop');
 const plist = $('plist'), pchords = $('pchords');
-const tbrBtn = $('timbre'), tbrNow = $('tbrNow');
+const tbrSel = $('timbre');
 
 let sel = 0;
 let trkEls = [], dotsByStep = [], cellEls = [];
@@ -1364,6 +1412,8 @@ function paintPanel() {
       b.setAttribute('aria-pressed', String(Number(b.dataset.len) === p.chop)));
     dirSeg.querySelectorAll('button').forEach(b =>
       b.setAttribute('aria-pressed', String((b.dataset.rev === '1') === p.rev)));
+    overSeg.querySelectorAll('button').forEach(b =>
+      b.setAttribute('aria-pressed', String((b.dataset.over === '1') === p.over)));
 
     const end = clipEnd(p, dur);
     scopeRegion.style.left = scopeAt(p.start);
@@ -1470,14 +1520,21 @@ echoBtn.addEventListener('click', () => {
   echoBtn.setAttribute('aria-pressed', String(echoOn));
   if (echoWet) echoWet.gain.value = echoOn ? 0.9 : 0;
 });
-const TIMBRES = [{ id:'italo', name:'Italo' }, { id:'fisa', name:'Fisa' }];
+/* What the pitched tracks are played *on*. The drums never change. */
+const TIMBRES = [
+  { id:'italo', name:'Synth italo' },
+  { id:'fisa',  name:'Fisarmonica' },
+];
+TIMBRES.forEach(t => {
+  const o = document.createElement('option');
+  o.value = t.id; o.textContent = t.name;
+  tbrSel.appendChild(o);
+});
 function setTimbre(id) {
-  const t = TIMBRES.find(x => x.id === id) || TIMBRES[0];
-  timbre = t.id;
-  tbrNow.textContent = t.name;
-  tbrBtn.setAttribute('aria-pressed', String(t.id !== 'italo'));
+  timbre = (TIMBRES.find(x => x.id === id) || TIMBRES[0]).id;
+  tbrSel.value = timbre;
 }
-tbrBtn.addEventListener('click', () => setTimbre(timbre === 'italo' ? 'fisa' : 'italo'));
+tbrSel.addEventListener('change', () => setTimbre(tbrSel.value));
 
 /* ---- key, giro, pack ---- */
 // One octave of piano. Black keys sit over the gaps between the white ones,
@@ -1680,6 +1737,12 @@ dirSeg.addEventListener('click', e => {
   vparams[TRACKS[sel].ci].rev = b.dataset.rev === '1';
   paintPanel();
 });
+overSeg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  vparams[TRACKS[sel].ci].over = b.dataset.over === '1';
+  paintPanel();
+});
 
 /* ---- grooves ---- */
 /* A groove with a `pack` is cut to those particular sentences — its chops and
@@ -1790,7 +1853,7 @@ function loadGroove(gi) {
   });
   vparams.forEach((p, i) => {
     const o = g.voice[i] || { rate:1, start:0, chop:0 };
-    p.rate = o.rate; p.start = o.start; p.chop = o.chop; p.rev = false;
+    p.rate = o.rate; p.start = o.start; p.chop = o.chop; p.rev = false; p.over = !!o.over;
   });
   shapeOf = { ...g.shape };
   setTimbre(g.timbre || 'italo');

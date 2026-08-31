@@ -27,6 +27,19 @@ audio/<pack>/*.m4a         one folder per voice pack
 icons/*.png                home-screen and maskable icons
 ```
 
+## Trimming the clips
+
+A phone voice memo has dead air at both ends, and it is not digital silence —
+it is room tone sitting 25 to 35 dB under the speech, so a single threshold
+either keeps all of it or eats the consonant a word starts on. `trim-clips.py`
+(one level up, outside the app) uses a two-threshold gate: find where the speech
+certainly is, walk outwards to where it certainly is not, pad, and cut with a
+short fade so there is no click where it lands in the room tone.
+
+It reads from `records/` and writes to `app/audio/`, so `records/` stays the
+archive and the whole thing is reversible. Run `python3 trim-clips.py clips.json
+--dry-run` first: it prints what it would remove without touching anything.
+
 ## Adding a voice pack
 
 This is deliberately a two-step change, because packs are the thing most likely
@@ -118,21 +131,35 @@ the bar down its right edge mutes.
 | --- | --- |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
-| Swing | Pushes every off-beat 16th late for a shuffled feel |
+| Swing | Pushes the off-beat eighths late for a shuffled feel. Sixteenths ride along inside whichever eighth they sit in |
 | Echo | Dotted-eighth feedback delay, re-synced when the tempo changes |
-| Suono | **Italo** plays the Stab, Lead and Bass as saws; **Fisa** plays them as accordion reeds. The drums are the same either way |
+| Strumento | What the pitched tracks are played on — **Synth italo** (saws) or **Fisarmonica** (reeds). Stab, Lead and Bass follow it; the drums never change |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
 | Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root. The giro also picks the Lead's scale |
 | Pattern | Tap steps to toggle, drag to paint; Clear track empties this one |
 | Pattern (Lead) | Eight rows of the giro's scale — tap a row to write that note, tap it again to erase |
-| Level | Per-track volume |
+| Volume | Per-track level |
 | Track → Echo | How much of that track feeds the delay |
 | Arp / Chord | Bass walks the intervals one per hit; Stab plays them together |
 | Speed | Playback rate, 0.4×–2.2× — changes pitch along with tempo |
 | Waveform | Drag the two handles to set where the clip starts and ends. Press anywhere and the nearer handle comes to you; arrow keys nudge, Shift+arrow finer |
 | Chop | Snaps the end to 1, 2, 4 or 8 steps, or Full |
 | Forward / Reverse | Sample direction — the waveform mirrors so you are still looking at what you hear |
+| Cut / Overlap | Whether re-firing a voice stops the one already playing or lets them stack |
 | Keys 1–9 | Trigger the first nine tracks from a keyboard |
+
+### Swing
+
+Swing pushes the second half of every pair late. It works on the **eighths** —
+steps 3, 7, 11, 15 counting from one — because that is what these patterns are
+built from. An earlier version pushed only the odd sixteenths, which is the
+textbook definition and was completely inaudible here: every groove that shipped
+with Swing already on had nothing on an odd step at all. Sixteenths now stay
+centred inside whichever eighth they belong to, so a sixteenth pattern shuffles
+along instead of stacking up and crashing into the downbeat.
+
+Full swing puts the off-beat two thirds of the way through the beat, the triplet
+feel; the button is set to a little over half of that.
 
 ### The in and out points
 
@@ -145,6 +172,10 @@ That is deliberate: it means a chopped voice stays in time when you move the
 tempo, which is the whole reason chopping speech works as rhythm. Nudge the BPM
 and the right handle walks with the grid. **Chop** is the same setting with
 preset values — 1, 2, 4, 8 steps or Full.
+
+A voice is monophonic by default: firing it again cuts whatever it was saying,
+the way a sampler pad does. **Overlap** lets it stack on itself instead, which is
+what you want when a phrase is longer than the gap between its triggers.
 
 ### Tracks
 
