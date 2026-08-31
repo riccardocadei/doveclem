@@ -362,17 +362,37 @@
     display:flex; flex-direction:column; gap:.55rem;
   }
   .scope {
-    position:relative; height:38px; background:var(--sunk); border-radius:7px;
+    position:relative; height:46px; background:var(--sunk); border-radius:7px;
     box-shadow:var(--inset); overflow:hidden; padding:0 5px;
+    touch-action:none; cursor:ew-resize;
   }
   .scope .wave { position:absolute; inset:0 5px; display:flex; align-items:center; gap:1px; }
   .scope .wave i { flex:1 1 0; min-width:1px; border-radius:1px; background:var(--bar); }
   .scope .region {
     position:absolute; top:0; bottom:0;
     background:color-mix(in srgb, var(--accent) 22%, transparent);
-    border-left:1.5px solid var(--accent);
-    border-right:1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
     pointer-events:none;
+  }
+  /* Wide enough to grab with a thumb; the line and the grip are drawn inside,
+     so the touch target is bigger than the thing you can see. */
+  .hnd {
+    position:absolute; top:0; bottom:0; width:24px; margin-left:-12px;
+    background:none; border:0; padding:0; box-shadow:none; z-index:3;
+    touch-action:none; cursor:ew-resize;
+  }
+  .hnd::before {
+    content:''; position:absolute; top:0; bottom:0; left:11px; width:2px;
+    background:var(--accent);
+  }
+  .hnd::after {
+    content:''; position:absolute; left:6px; top:50%; width:12px; height:12px;
+    margin-top:-6px; border-radius:4px; background:var(--accent);
+    box-shadow:0 1px 2px color-mix(in srgb, var(--ink) 40%, transparent);
+  }
+  .hnd:focus-visible::after { outline:2px solid var(--ink); outline-offset:2px; }
+  .scope-t {
+    margin:.3rem .1rem .55rem; font-family:var(--mono); font-size:.5625rem;
+    letter-spacing:.09em; color:var(--ink-3); display:flex; justify-content:space-between;
   }
   .knob { display:grid; grid-template-columns:3.1rem 1fr 2.8rem; align-items:center; gap:.5rem; }
   .knob label, .row2 > span {
@@ -548,19 +568,19 @@
       <div class="seg" id="shape"></div>
     </div>
     <div id="voiceOnly" hidden>
-      <div class="scope" style="margin-bottom:.55rem">
+      <div class="scope" id="scope">
         <div class="wave" id="scopeWave"></div>
         <div class="region" id="scopeRegion"></div>
+        <button class="hnd" id="hStart" type="button" role="slider" aria-label="Clip start"
+                aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></button>
+        <button class="hnd" id="hEnd" type="button" role="slider" aria-label="Clip end"
+                aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></button>
       </div>
+      <p class="scope-t"><span id="selText">0.00 &ndash; 0.00 s</span><span id="selLen">full</span></p>
       <div class="knob" style="margin-bottom:.5rem">
         <label for="rate">Speed</label>
         <input type="range" id="rate" min="0.4" max="2.2" step="0.05" value="1">
         <output id="rateOut">1.00&times;</output>
-      </div>
-      <div class="knob" style="margin-bottom:.5rem">
-        <label for="start">Start</label>
-        <input type="range" id="start" min="0" max="0.92" step="0.01" value="0">
-        <output id="startOut">0.00s</output>
       </div>
       <div class="row2" style="margin-bottom:.5rem">
         <span>Chop</span>
@@ -591,7 +611,8 @@
   <p class="hint" id="hint">
     <b>Mixer</b> shows every track at once &mdash; the tall dot is the playhead, the bar on
     the right mutes. <b>Pattern</b> programs the selected track; <b>Track</b> sets its level.
-    Speed and Chop are what turn a voice memo into an instrument. Pick <b>Lead</b> and the
+    Drag the two handles on the <b>waveform</b> to set where a clip starts and ends &mdash;
+    that, with Speed, is what turns a voice memo into an instrument. Pick <b>Lead</b> and the
     lane becomes eight rows of the scale &mdash; tap one to write a note. <b>Giro</b>, next to
     Key, moves the bass and the chord stab through four bars and decides whether that
     scale is minor, major or the tarantella's. <b>Suono</b> swaps the stab and the lead
@@ -859,31 +880,69 @@ function env(g, t, peak, dec) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
 }
 
-/* A free reed has no attack transient and no decay: it speaks, it holds, it
-   stops when the bellows do. Musette tuning stacks three reeds a few cents
-   apart, and that slow beating is most of what makes a box sound like a box.
-   The plateau is anchored with setValueAtTime at the value the ramp already
-   reached, so it holds without a step — that is not the click env() warns
-   about. `midi` is one note for the lead, a whole chord for the stab. */
+/* A free reed swings *through* its slot, so its motion is asymmetric and its
+   spectrum carries even harmonics as well as odd — a sawtooth, not a square. A
+   square is odd harmonics only, which is the sound of a toy organ.
+
+   There is deliberately no vibrato oscillator here. An accordion has no pitch
+   vibrato: the wobble you hear is the beating between reeds tuned a few cents
+   apart, which the detune below already produces. Putting an LFO on top of that
+   stacks two tremolos and you get a fairground organ.
+
+   A liscio box is drier than a French musette — single cents, not tens of them.
+   `midi` is one note for the lead, a whole chord for the stab. */
 function reeds(t, i, midi, peak, hold) {
-  const lp = ctx.createBiquadFilter();
-  lp.type = 'lowpass'; lp.frequency.value = 2700; lp.Q.value = 0.7;
+  const off = t + hold + 0.14;
+  peak *= 0.92 + Math.random() * 0.16;   // no two presses carry the same weight
+
+  // the reed block and the grille colour everything, so two body resonances
+  // rather than one bare roll-off
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+  lp.frequency.value = 4200; lp.Q.value = 0.5;
+  const b1 = ctx.createBiquadFilter(); b1.type = 'peaking';
+  b1.frequency.value = 520; b1.Q.value = 1.1; b1.gain.value = 5;
+  const b2 = ctx.createBiquadFilter(); b2.type = 'peaking';
+  b2.frequency.value = 1650; b2.Q.value = 1.4; b2.gain.value = 4;
+  lp.connect(b1); b1.connect(b2);
+
+  // A reed stops when the air stops; it does not ring out. The plateau is
+  // anchored at the value the ramp already reached, so it holds without a step.
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(peak, t + 0.03);
+  g.gain.linearRampToValueAtTime(peak, t + 0.035);
   g.gain.setValueAtTime(peak, t + hold);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.13);
-  lp.connect(g); tap(g, i);
-  const off = t + hold + 0.15;
-  const vib = ctx.createOscillator(), vg = ctx.createGain();
-  vib.frequency.value = 5.4; vg.gain.value = 6;      // cents of bellows wobble
-  vib.connect(vg); vib.start(t); vib.stop(off);
-  midi.forEach(m => [0, -13, 14].forEach(cents => {
-    const o = ctx.createOscillator(); o.type = 'square';
-    o.frequency.value = freq(m); o.detune.value = cents;
-    vg.connect(o.detune); o.connect(lp);
-    o.start(t); o.stop(off);
-  }));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.055);
+  b2.connect(g); tap(g, i);
+
+  midi.forEach(m => {
+    const f = freq(m);
+    // The upper reeds speak a few milliseconds late: the harmonics arrive after
+    // the fundamental, and that lag is most of what an attack sounds like.
+    [[0, 'sawtooth', 0], [-5, 'sawtooth', 0.011], [6, 'triangle', 0.006]].forEach(r => {
+      const o = ctx.createOscillator(); o.type = r[1];
+      o.frequency.value = f;
+      o.detune.value = r[0] + (Math.random() - 0.5) * 3;
+      o.connect(lp); o.start(t + r[2]); o.stop(off);
+    });
+  });
+
+  // The chiff: before the reed settles it is just noise through the slot.
+  const ch = noiseSrc(), cf = ctx.createBiquadFilter(), cg = ctx.createGain();
+  cf.type = 'bandpass'; cf.frequency.value = 2400; cf.Q.value = 0.8;
+  env(cg, t, peak * 0.55, 0.05);
+  ch.connect(cf); cf.connect(cg); tap(cg, i);
+  ch.start(t); ch.stop(t + 0.07);
+
+  // Air through the block, under everything, for as long as the bellows are
+  // pressed. Leave it out and the note sits in a vacuum.
+  const air = noiseSrc(), af = ctx.createBiquadFilter(), ag = ctx.createGain();
+  af.type = 'bandpass'; af.frequency.value = 1800; af.Q.value = 0.5;
+  ag.gain.setValueAtTime(0, t);
+  ag.gain.linearRampToValueAtTime(peak * 0.22, t + 0.03);
+  ag.gain.setValueAtTime(peak * 0.22, t + hold);
+  ag.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.055);
+  air.connect(af); af.connect(ag); tap(ag, i);
+  air.start(t); air.stop(off);
 }
 
 /* The left hand of the box. A stradella bass button sounds two reeds an octave
@@ -896,12 +955,12 @@ function button(t, i, f) {
   lp.type = 'lowpass'; lp.frequency.value = 760; lp.Q.value = 0.6;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.17, t + 0.012);
-  g.gain.setValueAtTime(0.17, t + hold);
+  g.gain.linearRampToValueAtTime(0.19, t + 0.012);
+  g.gain.setValueAtTime(0.19, t + hold);
   g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.1);
   lp.connect(g); tap(g, i);
   const off = t + hold + 0.12;
-  [[f, 'triangle', 0], [f, 'square', -8], [f * 2, 'triangle', 7]].forEach(r => {
+  [[f, 'triangle', 0], [f, 'sawtooth', -6], [f * 2, 'triangle', 5]].forEach(r => {
     const o = ctx.createOscillator(); o.type = r[1];
     o.frequency.value = r[0]; o.detune.value = r[2];
     o.connect(lp); o.start(t); o.stop(off);
@@ -967,7 +1026,7 @@ const VOICES = {
   stab(t, i) {
     const c = chordAt(), iv = SHAPES[shapeOf.stab].iv, root = c.root + 24;
     if (timbre === 'fisa')
-      return reeds(t, i, iv.map(s => root + qual(s, c.maj)), 0.022,
+      return reeds(t, i, iv.map(s => root + qual(s, c.maj)), 0.028,
                    Math.max(0.24, stepDur() * 3));
     iv.forEach((semi, k) => {
       const o = ctx.createOscillator(); o.type = 'sawtooth';
@@ -983,7 +1042,7 @@ const VOICES = {
   // tune sounding like a tune while the harmony moves under it.
   lead(t, i, s) {
     const n = leadNote(s == null ? 0 : notes[i][s]);
-    if (timbre === 'fisa') return reeds(t, i, [n], 0.06, Math.max(0.2, stepDur() * 2));
+    if (timbre === 'fisa') return reeds(t, i, [n], 0.075, Math.max(0.2, stepDur() * 2));
     const f = freq(n);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4;
     lp.frequency.setValueAtTime(5200, t);
@@ -1102,7 +1161,9 @@ const veil = $('veil'), tag = $('tag'), run = $('run'), runLabel = $('runLabel')
 const mixerEl = $('mixer'), stepsEl = $('steps'), rulerEl = $('ruler');
 const laneName = $('laneName'), laneMeta = $('laneMeta'), panelName = $('panelName');
 const scopeWave = $('scopeWave'), scopeRegion = $('scopeRegion');
-const rate = $('rate'), rateOut = $('rateOut'), startI = $('start'), startOut = $('startOut');
+const rate = $('rate'), rateOut = $('rateOut');
+const scopeEl = $('scope'), hStart = $('hStart'), hEnd = $('hEnd');
+const selText = $('selText'), selLen = $('selLen');
 const chopSeg = $('chop'), dirSeg = $('dir'), volI = $('vol'), volOut = $('volOut');
 const sndI = $('snd'), sndOut = $('sndOut'), shapeRow = $('shapeRow'), shapeSeg = $('shape');
 const shapeLabel = $('shapeLabel'), voiceOnly = $('voiceOnly');
@@ -1294,21 +1355,31 @@ function paintPanel() {
     const p = vparams[trk.ci], info = clipInfo[trk.ci];
     const peaks = info ? info.peaks : new Array(56).fill(0.12);
     const dur = info ? info.dur : 1;
-    scopeWave.innerHTML = bars(peaks);
+    // Reverse plays the clip backwards, so show it backwards too — otherwise
+    // you are dragging handles over a picture of the wrong thing.
+    scopeWave.innerHTML = bars(p.rev ? peaks.slice().reverse() : peaks);
     rate.value = String(p.rate);
     rateOut.textContent = p.rate.toFixed(2) + '×';
-    startI.value = String(p.start);
-    startOut.textContent = (p.start * dur).toFixed(2) + 's';
     chopSeg.querySelectorAll('button').forEach(b =>
       b.setAttribute('aria-pressed', String(Number(b.dataset.len) === p.chop)));
     dirSeg.querySelectorAll('button').forEach(b =>
       b.setAttribute('aria-pressed', String((b.dataset.rev === '1') === p.rev)));
-    const left = p.start * 100;
-    const span = p.chop
-      ? Math.min(100 - left, (p.chop * stepDur() * p.rate / dur) * 100)
-      : (100 - left);
-    scopeRegion.style.left = left + '%';
-    scopeRegion.style.width = Math.max(1.5, span) + '%';
+
+    const end = clipEnd(p, dur);
+    scopeRegion.style.left = scopeAt(p.start);
+    scopeRegion.style.right = scopeAt(1 - end);
+    scopeRegion.style.width = '';
+    hStart.style.left = scopeAt(p.start);
+    hEnd.style.left = scopeAt(end);
+    hStart.setAttribute('aria-valuenow', String(Math.round(p.start * 100)));
+    hEnd.setAttribute('aria-valuenow', String(Math.round(end * 100)));
+    hStart.setAttribute('aria-valuetext', (p.start * dur).toFixed(2) + ' seconds');
+    hEnd.setAttribute('aria-valuetext', (end * dur).toFixed(2) + ' seconds');
+    selText.textContent = (p.start * dur).toFixed(2) + ' – ' + (end * dur).toFixed(2) + ' s';
+    selLen.textContent = p.chop
+      ? (p.chop < 1 ? p.chop.toFixed(2) : p.chop.toFixed(1).replace(/\.0$/, '')) +
+        (p.chop === 1 ? ' step' : ' steps')
+      : 'full';
   }
 }
 
@@ -1535,9 +1606,67 @@ rate.addEventListener('input', () => {
   vparams[TRACKS[sel].ci].rate = Number(rate.value);
   paintPanel();
 });
-startI.addEventListener('input', () => {
-  vparams[TRACKS[sel].ci].start = Number(startI.value);
+
+/* ---- in and out points ---- */
+/* `start` is a fraction of the clip, `chop` a length in *steps* — which is why
+   a chopped voice stays in time when you move the tempo. Dragging the right
+   handle therefore writes a step count read off the current tempo, not a fixed
+   number of seconds; nudge the BPM afterwards and the out point follows the
+   grid. The track is inset 5px inside the box, so positions are measured in
+   that inset space rather than in raw percent. */
+const PAD = 5;
+const scopeAt = f =>
+  'calc(' + PAD + 'px + (100% - ' + (PAD * 2) + 'px) * ' + Math.max(0, Math.min(1, f)).toFixed(4) + ')';
+const durOf = ci => (clipInfo[ci] && clipInfo[ci].dur) || 1;
+const clipEnd = (p, dur) => p.chop ? Math.min(1, p.start + p.chop * stepDur() * p.rate / dur) : 1;
+
+function scopeFrac(clientX) {
+  const r = scopeEl.getBoundingClientRect(), w = r.width - PAD * 2;
+  return w <= 0 ? 0 : Math.max(0, Math.min(1, (clientX - r.left - PAD) / w));
+}
+// Anything past the last sliver counts as "to the end", so a drag to the right
+// edge gives you Full rather than a chop of almost-the-whole-clip.
+function chopFrom(p, dur, endFrac) {
+  if (endFrac >= 0.995) return 0;
+  const steps = (endFrac - p.start) * dur / (stepDur() * p.rate);
+  return Math.max(0.03 / stepDur(), steps);
+}
+function setIn(f) {
+  const ci = TRACKS[sel].ci, p = vparams[ci], dur = durOf(ci), end = clipEnd(p, dur);
+  p.start = Math.max(0, Math.min(f, end - 0.015));
+  if (p.chop) p.chop = chopFrom(p, dur, end);   // the out point stays put
   paintPanel();
+}
+function setOut(f) {
+  const ci = TRACKS[sel].ci, p = vparams[ci], dur = durOf(ci);
+  p.chop = chopFrom(p, dur, Math.max(p.start + 0.015, Math.min(1, f)));
+  paintPanel();
+}
+
+let grab = null;
+scopeEl.addEventListener('pointerdown', e => {
+  if (TRACKS[sel].kind !== 'voice') return;
+  const ci = TRACKS[sel].ci, p = vparams[ci], f = scopeFrac(e.clientX);
+  // whichever handle is nearer, so you never have to hit a thin line
+  grab = Math.abs(f - p.start) <= Math.abs(f - clipEnd(p, durOf(ci))) ? setIn : setOut;
+  // capture keeps the drag alive past the edge of the box; not every pointer
+  // can be captured, and the drag still works without it
+  try { scopeEl.setPointerCapture(e.pointerId); } catch (err) {}
+  grab(f);
+});
+scopeEl.addEventListener('pointermove', e => { if (grab) grab(scopeFrac(e.clientX)); });
+['pointerup', 'pointercancel'].forEach(ev =>
+  scopeEl.addEventListener(ev, () => { grab = null; }));
+
+// Dragging is not the only way in: both handles are real sliders.
+[[hStart, setIn, p => p.start], [hEnd, setOut, (p, d) => clipEnd(p, d)]].forEach(h => {
+  h[0].addEventListener('keydown', e => {
+    const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const ci = TRACKS[sel].ci;
+    h[1](h[2](vparams[ci], durOf(ci)) + d * (e.shiftKey ? 0.002 : 0.02));
+  });
 });
 chopSeg.addEventListener('click', e => {
   const b = e.target.closest('button');

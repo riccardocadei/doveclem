@@ -120,7 +120,7 @@ the bar down its right edge mutes.
 | BPM ± | Tempo, 50–200 |
 | Swing | Pushes every off-beat 16th late for a shuffled feel |
 | Echo | Dotted-eighth feedback delay, re-synced when the tempo changes |
-| Suono | **Italo** plays the Stab and Lead as detuned saws; **Fisa** plays them as accordion reeds. Drums and bass are the same either way |
+| Suono | **Italo** plays the Stab, Lead and Bass as saws; **Fisa** plays them as accordion reeds. The drums are the same either way |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
 | Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root. The giro also picks the Lead's scale |
 | Pattern | Tap steps to toggle, drag to paint; Clear track empties this one |
@@ -129,10 +129,22 @@ the bar down its right edge mutes.
 | Track → Echo | How much of that track feeds the delay |
 | Arp / Chord | Bass walks the intervals one per hit; Stab plays them together |
 | Speed | Playback rate, 0.4×–2.2× — changes pitch along with tempo |
-| Start | Where in the clip the trigger begins, for picking out one word |
-| Chop | Cuts playback to 1, 2, 4 or 8 steps — the main way to make speech rhythmic |
-| Forward / Reverse | Sample direction |
+| Waveform | Drag the two handles to set where the clip starts and ends. Press anywhere and the nearer handle comes to you; arrow keys nudge, Shift+arrow finer |
+| Chop | Snaps the end to 1, 2, 4 or 8 steps, or Full |
+| Forward / Reverse | Sample direction — the waveform mirrors so you are still looking at what you hear |
 | Keys 1–9 | Trigger the first nine tracks from a keyboard |
+
+### The in and out points
+
+A clip is trimmed on its own waveform: drag the left handle to move where the
+trigger begins, the right one to set where it stops. Press anywhere in the strip
+and the nearer handle comes to the touch, so there is no thin line to hit.
+
+The out point is stored as a **length in steps**, not as a number of seconds.
+That is deliberate: it means a chopped voice stays in time when you move the
+tempo, which is the whole reason chopping speech works as rhythm. Nudge the BPM
+and the right handle walks with the grid. **Chop** is the same setting with
+preset values — 1, 2, 4, 8 steps or Full.
 
 ### Tracks
 
@@ -162,8 +174,8 @@ of a major one, which sours everything. Pick a major giro and the Lead's eight
 rows become major without you doing anything.
 
 **Lead** is the melody, two detuned sawtooths straight into the delay — or, with
-**Suono** on *Fisa*, three square reeds a few cents apart under a slow bellows
-wobble, which is most of what makes an accordion sound like an accordion. Select
+**Suono** on *Fisa*, three accordion reeds a few cents apart, whose beating against
+each other is the wobble you hear in a real box. Select
 it and the Pattern strip becomes eight rows — one per degree of the giro's scale
 from the Key, root rows tinted so you can find the octave. Tap a row to
 place a note, drag to draw a line, tap a lit cell again to erase. The lead stays
@@ -195,7 +207,11 @@ particular record.
 - **Notturno** — 104 BPM, i–iv–VI–V, slow and sparse, five notes in the bar.
 
 **Nonni.** Accordion, no delay, and the bass on 1 and 3 with the chord answering
-on 2 and 4 — the left hand of a box, oom and pah.
+on 2 and 4 — the left hand of a box, oom and pah. The reeds are sawtooths rather
+than squares, because a free reed swings through its slot and so carries even
+harmonics as well as odd; squares are the sound of a toy organ. There is no
+vibrato oscillator anywhere — the wobble is the beating between reeds tuned a
+few cents apart, and an LFO on top of that gives you a fairground.
 
 - **Stornello** — 100 BPM, I–IV–V–I in major, oom-pah, two voices trading.
 - **Tarantella** — 142 BPM, i–i–V–i in harmonic minor, sixteenth hats, off-beat
