@@ -389,8 +389,8 @@
     box-shadow:0 1px 2px color-mix(in srgb, var(--ink) 40%, transparent);
   }
   .hnd:focus-visible::after { outline:2px solid var(--ink); outline-offset:2px; }
-  .lanetop { display:grid; grid-template-columns:1fr auto 1fr; gap:.45rem; margin-bottom:.45rem;
-             align-items:stretch; }
+  .lanetop { display:grid; grid-template-columns:auto 1fr auto 1fr; gap:.45rem;
+             margin-bottom:.45rem; align-items:stretch; }
   .lanetop .mini.wide { padding:.3rem .6rem; white-space:nowrap; }
   .nudge.sm { font-size:.6rem; }
   .lanetop .bars[hidden] { display:none; }
@@ -609,10 +609,13 @@
       <span class="sect-x" id="laneMeta">tap to program</span>
     </div>
     <div class="lanetop">
-      <div class="seg len" id="len">
-        <button type="button" data-l="12">6/8</button>
-        <button type="button" data-l="16">1 bar</button>
-        <button type="button" data-l="64" aria-pressed="true">4 bars</button>
+      <div class="seg" id="meter">
+        <button type="button" data-m="4/4" aria-pressed="true">4/4</button>
+        <button type="button" data-m="6/8">6/8</button>
+      </div>
+      <div class="seg" id="barsSeg">
+        <button type="button" data-n="1">1 bar</button>
+        <button type="button" data-n="4" aria-pressed="true">4 bars</button>
       </div>
       <button class="mini wide" id="copyBar" type="button">Copy bar</button>
       <div class="seg bars" id="bars">
@@ -776,7 +779,12 @@ const PACKS = [
    was one, so everything repeated underneath a harmony that moved — the single
    biggest reason a groove read as a loop rather than a piece. The lane shows
    one bar at a time; the mixer shows all four at beat resolution. */
-const STEPS = 64, BAR = 16, BARS = STEPS / BAR;
+/* STEPS is how much a pattern can hold. How much of it plays is two separate
+   questions that used to be one control, which is why 6/8 sat in a row next to
+   "1 bar" and "4 bars" as though a time signature were a length: `barLen` is
+   the metre — sixteen sixteenths in common time, twelve in 6/8 — and `barsN` is
+   how many of those bars go round. patLen is their product. */
+const STEPS = 64;
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
 /* Synth voices. `echo` is the default send into the delay bus; `tone` marks the
@@ -1492,7 +1500,7 @@ function scheduler() {
     cursor = (cursor + 1) % patLen;
     // Counting bars rather than reading them off the cursor keeps the giro
     // turning over even when the pattern is only one bar long.
-    if (cursor % BAR === 0) bar++;
+    if (cursor % barLen === 0) bar++;
   }
 }
 function start() {
@@ -1551,20 +1559,24 @@ const packSel = $('pack'), msgEl = $('msg'), rollEl = $('roll');
 const keyBtn = $('keyBtn'), keyNow = $('keyNow'), keyPop = $('keyPop');
 const kbd = $('kbd'), octNow = $('octNow');
 const progBtn = $('progBtn'), progNow = $('progNow'), progPop = $('progPop');
-const plist = $('plist'), pchords = $('pchords'), barsEl = $('bars'), lenEl = $('len');
+const plist = $('plist'), pchords = $('pchords'), barsEl = $('bars');
+const meterEl = $('meter'), barsSeg = $('barsSeg');
 const filtI = $('filter'), filtOut = $('filterOut');
 const tbrSel = $('timbre'), kitSel = $('kit');
 
 let sel = 0, page = 0;               // which of the four bars the lane is showing
-let patLen = STEPS;                  // 12 for 6/8, 16 for one bar, 64 for all four
+let barLen = 16, barsN = 4, patLen = 64;
 /* A step is a sixteenth. Common time groups them four to a beat, four beats to
    the bar. Six-eight is twelve sixteenths in *two* beats of three eighths — so
    the gaps fall every six, the shading every two (one per eighth), and the
    ruler counts the six eighths rather than four of anything. Grouping them
    three at a time, which is what this did first, draws four dotted-eighth
    beats: a different metre wearing the label. */
-const METER = { 12: { gap:6, beat:2, num:2, big:6 }, d: { gap:4, beat:4, num:4, big:16 } };
-let mtr = METER.d;
+const METERS = [
+  { id:'4/4', len:16, gap:4, beat:4, num:4, big:16 },
+  { id:'6/8', len:12, gap:6, beat:2, num:2, big:6 },
+];
+let mtr = METERS[0];
 let trkEls = [], dotsByBeat = [], cellEls = [];
 let rollEls = [], rollCols = [];
 
@@ -1637,7 +1649,7 @@ function buildMixer() {
 
 function buildSteps() {
   stepsEl.innerHTML = ''; rulerEl.innerHTML = ''; cellEls = [];
-  for (let s = 0; s < BAR; s++) {
+  for (let s = 0; s < barLen; s++) {
     if (s && s % mtr.gap === 0) {
       const g = document.createElement('span'); g.className = 'gap'; stepsEl.appendChild(g);
       const g2 = document.createElement('span'); g2.className = 'gap'; rulerEl.appendChild(g2);
@@ -1659,13 +1671,13 @@ function buildSteps() {
 // so the ruler underneath lines up with both.
 function buildRoll() {
   rollEl.innerHTML = ''; rollEls = [];
-  rollCols = Array.from({ length: BAR }, () => []);
+  rollCols = Array.from({ length: barLen }, () => []);
   for (let d = DEGS - 1; d >= 0; d--) {
     const row = document.createElement('div');
     row.className = 'rrow';
     row.dataset.root = (d === 0 || d === DEGS - 1) ? '1' : '0';
     rollEls[d] = [];
-    for (let s = 0; s < BAR; s++) {
+    for (let s = 0; s < barLen; s++) {
       if (s && s % mtr.gap === 0) {
         const g = document.createElement('span'); g.className = 'gap'; row.appendChild(g);
       }
@@ -1684,7 +1696,7 @@ function buildRoll() {
 function labelRoll() {
   for (let d = 0; d < DEGS; d++) {
     const n = noteName(leadNote(d));
-    for (let i = 0; i < BAR; i++)
+    for (let i = 0; i < barLen; i++)
       rollEls[d][i].setAttribute('aria-label',
         'Bar ' + (page + 1) + ', step ' + (i + 1) + ', ' + n);
   }
@@ -1694,7 +1706,7 @@ let lastCue = -1, litEls = [];
 function paintCue(s) {
   const beat = s >= 0 ? Math.floor(s / dotSpan()) : -1;
   // the lane only lights up when the playhead is on the bar you are looking at
-  const col = (s >= 0 && Math.floor(s / BAR) === page) ? s % BAR : -1;
+  const col = (s >= 0 && Math.floor(s / barLen) === page) ? s % barLen : -1;
   const wasBeat = lastCue >= 0 ? Math.floor(lastCue / dotSpan()) : -1;
   if (wasBeat >= 0 && dotsByBeat[wasBeat]) dotsByBeat[wasBeat].forEach(u => { u.dataset.cue = '0'; });
   rollCols.forEach(c => c.forEach(b => { b.dataset.cue = '0'; }));
@@ -1703,7 +1715,7 @@ function paintCue(s) {
   lastCue = s;
   cellEls.forEach((c, i) => { c.dataset.cue = i === col ? '1' : '0'; });
   barsEl.querySelectorAll('button').forEach(b =>
-    b.dataset.live = (s >= 0 && Number(b.dataset.b) === Math.floor(s / BAR)) ? '1' : '0');
+    b.dataset.live = (s >= 0 && Number(b.dataset.b) === Math.floor(s / barLen)) ? '1' : '0');
 
   litEls.forEach(el => { el.dataset.hit = '0'; });
   litEls = [];
@@ -1716,7 +1728,7 @@ function paintCue(s) {
 }
 // Four bars will not fit as one dot per step, so the mixer reads a beat at a
 // time; a single short bar does fit, and shows every step.
-const dotSpan = () => (patLen <= BAR ? 1 : 4);
+const dotSpan = () => (patLen <= 16 ? 1 : 4);
 function paintDots(i) {
   const us = trkEls[i] ? trkEls[i].querySelectorAll('.dots u') : [];
   const row = pattern[i], w = dotSpan();
@@ -1729,22 +1741,22 @@ function paintDots(i) {
   }
 }
 function paintRoll() {
-  const on = pattern[sel], nt = notes[sel], off = page * BAR;
+  const on = pattern[sel], nt = notes[sel], off = page * barLen;
   for (let d = 0; d < DEGS; d++)
-    for (let i = 0; i < BAR; i++)
+    for (let i = 0; i < barLen; i++)
       rollEls[d][i].dataset.on = (on[off + i] && nt[off + i] === d) ? '1' : '0';
 }
 /* The lane always shows sixteen cells; which sixteen is `page`. Cells carry the
    absolute step in dataset.s, so every editing handler reads them unchanged. */
 function setPage(p) {
-  page = Math.max(0, Math.min(Math.ceil(patLen / BAR) - 1, p));
-  const off = page * BAR;
+  page = Math.max(0, Math.min(barsN - 1, p));
+  const off = page * barLen;
   cellEls.forEach((c, i) => {
     c.dataset.s = String(off + i);
     c.setAttribute('aria-label', 'Bar ' + (page + 1) + ', step ' + (i + 1));
   });
   for (let d = 0; d < DEGS; d++)
-    for (let i = 0; i < BAR; i++) rollEls[d][i].dataset.s = String(off + i);
+    for (let i = 0; i < barLen; i++) rollEls[d][i].dataset.s = String(off + i);
   barsEl.querySelectorAll('button').forEach(b =>
     b.setAttribute('aria-pressed', String(Number(b.dataset.b) === page)));
   labelRoll(); paintLane();
@@ -1757,12 +1769,12 @@ barsEl.addEventListener('click', e => {
    you spend most of your time writing the same thing four times before changing
    one of them; this is that, in one press. */
 $('copyBar').addEventListener('click', () => {
-  const off = page * BAR;
-  for (let b = 0; b < BARS; b++) {
+  const off = page * barLen;
+  for (let b = 0; b < barsN; b++) {
     if (b === page) continue;
-    for (let k = 0; k < BAR; k++) {
-      pattern.forEach((row, i) => { row[b * BAR + k] = row[off + k]; });
-      notes.forEach((row, i) => { row[b * BAR + k] = row[off + k]; });
+    for (let k = 0; k < barLen; k++) {
+      pattern.forEach((row, i) => { row[b * barLen + k] = row[off + k]; });
+      notes.forEach((row, i) => { row[b * barLen + k] = row[off + k]; });
     }
   }
   TRACKS.forEach((_, i) => paintDots(i));
@@ -1770,30 +1782,37 @@ $('copyBar').addEventListener('click', () => {
   say('Bar ' + (page + 1) + ' copied over the other three.');
 });
 
-function setLen(n) {
-  patLen = n;
-  const m = METER[n] || METER.d;
-  if (m !== mtr) { mtr = m; buildSteps(); buildRoll(); }
-  lenEl.querySelectorAll('button').forEach(b =>
-    b.setAttribute('aria-pressed', String(Number(b.dataset.l) === patLen)));
-  barsEl.hidden = patLen <= BAR;      // nothing to page through in one bar
+function setLen(meter, n) {
+  const m = METERS.find(x => x.id === meter) || METERS[0];
+  barsN = n;
+  if (m !== mtr) { mtr = m; barLen = m.len; buildSteps(); buildRoll(); }
+  patLen = barLen * barsN;
+  meterEl.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.m === mtr.id)));
+  barsSeg.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.n) === barsN)));
+  barsEl.hidden = barsN < 2;             // nothing to page through in one bar
   cellEls.forEach((c, i) => { c.dataset.out = i >= patLen ? '1' : '0'; });
   rulerEl.querySelectorAll('[data-s]').forEach(l => {
     l.dataset.out = Number(l.dataset.s) >= patLen ? '1' : '0';
   });
-  setPage(patLen <= BAR ? 0 : page);
+  setPage(barsN < 2 ? 0 : page);
   TRACKS.forEach((_, i) => paintDots(i));
 }
-lenEl.addEventListener('click', e => {
+meterEl.addEventListener('click', e => {
   const b = e.target.closest('button');
-  if (b) setLen(Number(b.dataset.l));
+  if (b) setLen(b.dataset.m, barsN);
+});
+barsSeg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) setLen(mtr.id, Number(b.dataset.n));
 });
 
 function paintLane() {
   const on = pattern[sel], kind = TRACKS[sel].kind, melodic = kind === 'note';
   stepsEl.hidden = melodic; rollEl.hidden = !melodic;
   if (melodic) paintRoll();
-  else cellEls.forEach((c, i) => paintCell(c, on[page * BAR + i]));
+  else cellEls.forEach((c, i) => paintCell(c, on[page * barLen + i]));
   stepsEl.className = 'steps' + (kind === 'voice' ? ' voice' : kind === 'tone' ? ' tone' : '');
   laneName.textContent = TRACKS[sel].name;
   const n = on.slice(0, patLen).filter(Boolean).length;
@@ -1871,7 +1890,7 @@ function paintCell(c, v) {
 function setStep(s, v) {
   if (pattern[sel][s] === v) return;
   pattern[sel][s] = v;
-  const c = cellEls[s - page * BAR];
+  const c = cellEls[s - page * barLen];
   if (c) paintCell(c, v);
   paintDots(sel);
   const n = pattern[sel].slice(0, patLen).filter(Boolean).length;
@@ -1900,7 +1919,7 @@ stepsEl.addEventListener('pointerdown', e => {
       const k = VELS.indexOf(pattern[sel][s]);
       const v = VELS[(k < 0 ? 0 : k + 1) % VELS.length];
       setStep(s, v);
-      laneMeta.textContent = 'step ' + (s % BAR + 1) + ' · ' + VEL_NAME[v];
+      laneMeta.textContent = 'step ' + (s % barLen + 1) + ' · ' + VEL_NAME[v];
       if (!playing && ctx) fire(sel, ctx.currentTime + 0.005, s);
     }, 320);
   }
@@ -2490,7 +2509,7 @@ const GROOVES = [
      beats struck hard and the rest wrist; the hands land on the third eighth of
      each group and the accordion answers on the second. DUM-ka-KA. */
   { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.6, verb:1.1,
-    bpm:96, len:12, swing:0, echo:false,
+    bpm:96, meter:'6/8', bars:1, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     steps:{ kick:[0,6], clap:[4,10],
             ohat:[0,2,4,6,8,10],
@@ -2510,14 +2529,14 @@ function loadGroove(gi) {
   // and gets tiled across all four; one that does is taken as authored whole,
   // which is how a groove earns a fill or a bar that drops out.
   const oneBar = Object.keys(g.steps).every(k =>
-    g.steps[k].every(v => (v.length ? v[0] : v) < BAR));
-  const reps = oneBar ? BARS : 1;
+    g.steps[k].every(v => (v.length ? v[0] : v) < barLen));
+  const reps = oneBar ? barsN : 1;
   TRACKS.forEach((trk, i) => {
     const k = trk.kind === 'voice' ? 'v' + trk.ci : trk.id;
     (g.steps[k] || []).forEach(v => {
       const s0 = v.length ? v[0] : v, d = v.length ? v[1] : 0;
       for (let b = 0; b < reps; b++) {
-        const s = s0 + b * BAR;
+        const s = s0 + b * barLen;
         if (s >= STEPS) break;
         pattern[i][s] = 1;
         notes[i][s] = d;
@@ -2531,7 +2550,7 @@ function loadGroove(gi) {
       if (!list) return;
       list.forEach(s0 => {
         for (let b = 0; b < reps; b++) {
-          const s = s0 + b * BAR;
+          const s = s0 + b * barLen;
           if (s >= STEPS) break;
           if (pattern[i][s]) pattern[i][s] = pair[1];
         }
@@ -2561,7 +2580,7 @@ function loadGroove(gi) {
   verbAmt = g.verb === undefined ? 1 : g.verb;
   if ((g.kit || 'machine') !== kit) loadKit(g.kit || 'machine');
   TRACKS.forEach((_, i) => paintDots(i));
-  setLen(g.len || STEPS); paintPanel();
+  setLen(g.meter || '4/4', g.bars || 4); paintPanel();
 }
 
 function renderGrooves() {
@@ -2735,7 +2754,7 @@ function snapshot() {
   return {
     pack: PACKS[packIx].id, bpm: bpm, key: key, prog: PROGS[progIx].name,
     timbre: timbre, kit: kit, air: air, swing: swing, pump: pump,
-    len: patLen, shape: { ...shapeOf }, filt: filtV,
+    meter: mtr.id, bars: barsN, shape: { ...shapeOf }, filt: filtV,
     pattern: pattern.map(r => r.slice()), notes: notes.map(r => r.slice()),
     vol: vol.slice(), mute: mute.slice(), send: send.slice(),
     voice: vparams.map(v => ({ ...v }))
@@ -2771,7 +2790,7 @@ async function restore(o) {
   if (o.filt !== undefined) setFilt(o.filt);
   setBpm(o.bpm);
   TRACKS.forEach((_, i) => paintDots(i));
-  setLen(o.len || STEPS); paintPanel();
+  setLen(o.meter || '4/4', o.bars || 4); paintPanel();
 }
 function renderSaves() {
   const all = readSaves(), names = Object.keys(all).sort();
@@ -2831,7 +2850,7 @@ buildSteps();
 buildRoll();
 buildKbd();
 buildMixer();
-setLen(STEPS);
+setLen('4/4', 4);
 select(0);
 loadGroove(0);
 select(NS);   // land on the first voice, the interesting part

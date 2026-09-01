@@ -204,7 +204,8 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
 | Filtro | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
-| 6/8 · 1 bar · 4 bars | How much of the pattern loops. **6/8** is twelve sixteenths in *two* beats of three eighths: gaps every six, shading on each eighth, the ruler counting one to six. Grouping them three at a time — the first attempt — draws four dotted-eighth beats, which is a different metre wearing the label. The four cells left over go dim |
+| 4/4 · 6/8 | The metre. A bar is sixteen steps in common time, twelve in 6/8 |
+| 1 bar · 4 bars | How many bars go round |
 | Batteria | The drums: the synthesised **Macchina**, or **Tamburello** — a real cajón, tambourine, shaker and hand claps. It sits in the header of the rack it governs |
 | Strumenti | Bass, stab and lead: Synth italo, Fisarmonica, Mandolino, Rhodes, Organo |
 | Bar 1–4 | Which bar the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
@@ -227,6 +228,22 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Hold a track | Solo it. Hold again to let the rest back in |
 | Save | Keeps the whole state under a name, in this browser: pattern, mix, clip trims, tempo, key, giro and instrument. Saved ones appear under the presets |
 | Keys 1–9 | Trigger the first nine tracks from a keyboard |
+
+### Metre and length
+
+These are two settings and they used to be one control, which put **6/8** in a
+row beside "1 bar" and "4 bars" as though a time signature were a length. It is
+not: the metre says how long a bar is, the other says how many of them loop.
+Four combinations, 16 to 48 steps.
+
+A bar is sixteen sixteenths in common time and twelve in 6/8 — six eighths, in
+**two** beats of three. The lane draws it that way: one gap at the halfway
+point, shading on each eighth with the two beats darker, and the ruler counting
+one to six.
+
+Getting that wrong is easy and I did it twice. Twelve steps grouped in threes
+draws four dotted-eighth beats; twelve steps in a 4/4 grid draws a common-time
+bar somebody cut short. Neither is 6/8.
 
 ### Four bars
 
