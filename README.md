@@ -349,7 +349,8 @@ moves the Stab and the Bass with it:
 | --- | --- |
 | Synth italo | Detuned sawtooths straight into the delay |
 | Fisarmonica | A recorded Hohner button accordion — eight notes, the rest repitched between them, never more than two semitones. The synthesised reeds remain as the fallback if the notes do not load |
-| Mandolino | Karplus-Strong: a burst of noise going round a loop one period long, losing its top on every pass, which is what a plucked string physically does. Two strings to a course, chords strummed rather than struck, and the lead tremolo-picks because a mandolin holds a note by repeating it |
+| Chitarra | A recorded Spanish classical guitar — eleven notes from A1 to B5, the only sampled instrument that reaches low enough to play the bass too. Chords are strummed: the notes of one arrive as a hand crosses the strings |
+| Mandolino | Karplus-Strong, the one instrument here still modelled: a burst of noise going round a loop one period long, losing its top on every pass. No CC0 mandolin exists to record from |
 | Rhodes | A struck tine — a sine body under a bright partial that dies at once |
 | Organo | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
 
