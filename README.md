@@ -36,6 +36,11 @@ either keeps all of it or eats the consonant a word starts on. `trim-clips.py`
 certainly is, walk outwards to where it certainly is not, pad, and cut with a
 short fade so there is no click where it lands in the room tone.
 
+The two ends are not treated alike. An onset is abrupt and a tail fades, so the
+tail gate sits twelve decibels lower and pads two and a half times as far. The
+first version used one threshold for both and clipped the ends off two clips;
+the heads are where nearly all the dead air was anyway.
+
 It reads from `records/` and writes to `app/audio/`, so `records/` stays the
 archive and the whole thing is reversible. Run `python3 trim-clips.py clips.json
 --dry-run` first: it prints what it would remove without touching anything.
@@ -131,19 +136,17 @@ the bar down its right edge mutes.
 | --- | --- |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
-| Pompa | Sidechain: the kick pushes bass, chords, lead and voices out of its way for a fifth of a second. It is also where the headroom comes from — a full bar of Liana clips 101 samples without it and none with it |
 | Filtro | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
-| Bar 1–4 | Which of the four bars the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
-| Swing | Pushes the off-beat eighths late for a shuffled feel. Sixteenths ride along inside whichever eighth they sit in |
-| Echo | Dotted-eighth feedback delay, re-synced when the tempo changes |
-| Strumento | What the pitched tracks are played on — **Synth italo** (saws) or **Fisarmonica** (reeds). Stab, Lead and Bass follow it; the drums never change |
+| 1 bar / 4 bars | How much of the pattern loops |
+| Bar 1–4 | Which bar the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
+| Strumento | What the pitched tracks are played on — Synth italo, Fisarmonica, Rhodes or Organo. Stab, Lead and Bass follow it; the drums never change |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
 | Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root. The giro also picks the Lead's scale |
-| Pattern | Tap an empty step to write it. Tap a written one again to walk it round: normal, accent, ghost, off. Drag to paint a run, or drag from a written step to erase |
+| Pattern | Tap a step to write it, tap it again to clear it, drag to paint a run or to erase one. **Hold** a written step to walk it round: normal, accent, ghost |
 | Pattern (Lead) | Eight rows of the giro's scale — tap a row to write that note, tap it again to erase |
 | Volume | Per-track level |
-| More | Opens the rest of the panel — Echo send, Speed, and playback direction |
-| Track → Echo | How much of that track feeds the delay |
+| Echo | How much of that track feeds the delay. There is no master echo switch — it is per instrument |
+| More | Opens the rest of the panel — Speed and playback direction |
 | Arp / Chord | Bass walks the intervals one per hit; Stab plays them together |
 | Speed | Playback rate, 0.4×–2.2× — changes pitch along with tempo |
 | Waveform | Drag the two handles to set where the clip starts and ends. Press anywhere and the nearer handle comes to you; arrow keys nudge, Shift+arrow finer |
@@ -170,11 +173,14 @@ of the others and the difference is the point of the change.
 
 ### Accents
 
-A step holds a velocity rather than a flag. Tapping a written step walks it
-round — normal, accent, ghost, off — and identical hits are a good part of what
-makes a machine sound like one. Dragging still paints and erases, so the two
-do not get in each other's way: you have to stay on the step you pressed for a
-tap to count as a tap.
+A step holds a velocity rather than a flag, because identical hits are a good
+part of what makes a machine sound like one. **Hold** a written step to walk it
+round — normal, accent, ghost.
+
+This was on a plain tap at first, and that was a mistake: tapping a written step
+has meant "clear it" since the first version, so the change quietly produced two
+shades of lit step with no way to tell where they had come from. Tap clears,
+hold accents, drag still paints and erases.
 
 ### Swing
 
@@ -187,7 +193,13 @@ centred inside whichever eighth they belong to, so a sixteenth pattern shuffles
 along instead of stacking up and crashing into the downbeat.
 
 Full swing puts the off-beat two thirds of the way through the beat, the triplet
-feel; the button is set to a little over half of that.
+feel; the grooves that use it sit a little over half of that.
+
+Swing has no button. Neither does the sidechain, and the delay has no master
+switch. Three toggles whose effect was hard to hear had accumulated on one row;
+swing and the sidechain are per groove now — a groove that wants a shuffle or a
+pumping bass asks for one — and how much of a track reaches the delay is that
+track's own Echo send.
 
 ### The in and out points
 
@@ -252,46 +264,37 @@ tune stay recognisable while the harmony moves under it.
 
 ### Grooves
 
-Ordered by how much they sound like a record rather than a demonstration, best
-first. Density turns out to be most of it: **Italo** lands 21 hits in a bar and
-reads as a groove; the one that used to sit in this list landed 59 — hats on all
-sixteen, bass on all sixteen, a thirteen-note lead — and read as a wall. It is
-gone. Bass on eighths carries the hook, the stab answers off the beat, and a
-lead under eight notes stays a tune instead of becoming a run.
+Four shared and four for the pack you have loaded, eight on screen. They are
+ordered by how finished they sound, which is a structural judgement and not a
+verdict on taste — reorder them freely, it is one array.
 
-The five shared ones only ever trigger the first voice, unchopped and at speed,
-so they work with any recordings.
+What they are not is four takes on one idea. No two share a tempo, and
+instrument, mode, feel and density all move across the set:
 
-- **Liana** — 118 BPM, i–VI–III–VII. Octave bass on eighths, stabs pushed onto
-  the last sixteenth of every beat, a six-note lead. The one to start from.
-- **Sunset** — 118 BPM, same turnaround, an eight-note lead arching up to the octave.
-- **Italo** — 120 BPM, four-on-the-floor, off-beat open hat, claps on 2 and 4.
-  The plainest of them, and the reference the others are measured against.
-- **Autostrada** — 128 BPM, i–VII–VI–VII. The fast one, with sixteenths only
-  where they push — two pickups into the bar, an open hat off the last eighth —
-  rather than on every lane at once.
-- **Passeggiata** — 108 BPM, i–iv–VI–V, half-time and wide: kick on 1 and 9 only,
-  three long lead notes, the whole spoken phrase unchopped underneath.
+| | BPM | Instrument | Mode | Hits/bar |
+| --- | --- | --- | --- | --- |
+| Liana | 118 | Synth italo | minor | 29 |
+| Sanremo | 92 | Rhodes | major | 16 |
+| Notte | 104 | Organo | minor, swung | 15 |
+| Autostrada | 132 | Synth italo | minor | 38 |
+| Riviera *(clem)* | 126 | Synth italo | minor | 30 |
+| Coro *(clem)* | 108 | Rhodes | major | 17 |
+| Chop *(clem)* | 96 | Synth italo | minor | 23 |
+| Talk *(clem)* | 84 | — | minor, swung | 11 |
+| Stornello *(nonni)* | 100 | Fisarmonica | major | 18 |
+| Osteria *(nonni)* | 116 | Fisarmonica | major | 29 |
+| Trastevere *(nonni)* | 80 | Fisarmonica | major, swung | 10 |
+| Tarantella *(nonni)* | 142 | Fisarmonica | harmonic minor | 41 |
 
-**Clem**, cut to those five clips.
+The four shared ones are written across all sixty-four steps — **Liana** has a
+lead that never repeats and a stab that sits out the last half bar; **Autostrada**
+drops its sixteenth bass to eighths in the fourth bar and lets the hats run, which
+is space by subtraction rather than by playing less. The pack ones are one bar and
+get tiled, because what varies in those is the talking. **Coro** is the odd one:
+three voices with Overlap on, piling up on each other instead of cutting.
 
-- **Riviera** — 126 BPM, i–VII–VI–VII, octave bass under a descending lead.
-- **Notturno** — 104 BPM, i–iv–VI–V, slow and sparse, five notes in the bar.
-- **Chop** — 96 BPM, four voices sliced to two steps each.
-- **Talk** — 84 BPM, swung and sparse, voices playing in full.
-
-**Nonni**: accordion, no delay, and the bass on 1 and 3 with the chord answering
-on 2 and 4 — the left hand of a box, oom and pah. The reeds are sawtooths rather
-than squares, because a free reed swings through its slot and so carries even
-harmonics as well as odd; squares are the sound of a toy organ. There is no
-vibrato oscillator anywhere — the wobble is the beating between reeds tuned a
-few cents apart, and an LFO on top of that gives you a fairground.
-
-- **Stornello** — 100 BPM, I–IV–V–I in major, oom-pah, two voices trading.
-- **Osteria** — 108 BPM, I–V–V–I, swung, with the long clip sliced underneath.
-- **Trastevere** — 84 BPM, I–IV–V–I, half-time and late, the long voice slowed to
-  0.9× and given the whole bar to talk.
-- **Tarantella** — 142 BPM, i–i–V–i in harmonic minor, driving eighths and a
-  stuttered voice on the downbeat. The frantic one, so it sits last.
+Density is most of what separates a groove from a wall. An earlier preset landed
+59 hits in a bar — hats on all sixteen, bass on all sixteen, a thirteen-note lead
+— and read as noise. It is gone.
 
 Patterns live in memory only, so they reset when the app is closed.
