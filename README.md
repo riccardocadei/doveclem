@@ -155,6 +155,53 @@ desk adds and glues separate oscillators into one thing. It also takes the
 peaks: a bar of Liana that used to clip now peaks 0.912 with nothing clipped at
 all.
 
+## The accordion was playing on top of itself
+
+"The tarantella's accordion is terrible" turned out to be mechanical rather than
+a matter of taste, and the measuring is what settled it. On that groove the
+chords sat two steps apart — 0.31 s — while the sampled accordion held each one
+for 0.47 s plus a 90 ms release. Four chords and six melody notes a bar, each
+still sounding when the next arrived. `score.html` now reports **coda**: the RMS
+in the 12 ms before every onset, in dB below that track's mean peak. The
+tarantella's lead read 100% of its onsets landing on top of the previous note.
+
+`playFor(i, s, cap)` fixes it at the source. A held voice now stops before the
+next note on its own track, at 70% of the gap — `cap` is whatever the hold was
+before, so the function can only ever shorten. The lead went from −7.7 dB and
+100% overlapping to −21.2 dB and **0%**.
+
+The same measurement found the disease in a groove nobody had complained about:
+Permanente's accordion melody was also 100% overlapping. Three cases remain
+partly overlapping — Balera's and Sanremo's chords, Permanente's melody, all
+between 55 and 86% — and that residue is the reverb rather than the envelope, so
+whether it is wrong is a taste question and not a defect. The number includes
+the room on purpose, because the ear does.
+
+### The tarantella, rewritten, and a pizzica beside it
+
+The tarantella was slow as well as muddy: 96 BPM over a single bar, and a slow
+tarantella is not a tarantella. It runs at 132 across four bars now, so the giro
+moves underneath the tune instead of alongside it, the accordion answers twice a
+bar instead of four times, and the tambourine rolls all twelve steps with the
+accent on the two beats.
+
+**Pizzica** is new and sits next to it: 160 BPM, and the tambourine is not the
+accompaniment, it is the piece. No four-on-the-floor, no echo, a bass that
+stands still on the tonic like a drone, and a mandolin tremolo — four plectrum
+strokes a note, which is how a mandolin holds a long note when it has no
+sustain. The cajón slap plays the hands on the drum. It keeps the tarantella's
+giro deliberately: what changes is the gait, not the harmony, and that is
+precisely the difference between the two.
+
+The third bar breaks — the tambourine thins, the mandolin stops, the voice is
+left alone — which happens in the real thing.
+
+**The tambourine is louder.** The folk kit had it at 0.62, level with the
+synthesised hat it replaces, which was correct as level-matching and wrong as
+music: on Permanente, Campagna, Testaccio and both folk dances the tambourine
+*is* the percussion. It is at 0.90 on the strength of an ear, which beats the
+measurement here.
+
 ## Space, and something that moves
 
 **The echo bounces.** The dotted-eighth delay italo runs everything through was

@@ -48,6 +48,7 @@ differiscono solo per ciò che è cambiato davvero nel codice.</p>
   <button id="voices">Prima / dopo sui singoli colpi</button>
   <button id="kits">Pareggiare i due kit</button>
   <button id="levels">Livelli delle voci nuove</button>
+  <button id="overlap">Note che si sovrappongono</button>
 </div>
 <div id="log"></div>
 
@@ -375,6 +376,8 @@ const LIMITS = {
   novita:           { bad: 0.02, warn: 0.06, dir: 'lo', why: 'differenza fra battute consecutive; 0 = quattro battute identiche' },
   crest:            { bad: 8,    warn: 11,  dir: 'lo', why: 'dB fra picco e RMS; sotto 8 è schiacciato' },
   arco:             { bad: 0.01, warn: 0.03, dir: 'lo', why: 'movimento sulle otto battute; 0 = le due metà sono la stessa cosa' },
+  coda:             { bad: -6,   warn: -14, dir: 'hi', why: 'dB sotto il picco: quanto la nota precedente è ancora in campo' },
+  sovrappPct:       { bad: 70,   warn: 35,  dir: 'hi', why: '% di attacchi che trovano il posto occupato' },
   colpiPerBattuta:  { bad: 55,   warn: 40,  dir: 'hi', why: 'oltre 55 è un muro, non un groove' },
   stereo:           { bad: 0.97, warn: 0.9, dir: 'hi', why: '1 = mono' },
   /* Attenzione a questa: quattro semi diversi spostano il picco di una stessa
@@ -475,7 +478,9 @@ async function runVoices() {
         log((org ? 'dopo' : 'prima') + ' — ' + g.pack + ' / ' + id);
         seed(w, SEED);
         let res;
-        try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
+        try { res = await w.dev.render(g.i, 2, id); }
+        catch (e) { rows.push({ pack: g.pack, kit: g.kit, voce: id,
+                                stato: 'ERRORE: ' + (e && e.message || e) }); continue; }
         const st = trackStats(res, id);
         if (st) rows.push(Object.assign({ pack: g.pack, kit: g.kit, voce: id,
                                           stato: org ? 'dopo' : 'prima' }, st));
@@ -598,7 +603,8 @@ async function runLevels() {
       log('livelli — ' + name + ' / ' + id);
       seed(w, SEED);
       let res;
-      try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
+      try { res = await w.dev.render(g.i, 2, id); }
+      catch (e) { rows.push({ groove: name, voce: id, colpi: 'ERRORE: ' + (e && e.message || e) }); continue; }
       const hits = res.hits.filter(h => h.id === id);
       if (!hits.length) { rows.push({ groove: name, voce: id, colpi: 0 }); continue; }
       const d = monoOf(res.buf), sr = res.buf.sampleRate;
@@ -660,6 +666,76 @@ async function runLevels() {
   return rows;
 }
 
+/* Quanto una nota è ancora lì quando arriva la successiva.
+
+   È nata da una lamentela: "la fisarmonica della tarantella fa cagare". Il
+   sospetto era meccanico e non di gusto — su quella groove gli stab stanno a
+   due step l'uno dall'altro, cioè 0.31 s, e la fisarmonica campionata li tiene
+   0.47 s più 0.09 di rilascio. Ogni accordo si sovrappone al successivo per un
+   quarto di secondo, quattro alla volta, e non è un arrangiamento, è una poltiglia.
+
+   Misurato dall'audio e non dai parametri, perché la domanda percettiva
+   comprende la stanza: l'RMS nei 12 ms *prima* di ogni attacco, contro il picco
+   medio della traccia. Sopra −12 dB la nota precedente è ancora in campo. */
+async function runOverlap() {
+  const w = await ready();
+  const gs = w.dev.grooves();
+  const PITCHED = ['bass', 'pad', 'stab', 'chank', 'arp', 'lead'];
+  const rows = [];
+  for (const g of gs) {
+    for (const id of PITCHED) {
+      seed(w, SEED);
+      let res;
+      /* Non inghiottire: la prima versione faceva `catch { continue }`, e quando
+         VOICES.stab ha iniziato a lanciare per un parametro mancante tre grooves
+         sono semplicemente scomparse dalla tabella. Una misura che tace su un
+         errore è peggio che non misurare, perché sembra un risultato. */
+      try { res = await w.dev.render(g.i, 2, id); }
+      catch (e) {
+        rows.push({ groove: g.pack + '/' + g.name, voce: id, colpi: 'ERRORE: ' + (e && e.message || e) });
+        continue;
+      }
+      const hits = res.hits.filter(h => h.id === id);
+      if (hits.length < 3) continue;
+      log('coda — ' + g.pack + '/' + g.name + ' / ' + id);
+      const d = monoOf(res.buf), sr = res.buf.sampleRate;
+      const pre = Math.round(0.012 * sr), pk = Math.round(0.045 * sr);
+      let peakSum = 0, over = 0, resSum = 0, n = 0, gap = 0;
+      hits.forEach((h, k) => {
+        const a = Math.round(h.at * sr);
+        peakSum += peakRms(d, a, a + pk).peak;
+        if (!k) return;
+        const r = peakRms(d, a - pre, a).rms;
+        resSum += r; n++;
+        gap += (h.at - hits[k - 1].at) * 1000;
+      });
+      if (!n) continue;
+      const mp = peakSum / hits.length, mr = resSum / n;
+      const coda = r2(dB(mr) - dB(mp));
+      hits.forEach((h, k) => {
+        if (!k) return;
+        const a = Math.round(h.at * sr);
+        if (dB(peakRms(d, a - pre, a).rms) - dB(mp) > -12) over++;
+      });
+      rows.push({ groove: g.pack + '/' + g.name, voce: id, colpi: hits.length,
+                  passoMs: r2(gap / n), coda: coda,
+                  sovrappPct: r2(over / n * 100) });
+    }
+  }
+  rows.sort((a, b) => b.coda - a.coda);
+  log('fatto: ' + rows.length + ' voci intonate misurate.');
+  show(table(rows, [
+    ['groove', r => r.groove], ['voce', r => r.voce], ['colpi', r => r.colpi],
+    ['passo ms', r => r.passoMs],
+    ['coda dB', r => r.coda, 'coda'],
+    ['sovrapposte %', r => r.sovrappPct, 'sovrappPct'],
+  ], 'La nota precedente è ancora lì?',
+     'Ordinato dal peggio. <b>coda</b> è l\'RMS nei 12 ms prima di ogni attacco, in dB sotto il picco medio della traccia: più è vicino a zero, più la nota precedente sta ancora suonando quando arriva la prossima. <b>sovrapposte</b> è la percentuale di attacchi che trovano il posto già occupato sopra −12 dB. Un pad alto è normale, è il suo lavoro; uno stab o un lead alti sono poltiglia.'),
+    rows);
+  return rows;
+}
+
+document.getElementById('overlap').addEventListener('click', e => { e.target.disabled = true; runOverlap(); });
 document.getElementById('levels').addEventListener('click', e => { e.target.disabled = true; runLevels(); });
 document.getElementById('kits').addEventListener('click', e => { e.target.disabled = true; runKits(); });
 document.getElementById('mix').addEventListener('click', e => { e.target.disabled = true; runMix(); });
@@ -675,6 +751,7 @@ document.getElementById('voices').addEventListener('click', e => { e.target.disa
     else if (q === 'voices') await runVoices();
     else if (q === 'kits') await runKits();
     else if (q === 'levels') await runLevels();
+    else if (q === 'overlap') await runOverlap();
     else if (q === 'all') { await runVoices(); await runKits(); await runMix(); }
     document.title = 'SCORE_DONE';
   } catch (e) {

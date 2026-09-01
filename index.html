@@ -1686,18 +1686,18 @@ const VOICES = {
     sub.connect(sg); tap(sg, i);
     sub.start(t); sub.stop(t + 0.22);
   },
-  stab(t, i) {
+  stab(t, i, s) {
     const c = chordAt(), iv = SHAPES[shapeOf.stab].iv, root = c.root + 24;
     const md = iv.map(x => root + qual(x, c.maj));
     if (timbre === 'fisa') {
-      const hold = Math.max(0.24, stepDur() * 3);
+      const hold = playFor(i, s, Math.max(0.24, stepDur() * 3));
       return sampled(t, i, md, 0.10, hold) || reeds(t, i, md, 0.028, hold);
     }
     // strummed: the notes of a chord arrive as a hand crosses the strings
-    if (timbre === 'chit')   return sampled(t, i, md, 0.13, Math.max(0.3, stepDur() * 3), 0.018);
+    if (timbre === 'chit')   return sampled(t, i, md, 0.13, playFor(i, s, Math.max(0.3, stepDur() * 3)), 0.018);
     if (timbre === 'mando')  return pluck(t, i, md, 0.125, 0.016);
     if (timbre === 'rhodes') return tine(t, i, md, 0.041);
-    if (timbre === 'organo') return drawbars(t, i, md, 0.038, Math.max(0.22, stepDur() * 3));
+    if (timbre === 'organo') return drawbars(t, i, md, 0.038, playFor(i, s, Math.max(0.22, stepDur() * 3)));
     iv.forEach((semi, k) => {
       const o = ctx.createOscillator(); o.type = 'sawtooth';
       o.frequency.value = freq(root + qual(semi, c.maj)) * (k % 2 ? 1.004 : 1);
@@ -1772,18 +1772,18 @@ const VOICES = {
   lead(t, i, s) {
     const n = leadNote(s == null ? 0 : notes[i][s]);
     if (timbre === 'fisa') {
-      const hold = Math.max(0.2, stepDur() * 2);
+      const hold = playFor(i, s, Math.max(0.2, stepDur() * 2));
       return sampled(t, i, [n], 0.40, hold) || reeds(t, i, [n], 0.075, hold);
     }
     // Tremolo picking: a mandolin has no sustain, so it holds a note by
     // repeating it. That flutter is what the instrument sounds like.
-    if (timbre === 'chit') return sampled(t, i, [n], 0.30, Math.max(0.25, stepDur() * 2));
+    if (timbre === 'chit') return sampled(t, i, [n], 0.30, playFor(i, s, Math.max(0.25, stepDur() * 2)));
     if (timbre === 'mando') {
       for (let k = 0; k < 4; k++) pluck(t + k * 0.055, i, [n], 0.245 * (k ? 0.78 : 1), 0);
       return;
     }
     if (timbre === 'rhodes') return tine(t, i, [n], 0.22);
-    if (timbre === 'organo') return drawbars(t, i, [n], 0.21, Math.max(0.2, stepDur() * 2));
+    if (timbre === 'organo') return drawbars(t, i, [n], 0.21, playFor(i, s, Math.max(0.2, stepDur() * 2)));
     const f = freq(n);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4;
     lp.frequency.setValueAtTime(5200, t);
@@ -1828,6 +1828,18 @@ function stepDur() { return 60 / bpm / 4; }
    turn. Better than a number per groove, because the answer is already in the
    pattern — and it means moving a pad step changes its length, which is what
    you would expect it to do. */
+/* Quanto tenere una nota che *deve* finire prima della successiva. Un pad tiene
+   fino allo step dopo e va benissimo così; un accordo di fisarmonica o una
+   melodia no. score.html ha misurato il 100% degli attacchi del lead della
+   tarantella che arrivavano con la nota precedente ancora in campo — ed è
+   letteralmente quello che si sentiva quando la groove "faceva cagare". `cap` è
+   il valore che c'era prima, quindi questa può solo accorciare, mai allungare.
+   Il 0.7 è il respiro: una nota che finisce esattamente dove comincia la
+   prossima si attacca comunque, perché il rilascio dura altri 90 ms. */
+function playFor(i, s, cap) {
+  return Math.min(cap, Math.max(0.09, holdTo(i, s) * 0.7));
+}
+
 function holdTo(i, s) {
   if (s == null) return 1.5;                       // auditioning from the mixer
   for (let k = 1; k <= patLen; k++) if (pattern[i][(s + k) % patLen]) return k * stepDur();
@@ -2518,7 +2530,12 @@ filtI.addEventListener('input', () => setFilt(Number(filtI.value)));
    same loudness. */
 const KITS = [
   { id:'machine', name:'Macchina' },
-  { id:'folk', name:'Tamburello', slots:{ kick:0.50, snare:0.88, clap:0.19, hat:0.90, ohat:0.62 } },
+  /* ohat è il tamburello, e 0.62 lo teneva al livello del charleston sintetico
+     che sostituisce — corretto come pareggiamento e sbagliato come musica: su
+     Permanente, Campagna, Testaccio e le due tarantelle il tamburello *è* la
+     percussione, non un charleston. 0.90 su richiesta di un orecchio, che qui
+     batte la misura. */
+  { id:'folk', name:'Tamburello', slots:{ kick:0.50, snare:0.88, clap:0.19, hat:0.90, ohat:0.90 } },
 ];
 let kit = 'machine';
 const kitBuf = {};
@@ -3229,20 +3246,63 @@ const GROOVES = [
     accent:{ snare:[4,12], kick:[0] },
     ghost:{ ohat:[2,6,10,14] },
     voice:{ 6:{rate:0.95,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
-  { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.15, verb:1.05,
-    /* Una battuta sola, quindi il fill non è un finale: è la battuta pari.
-       Due battute che si alternano sono la frase di una tarantella. */
-    fill:{ ohat:[0,3,6,8,9,10,11], clap:[4,10] },
-    bpm:96, meter:'6/8', bars:1, swing:0, echo:false,
+  /* Rifatta da zero, perché la prima versione non funzionava e la ragione era
+     misurabile. A 96 con una battuta sola era lenta — una tarantella lenta non è
+     una tarantella — e la fisarmonica suonava quattro accordi e sei note per
+     battuta a due step di distanza, cioè 0.31 s, tenuti 0.47 s ciascuno:
+     score.html misurava il 100% degli attacchi del lead sopra la nota
+     precedente. Ora il motore accorcia le note da sé (playFor), la fisarmonica
+     risponde due volte per battuta invece di quattro, il tamburello rulla su
+     tutti i dodici step con l'accento sui due tempi, e gira a 132 su quattro
+     battute così il giro si muove sotto la melodia invece che a fianco. */
+  { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.2, verb:1.1,
+    bpm:132, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     steps:{ kick:[0,6], clap:[4,10],
-            ohat:[0,3,6,9],
-            bass:[0,4,6,10], stab:[2,4,8,10],
-            lead:[[0,0],[2,2],[4,4],[6,4],[8,6],[10,2]],
-            v1:[0] },
-    accent:{ ohat:[0,6], kick:[0,6], clap:[4,10], bass:[0,6] },
-    ghost:{ ohat:[3,9], stab:[4,10], bass:[4,10] },
-    voice:{ 1:{rate:1.2,start:0,chop:2} } }
+            ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
+            bass:[0,6], stab:[3,9],
+            lead:[[0,4],[2,3],[4,2],[6,4],[8,3],[10,2],
+                  [12,0],[14,2],[16,3],[18,2],[20,0],
+                  [24,4],[26,6],[28,4],[30,2],[32,4],[34,6],
+                  [36,7],[38,4],[40,2],[42,0],[46,0]],
+            v1:[0,24] },
+    accent:{ ohat:[0,6], kick:[0,6], clap:[4,10] },
+    ghost:{ ohat:[1,2,3,4,5,7,8,9,10,11] },
+    vary:{ 1:{ clear:{ stab:[9] } },
+           2:{ add:{ clap:[7] } } },
+    fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] },
+    voice:{ 1:{rate:1.2,start:0,chop:2} } },
+
+  /* La pizzica, che è una tarantella con un'altra urgenza: più veloce, e il
+     tamburello non è accompagnamento, è il pezzo. Niente cassa in quattro,
+     niente eco, un basso che sta fermo sul tonico come un bordone, e il
+     mandolino che tremola la melodia — quattro plettrate per nota, che è come
+     un mandolino tiene una nota lunga non avendo sostegno. Lo slap del cajón
+     fa le mani sul tamburo. Stesso giro della tarantella di proposito: cambia
+     il passo, non l'armonia, ed è esattamente la differenza fra le due. */
+  { name:'Pizzica', pack:'nonni', timbre:'mando', kit:'folk', air:0.3, verb:1.1,
+    bpm:160, meter:'6/8', bars:4, swing:0, echo:false,
+    key:33, prog:'Tarantella', shape:{bass:0,stab:3},
+    steps:{ kick:[0,6], snare:[4,10], clap:[3,9],
+            ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
+            bass:[0,6], stab:[3,9],
+            lead:[[0,4],[3,2],[6,4],[9,5],
+                  [12,4],[15,2],[18,0],[21,2],
+                  [24,4],[27,6],[30,4],[33,6],
+                  [36,7],[39,4],[42,2],[45,0]],
+            v1:[0,12,24,36], v3:[6] },
+    accent:{ ohat:[0,6], clap:[3,9], snare:[4,10] },
+    ghost:{ ohat:[1,2,4,5,7,8,10,11], kick:[0,6] },
+    /* Con il tamburello su tutti i dodici step a ogni battuta la novità
+       misurava 0.08, appena sopra la soglia: un rullo costante è il suono
+       giusto e quattro battute identiche non lo sono. La terza battuta fa lo
+       stacco — il tamburello si dirada, il mandolino tace, e la voce resta
+       sola — che è una cosa che nella pizzica succede davvero. */
+    vary:{ 1:{ add:{ clap:[7] }, accent:{ ohat:[3,9] } },
+           2:{ drop:['stab', 'clap'], clear:{ ohat:[1,4,7,10] } },
+           3:{ add:{ clap:[7] } } },
+    fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] },
+    voice:{ 1:{rate:1.1,start:0,chop:2}, 3:{rate:1,start:0,chop:0} } }
 ];
 
 function loadGroove(gi) {
