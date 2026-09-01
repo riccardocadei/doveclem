@@ -24,8 +24,36 @@ index.html                 the whole app (markup, styles, audio engine)
 manifest.webmanifest       PWA metadata — name, icons, standalone display
 sw.js                      service worker: network-first shell, cached audio
 audio/<pack>/*.m4a         one folder per voice pack
+audio/kit/<kit>/*.m4a      one folder per drum kit
 icons/*.png                home-screen and maskable icons
 ```
+
+## The drums
+
+**Macchina** is the synthesised set the app started with. **Tamburello** swaps
+all five for recordings: a cajón bass tone for the kick, a cajón slap for the
+snare, a hand clap, an egg shaker for the closed hat and a tambourine for the
+open one.
+
+They come from the [FreePats World Percussion](https://github.com/freepats/world-percussion)
+library, which is CC0 — public domain, no attribution required. Crediting it
+anyway seems right. Which recording went to which slot was decided by measuring
+where each one's energy sits rather than by listening: the cajón bass tone puts
+93% of itself under 250 Hz, the slap 89% in the mids, the shaker and the
+tambourine 100% above 2.5 kHz. The per-slot gains then match each one's peak to
+the synth drum it replaces, so switching kit changes the sound and not the
+level. The whole kit is 24 KB.
+
+A slot that fails to load quietly keeps its synthesised voice, so a bad
+connection degrades the kit rather than silencing the drums.
+
+## Room tone
+
+`air` is a bed of filtered noise about 48 dB down, running under everything for
+as long as the app is making sound. It is not a recording of anyone's kitchen —
+for the job it does, which is to stop the gaps between hits being digitally
+empty, generated noise is the same thing and costs nothing. The acoustic bases
+turn it on; the italo ones leave it off.
 
 ## Saving what you make
 
@@ -148,7 +176,8 @@ the bar down its right edge mutes.
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
 | Filtro | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
-| 1 bar / 4 bars | How much of the pattern loops |
+| 6/8 · 1 bar · 4 bars | How much of the pattern loops. **6/8** is a twelve-step bar — four beats of three — which is what a tarantella actually is; the four cells left over go dim |
+| Batteria | The drums: the synthesised **Macchina**, or **Tamburello** — a real cajón, tambourine, shaker and hand claps |
 | Bar 1–4 | Which bar the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
 | Strumento | What the pitched tracks are played on — Synth italo, Fisarmonica, Rhodes or Organo. Stab, Lead and Bass follow it; the drums never change |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
@@ -293,20 +322,40 @@ at all now: in italo the hook is the bass line, and where a voice is playing,
 the voice is the melody. The four that keep one are the song forms — the
 stornello, the tarantella — and two where it appears in only half the bars.
 
-| | BPM | Instrument | Mode | Lead | Hits/bar |
+| | BPM | Drums | Instrument | Mode | Lead |
 | --- | --- | --- | --- | --- | --- |
-| Liana | 118 | Synth italo | minor | bars 2 and 4 | 25 |
-| Sanremo | 92 | Rhodes | major | bars 2 and 4 | 15 |
-| Notte | 104 | Organo | minor, swung | — | 12 |
-| Autostrada | 132 | Synth italo | minor | bars 3 and 4 | 43 |
-| Riviera *(clem)* | 126 | Synth italo | minor | — | 22 |
-| Coro *(clem)* | 108 | Rhodes | major | — | 13 |
-| Chop *(clem)* | 96 | Synth italo | minor | — | 23 |
-| Talk *(clem)* | 84 | — | minor, swung | — | 11 |
-| Stornello *(nonni)* | 100 | Fisarmonica | major | yes | 14 |
-| Osteria *(nonni)* | 116 | Fisarmonica | major | — | 23 |
-| Trastevere *(nonni)* | 80 | Fisarmonica | major, swung | — | 8 |
-| Tarantella *(nonni)* | 142 | Fisarmonica | harmonic minor | yes | 41 |
+| Liana | 118 | machine | Synth italo | minor | bars 2 and 4 |
+| Sanremo | 92 | machine | Rhodes | major | bars 2 and 4 |
+| Notte | 104 | machine | Organo | minor, swung | — |
+| Autostrada | 124 | machine | Synth italo | minor | — |
+| Riviera *(clem)* | 126 | machine | Synth italo | minor | — |
+| Coro *(clem)* | 104 | tamburello | Rhodes | major | — |
+| Chop *(clem)* | 96 | machine | Synth italo | minor | — |
+| Talk *(clem)* | 84 | machine | — | minor, swung | — |
+| Stornello *(nonni)* | 100 | tamburello | Fisarmonica | major | yes |
+| Osteria *(nonni)* | 124 | tamburello | Fisarmonica | major | — |
+| Trastevere *(nonni)* | 82 | tamburello | Fisarmonica | major, swung | — |
+| Tarantella *(nonni)* | 96 | tamburello | Fisarmonica | harmonic minor, **6/8** | yes |
+
+Five of them were rewritten again after listening notes, and the reasons are
+worth keeping:
+
+- **Autostrada** was a carousel. 132 BPM with sixteenth hats, a sixteenth bass
+  *and* a lead running over both. The lead is gone, the bass is eighths with a
+  pickup into each bar, and it is eight BPM slower.
+- **Coro** had no chorus in it and sat too low to hear anything. It is up a
+  fourth, on an octave bass, and the voice now genuinely sings with itself —
+  three copies a few cents apart and a few milliseconds late, which is the only
+  way to get several people saying the same words when a track holds one clip.
+- **Osteria** sounded like a pop song. A tavern has no snare drum: hands clap
+  along on two and four, the tambourine rolls underneath, the accordion fills
+  every gap.
+- **Trastevere** read as broken because it was — hits on 1, 7, 11, 13 and 15 and
+  nothing on two, so there was no pulse to be sparse against.
+- **Tarantella** was not one. A tarantella is in 6/8 and the app could only
+  count to sixteen, so it was a fast 4/4 wearing the name. It runs on a
+  twelve-step bar now: cajón on the two downbeats, hands on the third of each
+  group, tambourine on all twelve, accordion answering on the sixth.
 
 Every one of them uses accents and ghost notes — a backbeat that leans, hats
 with every other sixteenth lightened. An unaccented pattern is a metronome

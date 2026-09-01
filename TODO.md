@@ -54,7 +54,7 @@ For the record, so this is not re-litigated:
 
 ## Cheaper things worth doing first
 
-- **Record percussion.** A tambourine, hands on a table, a wooden spoon on a
+- **Record your own percussion.** A CC0 cajon, tambourine, shaker and hand claps ship as the Tamburello kit now, but they are somebody else's room and somebody else's hands. The original point stands: A tambourine, hands on a table, a wooden spoon on a
   pot — six or eight one-shots on a phone. The drums are synthesised and a real
   accordion over a drum machine still sounds synthetic. Half an hour of work,
   and it is the biggest single lift left.
