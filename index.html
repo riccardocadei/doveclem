@@ -869,6 +869,17 @@ let timbre = 'italo';
 /* A step holds its velocity rather than a flag: 0 off, 1 normal, and the two
    below. Identical hits are most of what makes a machine sound like one. */
 const VELS = [1, 1.4, 0.5];
+/* Una battuta ripetuta quattro volte sono quattro battute identiche, e
+   score.html lo dice in cifre: undici grooves su sedici sotto 0.07 di novità
+   fra battute, che per un analizzatore di spettro è una battuta suonata quattro
+   volte. `vary` rompe la ripetizione al caricamento — non in riproduzione — così
+   la modifica finisce nella corsia dove la vedi e la puoi cambiare. Il fill non
+   può stare lì: succede ogni *secondo* giro, e quattro battute non lo tengono. */
+let fillPat = null, fillHas = null, loops = 0;
+const FILL_EVERY = 2;                  // un fill ogni otto battute
+/* Gli intervalli del basso, quando una groove ne vuole di suoi invece di una
+   delle quattro forme. Nell'italo la linea di basso è il pezzo. */
+let bassIv = null;
 let pump = false, filtV = 1;
 const PUMP = 0.55;                     // how far the kick pushes everything down
 let verbAmt = 1;                       // per base: how much room there is
@@ -912,8 +923,22 @@ function buildTracks() {
 let ctx = null, bus = null, master = null, delay = null, echoWet = null;
 let duck = null, filt = null, drive = null, verb = null, verbIn = null, verbOut = null;
 let chan = [];
-const buffers = [], reversed = [], voiceLive = [], arpN = [];
+const buffers = [], reversed = [], voiceLive = [];
 let ready = false, booted = false;
+/* Every per-hit variation in the file reads this: the random offset into the
+   noise buffer, jit(), and the timing lean. score.html turns it off to render
+   the same groove the way the app sounded before any of it existed, so old and
+   new can be measured and listened to blind out of a single build. It does not
+   cover the voices that were *rebuilt* — the snare's second head mode, the
+   clap's fourth burst, the cymbal partials — those are new sounds, not
+   humanising, and there is no going back to them. Leave it on. */
+let organic = 1;
+/* The drum bus, as two numbers rather than two literals buried in buildChain,
+   so score.html can render the same groove with it in and out and read the
+   makeup gain off the difference instead of somebody picking one. */
+/* Un kit imposto dall'esterno, per misurare la stessa groove con il kit
+   sintetico e con quello registrato e livellare i due. Vuoto nell'app. */
+let kitForce = '', noAutoKit = false;
 
 function b64ToBuf(b64) {
   const bin = atob(b64), u8 = new Uint8Array(bin.length);
@@ -927,7 +952,22 @@ function openAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
   ctx = new AC({ latencyHint: 'interactive' });
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  buildChain();
+  try {
+    const s = ctx.createBufferSource();
+    s.buffer = ctx.createBuffer(1, 1, 22050);
+    s.connect(ctx.destination); s.start(0);
+  } catch (e) {}
+  ctx.resume().catch(() => {});
+}
 
+/* Every node in the mix, raised on whatever `ctx` currently is. Split out of
+   openAudio so the identical chain can be built inside an OfflineAudioContext,
+   which is how score.html measures a groove instead of guessing at it. It has
+   to stay synchronous: openAudio calls it inside the gesture's own task, and
+   Safari only counts the graph as user-initiated while that task is on the
+   stack. */
+function buildChain() {
   /* Gentle saturation across the whole thing. A tanh curve adds the harmonics
      that a mixing desk adds and glues the parts together; without it, summed
      oscillators stay a stack of separate oscillators. */
@@ -972,6 +1012,13 @@ function openAudio() {
   // Drums bypass this; bass, chords, lead and voices go through it.
   duck = ctx.createGain(); duck.gain.value = 1; duck.connect(master);
 
+  /* Qui c'era un compressore solo per la batteria, con un commento convinto sul
+     fatto che "un kit disco respira". score.html lo ha smentito: da −14 dB a
+     −32 dB e da 3:1 a 6:1, il crest del mix si muove di un dB, e sul kit
+     sintetico si muove nella direzione sbagliata — sale, perché comprimendo la
+     batteria il resto passa più forte attraverso la saturazione. Non c'è.
+     Se qualcuno vuole riprovarci, la misura sta in score.html. */
+
   // Dotted-eighth feedback delay — the echo italo-disco runs everything through.
   delay = ctx.createDelay(2);
   delay.delayTime.value = Math.min(1.9, 3 * stepDur());
@@ -985,12 +1032,6 @@ function openAudio() {
   delay.connect(echoWet); echoWet.connect(master);
 
   chan = [];
-  try {
-    const s = ctx.createBufferSource();
-    s.buffer = ctx.createBuffer(1, 1, 22050);
-    s.connect(ctx.destination); s.start(0);
-  } catch (e) {}
-  ctx.resume().catch(() => {});
 }
 
 function chanOf(i) {
@@ -1117,6 +1158,11 @@ function revOf(i) {
   return out;
 }
 
+/* One second of noise, shared by every voice that needs any. Each hit reads it
+   from a *random* offset, via nOff(): they all used to start at sample zero, so
+   two hats in a row were not similar, they were the same waveform played twice,
+   and identical hits are most of what makes a drum machine sound like one. The
+   buffer loops, so any offset inside it is safe. */
 let NOISE = null;
 function noiseSrc() {
   if (!NOISE) {
@@ -1129,11 +1175,19 @@ function noiseSrc() {
   s.buffer = NOISE; s.loop = true;
   return s;
 }
+const nOff = () => organic ? Math.random() * 0.9 : 0;
 function env(g, t, peak, dec) {
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(peak, t + 0.002);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
 }
+
+/* One hit's worth of wobble around a value: a few per cent on a gain, a few
+   hertz on a filter. Small enough that no single hit reads as wrong, large
+   enough that sixteen of them in a row stop reading as one. reeds() has had
+   this since it was written — "no two presses carry the same weight" — while
+   the drums were still being stamped out of the same die. */
+const jit = (x, a) => organic ? x * (1 + (Math.random() * 2 - 1) * a) : x;
 
 /* A free reed swings *through* its slot, so its motion is asymmetric and its
    spectrum carries even harmonics as well as odd — a sawtooth, not a square. A
@@ -1186,7 +1240,7 @@ function reeds(t, i, midi, peak, hold) {
   cf.type = 'bandpass'; cf.frequency.value = 2400; cf.Q.value = 0.8;
   env(cg, t, peak * 0.55, 0.05);
   ch.connect(cf); cf.connect(cg); tap(cg, i);
-  ch.start(t); ch.stop(t + 0.07);
+  ch.start(t, nOff()); ch.stop(t + 0.07);
 
   // Air through the block, under everything, for as long as the bellows are
   // pressed. Leave it out and the note sits in a vacuum.
@@ -1197,7 +1251,7 @@ function reeds(t, i, midi, peak, hold) {
   ag.gain.setValueAtTime(peak * 0.22, t + hold);
   ag.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.055);
   air.connect(af); af.connect(ag); tap(ag, i);
-  air.start(t); air.stop(off);
+  air.start(t, nOff()); air.stop(off);
 }
 
 /* Karplus-Strong. A burst of noise goes round a loop exactly one period long,
@@ -1334,43 +1388,63 @@ const VOICES = {
     }
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'sine';
-    o.frequency.setValueAtTime(148, t);
-    o.frequency.exponentialRampToValueAtTime(44, t + 0.13);
-    env(g, t, 1, 0.34); o.connect(g); tap(g, i);
+    o.frequency.setValueAtTime(jit(148, 0.03), t);
+    o.frequency.exponentialRampToValueAtTime(jit(44, 0.02), t + jit(0.13, 0.06));
+    env(g, t, jit(1, 0.04), jit(0.34, 0.07)); o.connect(g); tap(g, i);
     o.start(t); o.stop(t + 0.36);
     const c = noiseSrc(), cg = ctx.createGain(), cf = ctx.createBiquadFilter();
-    cf.type = 'lowpass'; cf.frequency.value = 900;
-    env(cg, t, 0.26, 0.02); c.connect(cf); cf.connect(cg); tap(cg, i);
-    c.start(t); c.stop(t + 0.04);
+    cf.type = 'lowpass'; cf.frequency.value = jit(900, 0.08);
+    env(cg, t, jit(0.26, 0.14), 0.02); c.connect(cf); cf.connect(cg); tap(cg, i);
+    c.start(t, nOff()); c.stop(t + 0.04);
   },
+  /* A drum head has more than one mode and the wires leave in two stages: a
+     crack off the top, a shorter rattle under it. One noise burst with one
+     decay is a hiss with a thump behind it, which is what this was. */
   snare(t, i) {
     const n = noiseSrc(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    f.type = 'highpass'; f.frequency.value = 1250;
-    env(g, t, 0.6, 0.17); n.connect(f); f.connect(g); tap(g, i);
-    n.start(t); n.stop(t + 0.2);
-    const o = ctx.createOscillator(), og = ctx.createGain();
-    o.type = 'triangle';
-    o.frequency.setValueAtTime(186, t);
-    o.frequency.exponentialRampToValueAtTime(148, t + 0.1);
-    env(og, t, 0.32, 0.12); o.connect(og); tap(og, i);
-    o.start(t); o.stop(t + 0.14);
+    f.type = 'highpass'; f.frequency.value = jit(1250, 0.06);
+    env(g, t, jit(0.46, 0.09), jit(0.19, 0.10)); n.connect(f); f.connect(g); tap(g, i);
+    n.start(t, nOff()); n.stop(t + 0.22);
+    const r = noiseSrc(), rf = ctx.createBiquadFilter(), rg = ctx.createGain();
+    rf.type = 'bandpass'; rf.frequency.value = jit(3600, 0.08); rf.Q.value = 0.7;
+    env(rg, t, jit(0.22, 0.12), 0.045); r.connect(rf); rf.connect(rg); tap(rg, i);
+    r.start(t, nOff()); r.stop(t + 0.07);
+    [[186, 0.26], [247, 0.13]].forEach(m => {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(jit(m[0], 0.02), t);
+      o.frequency.exponentialRampToValueAtTime(m[0] * 0.8, t + 0.1);
+      env(og, t, jit(m[1], 0.08), jit(0.12, 0.10)); o.connect(og); tap(og, i);
+      o.start(t); o.stop(t + 0.14);
+    });
   },
   hat(t, i) { hatAt(t, i, 0.055, 8200, 0.26); },
   ohat(t, i) { hatAt(t, i, 0.34, 7200, 0.22); },
+  /* Three hands, not one hand three times. The bursts are unevenly spaced —
+     evenly spaced ones read as a flam, which is a mistake, not a clap — and the
+     fourth is the tail: a small room, lower and wider than the hands in it. */
   clap(t, i) {
-    for (let k = 0; k < 3; k++) {
+    [[0, 0.22, 0.030, 1450], [0.0085, 0.20, 0.030, 1500],
+     [0.0205, 0.24, 0.035, 1400], [0.0320, 0.42, 0.190, 1180]].forEach((b, k) => {
       const n = noiseSrc(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-      f.type = 'bandpass'; f.frequency.value = 1450; f.Q.value = 1.1;
-      const tt = t + k * 0.011;
-      env(g, tt, k === 2 ? 0.48 : 0.25, k === 2 ? 0.19 : 0.035);
+      f.type = 'bandpass'; f.frequency.value = jit(b[3], 0.06); f.Q.value = k === 3 ? 0.8 : 1.1;
+      const tt = t + jit(b[0], 0.12);
+      env(g, tt, jit(b[1], 0.10), jit(b[2], 0.10));
       n.connect(f); f.connect(g); tap(g, i);
-      n.start(tt); n.stop(tt + 0.22);
-    }
+      n.start(tt, nOff()); n.stop(tt + b[2] + 0.04);
+    });
   },
-  bass(t, i) {
-    const iv = SHAPES[shapeOf.bass].iv;
-    const k = arpN[i] || 0;
-    arpN[i] = k + 1;
+  bass(t, i, s) {
+    const iv = bassIv || SHAPES[shapeOf.bass].iv;
+    /* Il grado dell'arpeggio veniva da un contatore di quante volte il basso
+       avesse suonato da Play, quindi la linea era funzione del *numero di
+       colpi* e non di dove sei nella battuta: qualunque pattern che non fosse
+       una divisione uniforme andava alla deriva contro il giro e non tornava
+       più. Contare i colpi scritti prima di questo step la rende funzione dello
+       step, e allora è la stessa linea ogni volta che il giro torna — che è
+       quello che una linea di basso è. */
+    let k = 0;
+    for (let q = 0; q < (s || 0); q++) if (pattern[i][q]) k++;
     const c = chordAt();
     const m = c.root + qual(iv[k % iv.length], c.maj), f = freq(m);
     if (timbre === 'fisa')   return button(t, i, f);
@@ -1445,11 +1519,25 @@ const VOICES = {
 const leadNote = deg => key + 24 + scale()[deg | 0];
 function hatAt(t, i, dec, hz, peak) {
   const n = noiseSrc(), f = ctx.createBiquadFilter(), p = ctx.createBiquadFilter(), g = ctx.createGain();
-  f.type = 'highpass'; f.frequency.value = hz;
-  p.type = 'peaking'; p.frequency.value = 11500; p.gain.value = 7;
-  env(g, t, peak, dec);
+  f.type = 'highpass'; f.frequency.value = jit(hz, 0.05);
+  p.type = 'peaking'; p.frequency.value = jit(11500, 0.04); p.gain.value = 7;
+  env(g, t, jit(peak * 0.82, 0.09), jit(dec, 0.08));
   n.connect(f); f.connect(p); p.connect(g); tap(g, i);
-  n.start(t); n.stop(t + dec + 0.02);
+  n.start(t, nOff()); n.stop(t + dec + 0.02);
+  /* A cymbal is metal, and metal rings at ratios that are not whole numbers.
+     Noise through a highpass is a "tss"; these five squares are what makes it
+     sound struck rather than blown, and it is the trick the 808 used for the
+     same reason. They are short, so the node count stays survivable on a
+     phone even with sixteenths running. */
+  const mg = ctx.createGain(), mf = ctx.createBiquadFilter();
+  mf.type = 'highpass'; mf.frequency.value = 6000;
+  env(mg, t, jit(peak * 0.30, 0.10), jit(dec * 0.8, 0.10));
+  mf.connect(mg); tap(mg, i);
+  [1, 1.34, 1.71, 2.12, 2.63].forEach(r => {
+    const o = ctx.createOscillator(); o.type = 'square';
+    o.frequency.value = jit(263 * r, 0.01);
+    o.connect(mf); o.start(t); o.stop(t + dec * 0.8 + 0.02);
+  });
 }
 
 function stepDur() { return 60 / bpm / 4; }
@@ -1468,6 +1556,23 @@ function swingAt(s) {
   // inherits half that eighth's push instead of stacking on top of it. Stack
   // them and the last sixteenth of the beat crashes into the downbeat.
   return s % 2 ? a / 2 : (Math.floor(s / 2) % 2 ? a : 0);
+}
+
+/* Nobody plays on the grid. A snare lands a hair behind it, a hat a hair in
+   front of it, and the kick and the bass stay welded together because they are
+   the clock. LEAN is that pull in milliseconds; `human` scales all of it and
+   adds a small per-hit wobble on top. Like swing and the sidechain it is set
+   per groove rather than given a button. Zero for the kick on purpose: move the
+   clock and the whole thing sounds late rather than played. The playhead is
+   *not* leaned — the cue in follow() reads the grid time, so the lane keeps
+   showing the step you wrote instead of drifting off it. */
+const LEAN = { kick:0, snare:7, clap:6, hat:-2, ohat:-3, bass:0, stab:4, lead:6 };
+let human = 1;
+function leanOf(i) {
+  if (!human || !organic) return 0;
+  const id = TRACKS[i].id;
+  const wob = id === 'kick' ? 0 : (Math.random() - 0.5) * 0.0045;
+  return ((LEAN[id] || 0) / 1000 + wob) * human;
 }
 
 function fireVoice(vi, t, i) {
@@ -1537,10 +1642,11 @@ function sing(vi, t, i, buf, p, rate, live, pan) {
   s.onended = () => { const k = live.indexOf(rec); if (k >= 0) live.splice(k, 1); };
 }
 
-function fire(i, t, s) {
+function fire(i, t, s, vel) {
   if (mute[i]) return;
   const trk = TRACKS[i];
-  hitVel = (s == null ? 1 : pattern[i][s]) || 1;
+  // il fill non sta nel pattern, quindi porta la sua velocity con sé
+  hitVel = (vel !== undefined ? vel : (s == null ? 1 : pattern[i][s])) || 1;
   if (trk.kind === 'voice') fireVoice(trk.ci, t, i);
   else if (kitBuf[trk.id]) hitKit(trk.id, t, i);
   else VOICES[trk.id](t, i, s);
@@ -1561,17 +1667,27 @@ const AHEAD = 0.14, TICK = 25;
 function scheduler() {
   while (nextTime < ctx.currentTime + AHEAD) {
     const t = nextTime + swingAt(cursor);
-    for (let i = 0; i < TRACKS.length; i++) if (pattern[i][cursor]) fire(i, t, cursor);
-    queue.push({ s: cursor, t: t });
+    /* Il fill vale solo sull'ultima battuta del pattern e solo un giro su due.
+       Una corsia che il fill nomina viene *sostituita* in quella battuta, non
+       sommata: un rullio di rullante non deve litigare con il backbeat che
+       sostituisce. */
+    const inLast = cursor >= patLen - barLen;
+    const useFill = !!fillPat && inLast && (loops % FILL_EVERY === FILL_EVERY - 1);
+    for (let i = 0; i < TRACKS.length; i++) {
+      const v = (useFill && fillHas[i]) ? fillPat[i][cursor % barLen] : pattern[i][cursor];
+      if (v) fire(i, t + leanOf(i), cursor, v);
+    }
+    queue.push({ s: cursor, t: t, f: useFill });
     nextTime += stepDur();
     cursor = (cursor + 1) % patLen;
+    if (cursor === 0) loops++;
     // Counting bars rather than reading them off the cursor keeps the giro
     // turning over even when the pattern is only one bar long.
     if (cursor % barLen === 0) bar++;
   }
 }
 function start() {
-  playing = true; cursor = 0; bar = 0; arpN.length = 0;
+  playing = true; cursor = 0; bar = 0; loops = 0;
   nextTime = ctx.currentTime + 0.06;
   queue.length = 0;
   timer = setInterval(scheduler, TICK);
@@ -1602,7 +1718,8 @@ function follow() {
   if (queue.length && queue[0].t <= now && queue[0].s !== shownStep) {
     shownStep = queue[0].s;
     paintCue(shownStep);
-    tag.textContent = 'Running ' + String(shownStep + 1).padStart(2, '0');
+    tag.textContent = 'Running ' + String(shownStep + 1).padStart(2, '0') +
+                      (queue[0].f ? ' · fill' : '');
   }
   raf = requestAnimationFrame(follow);
 }
@@ -2109,7 +2226,10 @@ async function loadKit(id) {
 function hitKit(id, t, i) {
   const k = kitBuf[id];
   const src = ctx.createBufferSource(), g = ctx.createGain();
-  src.buffer = k.buf; g.gain.value = k.gain;
+  src.buffer = k.buf; g.gain.value = jit(k.gain, 0.07);
+  // A recording played twice is the same recording twice. A per cent of rate is
+  // inaudible as pitch and enough to stop two hands sounding like one machine.
+  src.playbackRate.value = jit(1, 0.012);
   src.connect(g); tap(g, i);
   src.start(t);
 }
@@ -2453,6 +2573,10 @@ const GROOVES = [
             stab:[3,7,11,15,19,23,27,31,51,55,59],
             lead:[[16,4],[19,3],[22,2],[28,4],[48,2],[51,4],[54,3],[60,0]],
             v0:[0], v2:[40] },
+    /* Clementina dura 4.54 s e la battuta a 118 ne dura 2.03: ripetuta, la
+       frase veniva tagliata a metà parola ogni battuta. Parte una volta per
+       giro. Le durate non sono a occhio — sono misurate dai file. */
+    once:['v0'],
     accent:{ kick:[0,48], clap:[12,28,60] },
     ghost:{ ohat:[2,10,18,26,34,42,50,58] },
     voice:{ 0:{rate:1,start:0,chop:0}, 2:{rate:1,start:0,chop:6} } },
@@ -2460,24 +2584,40 @@ const GROOVES = [
   /* A dance hall, which is what the name says. Swung eighths, a walking bass
      and the piano on the off-beat; no dramatic break, it just keeps going. */
   { name:'Balera', pack:'clem', bpm:126, swing:0.6, timbre:'rhodes', air:0.3, verb:1.2,
+    /* Sala da ballo: la seconda battuta alza un aperto sul finale, la terza
+       assottiglia il charleston a quarti e manda a sedere il clap. */
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] } },
+    fill:{ snare:[10,11,12,13,14,15], ohat:[15] },
     key:33, prog:'Carosone', shape:{bass:1,stab:3},
     steps:{ kick:[0,8,16,24,32,40,48,56], snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60],
             hat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
             bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
             stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
             lead:[[36,4],[38,3],[40,2],[44,0],[52,4],[55,2],[58,0]],
+            /* Una corsia di voce con un solo step dentro la prima battuta
+               viene ripetuta su tutte quattro, e allora la frase riparte da capo
+               ogni battuta: non è un ritmo, è un balbettio, ed era il motivo per
+               cui questa groove misurava quattro battute identiche. Theory dura
+               4.44 s contro 1.90 di battuta, quindi parte una volta per giro;
+               Marco 1 sta in due battute e le tiene entrambe. */
             v4:[0], v1:[24,56] },
+    once:['v4'],
     accent:{ snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60] },
     ghost:{ hat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], stab:[7,23,39,55] },
     voice:{ 4:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:0} } },
 
   { name:'Notte', pack:'clem', bpm:104, swing:0.55, timbre:'organo', air:0.35, verb:1.2,
+    vary:{ 1:{ add:{ hat:[15] } },
+           2:{ drop:['stab'] } },
+    fill:{ snare:[12,13,14,15], hat:[13,15] },
     key:34, prog:'Nostalgia', shape:{bass:0,stab:3},
     steps:{ kick:[0,10,16,26,48,58,42], snare:[4,12,20,28,36,44,52,60],
             hat:[2,6,14,18,22,30,34,38,46,50,54,62],
             bass:[0,10,16,26,32,42,48,58,30,62],
             stab:[4,12,20,28,36,44,52,60],
             v0:[0], v3:[44] },
+    once:['v0'],
     accent:{ snare:[4,12,20,28,36,44,52,60] },
     ghost:{ hat:[2,18,34,50] },
     voice:{ 0:{rate:1,start:0,chop:0}, 3:{rate:0.9,start:0,chop:4} } },
@@ -2486,17 +2626,28 @@ const GROOVES = [
      every off-beat eighth, a clap on two and four and almost nothing else —
      the space is the genre. */
   { name:'Discoteca', pack:'clem', bpm:124, swing:0, pump:true, verb:1.15,
+    /* House: la linea di basso salta l'ottava e poi la quinta invece di
+       alternare due note, e il clap rulla dentro il ritorno. */
+    bassIv:[0,12,0,7],
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ drop:['stab'], add:{ ohat:[7] } } },
+    fill:{ clap:[10,11,12,13,14,15], ohat:[15] },
     key:33, prog:'Onda', shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], clap:[4,12,20,28,36,44,52,60],
             ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
             bass:[0,2,8,10,16,18,24,26,32,34,40,42,48,50,56,58],
             stab:[6,14,22,30,38,46,54,62],
             v4:[0], v1:[28,60] },
+    once:['v4'],
     accent:{ kick:[0,16,32,48], clap:[12,28,44,60] },
     ghost:{ ohat:[6,22,38,54] },
     voice:{ 4:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:2} } },
 
   { name:'Riviera', pack:'clem', bpm:126, swing:0, pump:true, verb:1.1,
+    bassIv:[0,12,0,7],
+    vary:{ 1:{ add:{ clap:[14] } },
+           2:{ clear:{ hat:[10] }, add:{ ohat:[10] } } },
+    fill:{ snare:[12,13,14,15], clap:[14] },
     key:33, prog:'Onda', shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12], clap:[12], hat:[2,6,10,14], ohat:[6,14],
             bass:[0,2,4,6,8,10,12,14], stab:[3,11],
@@ -2517,6 +2668,9 @@ const GROOVES = [
     voice:{ 0:{rate:1,start:0,chop:0,over:true,chorus:true} } },
 
   { name:'Chop', pack:'clem', bpm:96, swing:0, echo:false, key:36, prog:'Fermo', shape:{bass:0,stab:3},
+    vary:{ 1:{ clear:{ v0:[2] } },
+           2:{ add:{ v1:[10] } } },
+    fill:{ snare:[12,14,15], clap:[15] },
     steps:{ kick:[0,3,8,11], snare:[4,12], hat:[2,6,10,14], clap:[7,15],
             bass:[0,4,8,12], v0:[0,2], v1:[4,6], v2:[12,14], v3:[8] },
     accent:{ kick:[0,8], snare:[4,12] },
@@ -2525,7 +2679,10 @@ const GROOVES = [
             2:{rate:0.8,start:0.1,chop:2}, 3:{rate:1,start:0.2,chop:4} } },
 
   { name:'Talk', pack:'clem', bpm:84, swing:0.55, echo:false, key:33, prog:'Fermo', shape:{bass:0,stab:3},
-    steps:{ kick:[0,6,10], snare:[4,12], hat:[2,6,10,14], v0:[0], v4:[8] },
+    vary:{ 1:{ add:{ hat:[15] } },
+           2:{ drop:['hat'] } },
+    fill:{ snare:[12,13,14,15] },
+    steps:{ kick:[0,6,10], snare:[4,12], hat:[2,6,10,14], v0:[0,32], v4:[8,40] },
     accent:{ snare:[4,12] },
     ghost:{ hat:[6,14], kick:[6] },
     voice:{ 0:{rate:1,start:0,chop:0}, 4:{rate:1,start:0,chop:0} } },
@@ -2546,12 +2703,15 @@ const GROOVES = [
   /* The same dance hall, but the band is an accordion and it is slower — a
      Rhodes on this pack sounded like it had come from the wrong decade. */
   { name:'Balera', pack:'nonni', bpm:112, swing:0.6, timbre:'fisa', kit:'folk', air:0.55, verb:1.3,
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] } },
+    fill:{ snare:[10,11,12,13,14,15], ohat:[15] },
     key:33, prog:'Carosone', shape:{bass:0,stab:3},
     steps:{ kick:[0,8,16,24,32,40,48,56], snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60],
             hat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
             bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
             stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
-            v2:[0], v6:[32] },
+            v2:[0,32], v6:[32] },
     accent:{ snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60] },
     ghost:{ hat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], stab:[7,23,39,55] },
     voice:{ 2:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
@@ -2562,7 +2722,7 @@ const GROOVES = [
             hat:[2,6,14,18,22,30,34,38,46,50,54,62],
             bass:[0,10,16,26,32,42,48,58,30,62],
             stab:[4,12,20,28,36,44,52,60],
-            v6:[0], v0:[44] },
+            v6:[0,32], v0:[44] },
     accent:{ snare:[4,12,20,28,36,44,52,60] },
     ghost:{ hat:[2,18,34,50] },
     voice:{ 6:{rate:0.9,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
@@ -2575,6 +2735,12 @@ const GROOVES = [
      rhythm guitar does, and a tune runs over the top. Cicoria and Antonio play
      right through it. */
   { name:'Campagna', pack:'nonni', bpm:92, swing:0.55, timbre:'chit', kit:'folk',
+    /* Il tamburello teneva i quarti per quattro battute uguali. Ora la terza
+       ne perde due e l'ultima rulla: è come si suona un tamburello, non come si
+       programma una drum machine. */
+    vary:{ 1:{ add:{ clap:[14] } },
+           2:{ clear:{ ohat:[4,12] }, drop:['stab'] } },
+    fill:{ ohat:[10,11,12,13,14,15] },
     air:0.4, verb:1.25, echo:false,
     key:36, prog:'Stornello', shape:{bass:0,stab:3},
     steps:{ kick:[0,8,16,24,32,40,48,56],
@@ -2585,17 +2751,20 @@ const GROOVES = [
                   [18,4],[22,5],[26,4],[29,2],
                   [34,2],[38,0],[42,2],[45,4],
                   [50,4],[54,2],[58,0],[61,2]],
-            v4:[0], v6:[32] },
+            v4:[0,32], v6:[32] },
     accent:{ ohat:[0,16,32,48], kick:[0,32] },
     ghost:{ ohat:[4,12,20,28,36,44,52,60], stab:[6,14,22,30,38,46,54,62] },
     voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:0.95,start:0,chop:0} } },
   { name:'Stornello', pack:'nonni', timbre:'chit', kit:'folk', air:0.45, verb:1.2,
+    vary:{ 1:{ add:{ ohat:[14] } },
+           2:{ drop:['stab'], add:{ bass:[12] } } },
+    fill:{ ohat:[12,13,14,15] },
     bpm:100, swing:0, echo:false,
     key:36, prog:'Stornello', shape:{bass:0,stab:3},
     steps:{ kick:[0,8], ohat:[4,12],
             bass:[0,8], stab:[4,12],
             lead:[[0,2],[2,4],[5,2],[8,4],[10,5],[13,4]],
-            v0:[0], v3:[8] },
+            v0:[0,32], v3:[8,40] },
     accent:{ bass:[0], stab:[4,12] },
     ghost:{ ohat:[4] },
     voice:{ 0:{rate:1,start:0,chop:0}, 3:{rate:1,start:0,chop:8} } },
@@ -2613,23 +2782,29 @@ const GROOVES = [
             ohat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
             bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
             stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
-            v4:[0], v6:[32] },
+            v4:[0,32], v6:[32] },
     accent:{ clap:[4,12,20,28,36,44,52,60], kick:[0,32], ohat:[0,16,32,48] },
     ghost:{ ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62], stab:[7,23,39,55] },
     voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
   /* It had a rhythm section and no tune at all, which is why it read as empty
      rather than as sparse. The mandolin plays a serenade over it now. */
   { name:'Trastevere', pack:'nonni', timbre:'chit', kit:'folk', air:0.45, verb:1.25,
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ drop:['stab'], clear:{ ohat:[6,14] } } },
+    fill:{ snare:[12,13,14,15], ohat:[15] },
     bpm:88, swing:0.58, echo:false,
     key:36, prog:'Stornello', shape:{bass:0,stab:3},
     steps:{ kick:[0,8], snare:[4,12], ohat:[2,6,10,14],
             bass:[0,8], stab:[4,12],
             lead:[[0,4],[3,2],[6,4],[10,5],[14,4]],
-            v6:[0], v0:[40] },
+            v6:[0,32], v0:[40] },
     accent:{ snare:[4,12], kick:[0] },
     ghost:{ ohat:[2,6,10,14] },
     voice:{ 6:{rate:0.95,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
   { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.15, verb:1.05,
+    /* Una battuta sola, quindi il fill non è un finale: è la battuta pari.
+       Due battute che si alternano sono la frase di una tarantella. */
+    fill:{ ohat:[0,3,6,8,9,10,11], clap:[4,10] },
     bpm:96, meter:'6/8', bars:1, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     steps:{ kick:[0,6], clap:[4,10],
@@ -2657,7 +2832,12 @@ function loadGroove(gi) {
      played one bar and then three bars of silence, which is exactly what it
      sounded like. */
   const inFirstBar = list => list.every(v => (v.length ? v[0] : v) < barLen);
-  const repsFor = k => (g.steps[k] && !inFirstBar(g.steps[k])) ? 1 : BARS_MAX;
+  /* `once` dice "questa corsia non si ripete" a parole. Prima l'unico modo era
+     scrivere uno step oltre la prima battuta, cioè codificare l'intenzione come
+     un numero maggiore di sedici, e una frase che deve partire una volta per
+     giro non ha nessuno step da mettere là in fondo. */
+  const repsFor = k => (g.once && g.once.indexOf(k) >= 0) ? 1
+                     : (g.steps[k] && !inFirstBar(g.steps[k])) ? 1 : BARS_MAX;
   TRACKS.forEach((trk, i) => {
     const k = trk.kind === 'voice' ? 'v' + trk.ci : trk.id;
     const reps = repsFor(k);
@@ -2673,6 +2853,28 @@ function loadGroove(gi) {
     // Accents and ghosts are what stop a pattern reading as a metronome. They
     // are listed separately so the steps arrays stay readable, and they tile
     // with everything else.
+    /* vary gira dopo gli accenti, così una battuta che spegne una corsia
+       spegne anche i suoi accenti. Le battute si contano da zero; gli step
+       dentro `add`, `clear`, `accent` e `ghost` sono relativi alla battuta. */
+    const applyVary = () => {
+      if (!g.vary) return;
+      Object.keys(g.vary).forEach(bk => {
+        const b = Number(bk), v = g.vary[bk], off = b * barLen;
+        if (off + barLen > STEPS || b >= barsN) return;
+        if (v.drop && v.drop.indexOf(k) >= 0)
+          for (let q = 0; q < barLen; q++) { pattern[i][off + q] = 0; notes[i][off + q] = 0; }
+        if (v.clear && v.clear[k]) v.clear[k].forEach(q => { pattern[i][off + q] = 0; });
+        if (v.add && v.add[k]) v.add[k].forEach(x => {
+          const q = x.length ? x[0] : x;
+          pattern[i][off + q] = 1; notes[i][off + q] = x.length ? x[1] : 0;
+        });
+        [[v.accent, VELS[1]], [v.ghost, VELS[2]]].forEach(pr => {
+          if (pr[0] && pr[0][k]) pr[0][k].forEach(q => {
+            if (pattern[i][off + q]) pattern[i][off + q] = pr[1];
+          });
+        });
+      });
+    };
     [[g.accent, VELS[1]], [g.ghost, VELS[2]]].forEach(pair => {
       const list = pair[0] && pair[0][k];
       if (!list) return;
@@ -2685,6 +2887,7 @@ function loadGroove(gi) {
         }
       });
     });
+    applyVary();
     mute[i] = false; vol[i] = 1; send[i] = g.echo === false ? 0 : trk.echo;
     if (trkEls[i]) {
       trkEls[i].dataset.mute = '0';
@@ -2698,16 +2901,37 @@ function loadGroove(gi) {
     p.rate = o.rate; p.start = o.start; p.chop = o.chop; p.rev = false;
     p.over = !!o.over; p.chorus = !!o.chorus;
   });
+  /* Il fill vive fuori dal pattern: una corsia per traccia, lunga una battuta. */
+  fillPat = null; fillHas = null;
+  if (g.fill) {
+    fillPat = TRACKS.map(() => new Array(barLen).fill(0));
+    fillHas = TRACKS.map(() => false);
+    TRACKS.forEach((trk, i) => {
+      const k = trk.kind === 'voice' ? 'v' + trk.ci : trk.id;
+      const list = g.fill[k];
+      if (!list) return;
+      fillHas[i] = true;
+      list.forEach(x => {
+        const q = x.length ? x[0] : x;
+        if (q < barLen) fillPat[i][q] = x.length ? x[1] : 1;
+      });
+    });
+  }
+  bassIv = g.bassIv || null;
   shapeOf = { ...g.shape };
   setTimbre(g.timbre || 'italo');
   setKey(g.key); setProg(progIndex(g.prog || 'Fermo'));
   swing = g.swing || 0;
+  human = g.human === undefined ? 1 : g.human;
   pump = !!g.pump;
   if (!pump && duck && ctx) { duck.gain.cancelScheduledValues(ctx.currentTime); duck.gain.value = 1; }
   setBpm(g.bpm);
   setAir(g.air);
   verbAmt = g.verb === undefined ? 1 : g.verb;
-  if ((g.kit || 'machine') !== kit) loadKit(g.kit || 'machine');
+  /* renderOffline carica il kit da sé e aspetta: due loadKit in volo sullo
+     stesso kit si cancellano gli slot a vicenda. */
+  const want = kitForce || g.kit || 'machine';
+  if (!noAutoKit && want !== kit) loadKit(want);
   TRACKS.forEach((_, i) => paintDots(i));
   setPage(0); paintPanel();
 }
@@ -3010,6 +3234,96 @@ addEventListener('keydown', async e => {
     if (ctx) fire(n - 1, ctx.currentTime + 0.005);
   }
 });
+
+/* ---------------- measurement ---------------- */
+/* Renders a groove into an OfflineAudioContext so a change to the sound can be
+   measured instead of asserted. Nothing in the app calls this: score.html does,
+   in a throwaway iframe, which is why it is allowed to clobber the live context
+   rather than restore it — in that frame there is nothing to go back to.
+   score.html seeds Math.random first, so even the per-hit jitter repeats and two
+   renders of the same groove differ only by what actually changed.
+
+   `only` renders one track alone. A single voice cannot be levelled with the
+   rest of the kit playing over it, which is why the timbres were matched this
+   way in the first place. */
+async function renderOffline(gi, bars, only) {
+  if (playing) stop();
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const g = GROOVES[gi];
+
+  // A groove cut to one pack has to be measured with that pack in the machine.
+  if (g.pack) {
+    const pi = PACKS.findIndex(p => p.id === g.pack);
+    if (pi >= 0 && pi !== packIx) {
+      packIx = pi; packSel.value = String(pi);
+      buildTracks(); buildMixer(); renderGrooves();
+      if (sel >= TRACKS.length) sel = 0;
+      select(sel);
+    }
+  }
+
+  const m = METERS.find(x => x.id === (g.meter || '4/4')) || METERS[0];
+  const total = bars * m.len, sd = 60 / g.bpm / 4;
+  const sr = 44100;
+  // 2.2 s of tail, because the reverb and the echo are part of the sound
+  ctx = new OAC(2, Math.ceil(sr * (total * sd + 2.2)), sr);
+  /* Everything cached against the old context goes. AudioBuffers are plain data
+     and cross contexts freely; nodes do not. */
+  chan = []; NOISE = null; airSrc = null; airGain = null;
+  reversed.length = 0;
+  Object.keys(plucks).forEach(k => delete plucks[k]);
+  buildChain();
+  await loadPack();
+  noAutoKit = true;
+  try { loadGroove(gi); } finally { noAutoKit = false; }
+  /* loadGroove fires these without waiting, which is right on the phone and
+     wrong here: an offline render is finished before a fetch lands. */
+  await loadKit(kitForce || g.kit || 'machine');
+  await loadSamples();
+  startAir();
+  if (only) {
+    solo = TRACKS.findIndex(t => t.id === only);
+    if (solo < 0) throw new Error('no track called ' + only);
+  } else solo = -1;
+
+  bar = 0; loops = 0;
+  const hits = [];                       // when each track was actually asked to play
+  let t = 0.05;
+  for (let s = 0; s < total; s++) {
+    const st = s % patLen, tt = t + swingAt(st);
+    // stessa regola dello scheduler, o il fill non finirebbe nella misura
+    const useFill = !!fillPat && st >= patLen - barLen && (loops % FILL_EVERY === FILL_EVERY - 1);
+    for (let i = 0; i < TRACKS.length; i++) {
+      const v = (useFill && fillHas[i]) ? fillPat[i][st % barLen] : pattern[i][st];
+      if (!v) continue;
+      const at = tt + leanOf(i);
+      fire(i, at, st, v);
+      hits.push({ id: TRACKS[i].id, s: st, grid: tt, at: at, vel: v, fill: useFill });
+    }
+    t += stepDur();
+    if ((s + 1) % barLen === 0) bar++;
+    if ((s + 1) % patLen === 0) loops++;
+  }
+  const buf = await ctx.startRendering();
+  return { buf: buf, hits: hits, bpm: bpm, barLen: barLen, patLen: patLen,
+           bars: bars, step: sd, t0: 0.05, dur: total * sd };
+}
+
+/* GROOVES and the rest are top-level consts, which a classic script does not
+   hang on window. score.html needs them, so hand them over deliberately rather
+   than have it reach in with eval. */
+window.dev = {
+  render: renderOffline,
+  grooves: () => GROOVES.map((g, i) => ({ i: i, name: g.name, pack: g.pack || 'any',
+    bpm: g.bpm, bars: g.bars || 4, meter: g.meter || '4/4', timbre: g.timbre || 'italo',
+    kit: g.kit || 'machine', hits: Object.keys(g.steps).reduce((n, k) => n + g.steps[k].length, 0) })),
+  set organic(v) { organic = v ? 1 : 0; },
+  get organic() { return organic; },
+  set kit(v) { kitForce = v || ''; },
+  get kit() { return kitForce; },
+  slots: () => KITS.reduce((o, k) => (k.slots && (o[k.id] = Object.assign({}, k.slots)), o), {}),
+  setSlot: (kitId, slot, g) => { const K = KITS.find(k => k.id === kitId); if (K && K.slots) K.slots[slot] = g; },
+};
 
 /* ---- init ---- */
 buildTracks();

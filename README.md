@@ -153,6 +153,46 @@ it to `v0`, unchopped and at speed, and it lands on whatever is in the machine.
 A groove can also carry `timbre:'fisa'` and a `prog` whose giro is in a major or
 harmonic-minor mode, which is how the Nonni presets get their accordion.
 
+## Measuring instead of guessing
+
+`score.html` renders any groove through an `OfflineAudioContext` — the real
+engine, the real nodes, no model of it — and prints numbers. It exists because
+"does this sound less like a toy?" is not answerable by reading step arrays, and
+reading step arrays was the whole of the old method. It is a development page,
+not part of the app: it loads `index.html` in a hidden iframe and replaces
+`Math.random` with a seeded generator, so two measurements of one groove differ
+only by what actually changed in the code.
+
+What it reports, and why each column exists:
+
+- **somiglianza** — how alike two consecutive hits of the same velocity are,
+  searching ±4 ms for the best alignment so a timing wobble cannot be mistaken
+  for a timbre change. 1.000 is the same sample twice.
+- **variazione picco** — how much the loudness of those same-velocity hits
+  moves, as a percentage. Under 1% is a machine.
+- **novità** — how much each bar differs from the one before it. Zero means
+  four identical bars.
+- **crest, picco, RMS, bande** — is it clipping, is it squashed, and where the
+  energy sits across six bands.
+- **batt/lev** — energy on the beat against energy on the off-beat eighths.
+- **stereo** — correlation between the two channels. 1 is mono.
+
+Two things it has already settled, both against what was about to be shipped:
+
+**A compressor for the drum bus was rejected.** It had a confident comment about
+how a disco kit breathes. From −14 dB to −32 dB and 3:1 to 6:1, the mix crest
+moved by about a decibel, and on the synthesised kit it moved *up*: taking the
+peaks off the drums let everything else through the saturation louder. It is not
+in the file.
+
+**A guessed makeup gain was 2.6 dB wrong** before the same page measured it,
+which is the whole argument for the page in one line.
+
+And one thing it says about the grooves that no amount of reading them would
+have: **eleven of the sixteen score 0.07 or below on novità** — four bars that
+are, to a spectrum analyser, the same bar four times. The two that score well
+are the two written across all four bars instead of one bar tiled.
+
 ## Run it locally
 
 A service worker needs a real origin, so serve it rather than opening the file:
@@ -298,6 +338,90 @@ switch. Three toggles whose effect was hard to hear had accumulated on one row;
 swing and the sidechain are per groove now — a groove that wants a shuffle or a
 pumping bass asks for one — and how much of a track reaches the delay is that
 track's own Echo send.
+
+### Four bars that are actually four bars
+
+`score.html` measured every groove's bar-to-bar novelty and eleven of the
+sixteen came back at 0.07 or under, which is a spectrum analyser saying "this is
+one bar played four times". Three things fixed it, and the third one was not
+what anybody expected.
+
+**A fill.** `fill` is one bar of steps that replaces the lanes it names, on the
+last bar of the pattern, every second time round — so every eight bars. It is
+not baked into the pattern, because four bars cannot hold an every-other-time
+event, and the transport says `· fill` while it plays. Fills never name the
+kick: the kick is the thing you are filling *against*.
+
+**`vary`.** A per-bar edit list, applied when the groove loads rather than while
+it plays, so what it does lands in the lane where you can see it and change it.
+`drop` silences a lane for that bar, `clear` removes named steps, `add` writes
+them, `accent` and `ghost` re-weight them. Bars count from zero and the steps
+inside are relative to the bar. A dance hall thins its hats to quarters in bar
+three and sends the clap home; a tambourine loses two beats and then rolls.
+
+**The clips were restarting every bar.** This was the big one. A voice lane
+written as a single step inside bar one gets tiled across all four — which is
+right for a chopped syllable and wrong for a sentence, because the sentence
+starts again from the top every bar and gets cut off mid-word. Four grooves were
+doing it. Fixing Talk alone took its novelty from 0.01 to 0.55.
+
+Which lanes needed it was arithmetic, not taste: a clip is 1.3 to 7.2 seconds,
+a bar is 1.9 to 2.9 depending on the tempo, and anything longer than its bar
+cannot be retriggered every bar. Clips longer than two bars now use `once`,
+which says "do not repeat this lane" in words — the only way to say it before
+was to put a step number bigger than sixteen somewhere in the lane, and a phrase
+that should start once per turn has no such step to place.
+
+Across the sixteen grooves the median novelty went from 0.06 to 0.22, the worst
+from 0.00 to 0.09, and nothing peaks above −0.4 dBFS.
+
+**The bass is a line now, not a counter.** Its arpeggio degree used to come from
+how many times the bass had fired since Play, so the line was a function of hit
+count rather than of position: any pattern that was not a uniform division
+drifted against the giro and never came back. It counts the written hits before
+the current step instead, which makes it the same line every time the giro comes
+round. A groove can also name its own intervals with `bassIv` — `[0,12,0,7]`,
+root, octave, root, fifth, is the italo-disco bassline and two of them use it.
+
+### No two hits the same
+
+Accents and ghosts give a step three loudnesses, and for a long time that was
+the whole of the machine's humanity: in a bar of sixteen hi-hats there were two
+amplitudes, and every one of those hats was, sample for sample, the identical
+waveform. It had to be. Every noise voice in the file read the same one-second
+buffer of noise from sample zero, so two hats in a row were not similar, they
+were the same file played twice.
+
+Three things changed, and all three are small:
+
+**Each hit reads the noise from a random offset.** One line. It is the largest
+audible difference in this list.
+
+**Each hit wobbles.** A few per cent on a gain, a few hertz on a filter, a few
+milliseconds on a decay — `jit()`. Small enough that no single hit sounds wrong,
+large enough that sixteen in a row stop sounding like one. The accordion had
+this from the day it was written; the drums did not.
+
+**Each track leans.** A snare lands 7 ms behind the grid, a clap 6, a hat 2 or 3
+in front of it, and the kick and the bass do not move at all, because they are
+the clock. On top of that every hit gets a wobble of a couple of milliseconds.
+It is per groove, like swing, and it has no button.
+
+None of it is guesswork. `score.html` measures how alike two consecutive hits
+of the same velocity actually are, and on the synthesised kit the number went
+from 0.98–1.00 to 0.13–0.32, where 1.000 means the same sound twice. On the
+recorded kit it went from 0.99–1.00 to 0.41–0.99, which is honest and much less
+good: a sampled one-shot has no envelope to jitter, and per-cent changes of
+gain and playback rate barely decorrelate a low, short recording. The real
+answer there is two or three takes per slot to alternate between, which is what
+the TODO has been saying about recording our own percussion all along.
+
+The snare, the clap and the hats were also rebuilt while this was going on — a
+second head mode and a two-stage rattle on the snare, a fourth unevenly-spaced
+burst on the clap, five inharmonic square partials under the cymbals, because
+metal does not ring at whole-number ratios and noise through a highpass is a
+"tss", not a struck thing. Those are new sounds rather than humanising, and
+there is no switch to put them back.
 
 ### The in and out points
 
