@@ -47,6 +47,7 @@ differiscono solo per ciò che è cambiato davvero nel codice.</p>
   <button id="mix">Misura tutte le grooves</button>
   <button id="voices">Prima / dopo sui singoli colpi</button>
   <button id="kits">Pareggiare i due kit</button>
+  <button id="levels">Livelli delle voci nuove</button>
 </div>
 <div id="log"></div>
 
@@ -520,6 +521,96 @@ async function runKits() {
   return rows;
 }
 
+/* Le tre voci nuove — archi, arpeggio, chitarra ritmica — vanno messe in scala
+   contro quelle che c'erano, non a orecchio di chi le ha scritte. Rende ogni
+   voce da sola sulla groove che la usa e misura picco e RMS nelle finestre dei
+   colpi, così i silenzi non diluiscono niente. Lo stab è il riferimento: è la
+   voce armonica che esisteva già ed era stata pareggiata alle altre. */
+async function runLevels() {
+  const w = await ready();
+  const gs = w.dev.grooves();
+  const want = [
+    ['Fantasia',   ['bass', 'stab', 'pad', 'lead']],
+    ['Cristallo',  ['bass', 'arp', 'pad', 'lead']],
+    ['Permanente', ['bass', 'arp', 'pad', 'lead']],
+    ['Sanremo',    ['bass', 'stab', 'pad', 'lead']],
+    ['Testaccio',  ['bass', 'stab', 'chank', 'pad', 'lead']],
+  ];
+  /* La chitarra ritmica ha due percorsi — i campioni sulla Chitarra e il
+     ripiego sintetico su tutto il resto — e uno solo dei due era misurato.
+     Testaccio gira sulla fisarmonica, quindi la seconda passata la forza. */
+  const forced = [['Testaccio', 'chit', ['chank', 'stab']]];
+  const rows = [];
+  for (const [name, ids] of want) {
+    const g = gs.find(x => x.name === name);
+    if (!g) { rows.push({ groove: name, voce: '— non trovata —' }); continue; }
+    for (const id of ids) {
+      log('livelli — ' + name + ' / ' + id);
+      seed(w, 4242);
+      let res;
+      try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
+      const hits = res.hits.filter(h => h.id === id);
+      if (!hits.length) { rows.push({ groove: name, voce: id, colpi: 0 }); continue; }
+      const d = monoOf(res.buf), sr = res.buf.sampleRate;
+      // una finestra generosa: il pad tiene per battute, non per millisecondi
+      const win = Math.round((id === 'pad' ? 0.5 : 0.12) * sr);
+      let pk = 0, sq = 0, n = 0;
+      hits.forEach(h => {
+        const a = Math.round(h.at * sr);
+        for (let k = a; k < a + win && k < d.length; k++) {
+          const v = d[k], av = v < 0 ? -v : v;
+          if (av > pk) pk = av; sq += v * v; n++;
+        }
+      });
+      rows.push({ groove: name, voce: id, colpi: hits.length,
+                  picco: r2(dB(pk)), rms: r2(dB(Math.sqrt(sq / Math.max(1, n)))) });
+    }
+  }
+  for (const [name, tb, ids] of forced) {
+    const g = gs.find(x => x.name === name);
+    if (!g) continue;
+    w.dev.timbre = tb;
+    for (const id of ids) {
+      log('livelli — ' + name + ' su ' + tb + ' / ' + id);
+      seed(w, 4242);
+      let res;
+      try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
+      const hits = res.hits.filter(h => h.id === id);
+      if (!hits.length) continue;
+      const d = monoOf(res.buf), sr = res.buf.sampleRate;
+      const win = Math.round(0.12 * sr);
+      let pk = 0, sq = 0, n = 0;
+      hits.forEach(h => {
+        const a = Math.round(h.at * sr);
+        for (let k = a; k < a + win && k < d.length; k++) {
+          const v = d[k], av = v < 0 ? -v : v;
+          if (av > pk) pk = av; sq += v * v; n++;
+        }
+      });
+      rows.push({ groove: name + ' · ' + tb, voce: id, colpi: hits.length,
+                  picco: r2(dB(pk)), rms: r2(dB(Math.sqrt(sq / Math.max(1, n)))) });
+    }
+  }
+  w.dev.timbre = '';
+
+  // lo scarto di ogni voce contro lo stab (o l'arpeggio dove lo stab non c'è)
+  rows.forEach(r => {
+    const ref = rows.find(x => x.groove === r.groove && (x.voce === 'stab' || x.voce === 'arp'));
+    r.vsRif = (ref && r.picco !== undefined && ref.picco !== undefined)
+      ? r2(r.picco - ref.picco) : undefined;
+  });
+  log('fatto: ' + rows.length + ' misure di livello.');
+  show(table(rows, [
+    ['groove', r => r.groove], ['voce', r => r.voce], ['colpi', r => r.colpi],
+    ['picco dBFS', r => r.picco], ['RMS dBFS', r => r.rms],
+    ['scarto dal rif. dB', r => r.vsRif],
+  ], 'Livelli delle voci nuove',
+     'Il riferimento di ogni riga è lo stab della stessa groove, o l\'arpeggio dove lo stab non c\'è. Il pad deve stare <b>sotto</b>: è un letto, non una parte. Arpeggio e chitarra ritmica intorno allo stab.'),
+    rows);
+  return rows;
+}
+
+document.getElementById('levels').addEventListener('click', e => { e.target.disabled = true; runLevels(); });
 document.getElementById('kits').addEventListener('click', e => { e.target.disabled = true; runKits(); });
 document.getElementById('mix').addEventListener('click', e => { e.target.disabled = true; runMix(); });
 document.getElementById('voices').addEventListener('click', e => { e.target.disabled = true; runVoices(); });
@@ -533,6 +624,7 @@ document.getElementById('voices').addEventListener('click', e => { e.target.disa
     if (q === 'mix') await runMix();
     else if (q === 'voices') await runVoices();
     else if (q === 'kits') await runKits();
+    else if (q === 'levels') await runLevels();
     else if (q === 'all') { await runVoices(); await runKits(); await runMix(); }
     document.title = 'SCORE_DONE';
   } catch (e) {

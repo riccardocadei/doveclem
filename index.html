@@ -919,7 +919,16 @@ const SYNTHS = [
   { id:'hat',   name:'Hat, closed', short:'Hat',      echo:0.00, pan: 0.26, verb:0.10 },
   { id:'ohat',  name:'Hat, open',   short:'Open hat', echo:0.20, pan: 0.34, verb:0.18 },
   { id:'bass',  name:'Bass arp',    short:'Bass',     echo:0.00, pan: 0.00, verb:0.03, tone:true },
+  /* Ordered low to high and rhythm before tune, because that is the order the
+     mixer shows them in. Three of these are new and each one arrived from a
+     record rather than from an idea: strings from Cutugno, the sixteenth
+     sequencer from Battiato's `La voce del padrone`, the muted guitar from
+     wanting the Roman thing to turn funk. A pad barely goes in the delay — a
+     sustained voice in an echo is mud — and the arpeggio lives in it. */
+  { id:'pad',   name:'Strings',     short:'Strings',  echo:0.08, pan: 0.00, verb:0.55, tone:true },
   { id:'stab',  name:'Chord stab',  short:'Stab',     echo:0.38, pan:-0.20, verb:0.34, tone:true },
+  { id:'chank', name:'Rhythm guitar', short:'Guitar', echo:0.14, pan: 0.30, verb:0.20, tone:true },
+  { id:'arp',   name:'Arpeggio',    short:'Arp',      echo:0.50, pan:-0.30, verb:0.26, tone:true },
   { id:'lead',  name:'Lead',        short:'Lead',     echo:0.45, pan: 0.16, verb:0.30, note:true },
 ];
 const NS = SYNTHS.length;
@@ -966,7 +975,7 @@ let TRACKS = [];
 let pattern = [], notes = [], vol = [], mute = [], send = [];
 let vparams = [];                      // per voice: rate / start / chop / rev
 let clipInfo = [];                     // per voice: peaks + duration, filled after decode
-let shapeOf = { bass:1, stab:3 };
+let shapeOf = { bass:1, pad:3, stab:3, chank:3, arp:2 };
 let key = 36;                          // MIDI root for the bass; stab and lead sit two octaves up
 let progIx = 0, bar = 0;
 /* Italo is saws; fisa re-voices the stab and the lead as accordion reeds. The
@@ -1044,7 +1053,7 @@ let organic = 1;
    makeup gain off the difference instead of somebody picking one. */
 /* Un kit imposto dall'esterno, per misurare la stessa groove con il kit
    sintetico e con quello registrato e livellare i due. Vuoto nell'app. */
-let kitForce = '', noAutoKit = false;
+let kitForce = '', timbreForce = '', noAutoKit = false;
 
 function b64ToBuf(b64) {
   const bin = atob(b64), u8 = new Uint8Array(bin.length);
@@ -1489,6 +1498,56 @@ function button(t, i, f) {
   });
 }
 
+/* Strings, which italo does not actually have: it has four detuned saws inside
+   a lowpass, and the difference matters less than it sounds like it should.
+   What makes it read as strings is the slow attack and the fact that it never
+   ends. It goes heavily into the reverb and sits a long way down — a pad you
+   can hear as a pad is a pad set too loud.
+
+   Three copies, left, centre and right. score.html measured channel
+   correlation at 0.95–0.99 across every groove, which is very nearly mono
+   despite the per-track pans, and a wide pad is the cheapest way to open that
+   up because it is the voice that stays in the longest. */
+function padOn(t, i, midi, peak, hold) {
+  const off = t + hold + 0.6;
+  const atk = Math.min(0.22, hold * 0.5);          // or a short hold clicks
+  [[-9, -0.55], [0, 0], [7, 0.55]].forEach(v => {
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+    lp.frequency.value = 2400; lp.Q.value = 0.6;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + atk);
+    g.gain.setValueAtTime(peak, t + hold);         // anchored where the ramp got to
+    g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.5);
+    lp.connect(g);
+    if (v[1] && ctx.createStereoPanner) {
+      const pn = ctx.createStereoPanner(); pn.pan.value = v[1];
+      g.connect(pn); tap(pn, i);
+    } else tap(g, i);
+    midi.forEach(m => {
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.value = freq(m);
+      o.detune.value = v[0] + (Math.random() - 0.5) * 4;
+      o.connect(lp); o.start(t); o.stop(off);
+    });
+  });
+}
+
+/* One note of the sequencer. Short, plucked, and resonant: a saw through a
+   lowpass that shuts in a tenth of a second, which is a sequencer and not a
+   chord player. It is deliberately synthetic on every timbre but the two
+   strung ones — Battiato's arpeggio is a machine, and an accordion pretending
+   to play sixteenths is neither one thing nor the other. */
+function arpOne(t, i, m, peak) {
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 6;
+  lp.frequency.setValueAtTime(4200, t);
+  lp.frequency.exponentialRampToValueAtTime(900, t + 0.10);
+  const g = ctx.createGain(); env(g, t, peak, 0.14);
+  const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq(m);
+  o.connect(lp); lp.connect(g); tap(g, i);
+  o.start(t); o.stop(t + 0.17);
+}
+
 const VOICES = {
   kick(t, i) {
     if (pump && duck) {
@@ -1595,6 +1654,65 @@ const VOICES = {
       o.start(t); o.stop(t + 0.6);
     });
   },
+  /* Strings hold the bar's chord and nothing else. Timbre does not touch them,
+     the same way it does not touch the drums or the bass: a string synth is a
+     string synth whether the tune is on an accordion or a saw. */
+  pad(t, i, s) {
+    const c = chordAt(), iv = SHAPES[shapeOf.pad].iv, root = c.root + 12;
+    /* 0.024 e non 0.055: a 0.055 score.html lo misurava un decibel *sopra* lo
+       stab e 2.6 dB sopra in RMS, cioè un letto più forte della parte che
+       dovrebbe sostenere. Questo lo mette 6 dB sotto il picco dello stab. */
+    padOn(t, i, iv.map(x => root + qual(x, c.maj)), 0.024, holdTo(i, s));
+  },
+
+  /* The muted guitar. A funk guitar does not play notes, it plays the gesture:
+     the right hand runs up and down the sixteenths and the left damps, so what
+     comes out is a struck string with barely a pitch inside it. It is the
+     guitar recordings held for a third of a step — what makes it read as muted
+     is that it stops, not that it is filtered. Off the two strung settings it
+     is a bandpassed saw burst instead: the same gesture on a different
+     instrument, which is roughly what a clavinet is.
+
+     The timbre check is not decoration. `sampled()` plays whatever bank is
+     loaded, so the first version of this happily chopped the *accordion* into
+     45-millisecond bursts on the Fisarmonica setting — score.html measured it
+     8.4 dB under the stab, and the comment here claimed it was falling through
+     to the synth. It was not. */
+  chank(t, i, s) {
+    const c = chordAt(), iv = SHAPES[shapeOf.chank].iv, root = c.root + 24;
+    const md = iv.map(x => root + qual(x, c.maj));
+    const hold = Math.max(0.03, stepDur() * 0.34);
+    if ((timbre === 'chit' || timbre === 'mando') && sampled(t, i, md, 0.12, hold, 0.005)) return;
+    md.forEach((m, k) => {
+      const t0 = t + k * 0.005;                    // the hand crossing the strings
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq(m);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
+      /* Q 1.6 e non 2.2: a 2.2 il passa-banda buttava via tanta energia che
+         score.html misurava la ritmica 8.4 dB sotto lo stab — un telefono, non
+         una chitarra. E il livello sale di conseguenza. */
+      bp.frequency.value = jit(1700, 0.05); bp.Q.value = 1.6;
+      /* 0.175 pareggia questo percorso a quello campionato: −9.1 dBFS di picco
+         contro −9.1. Cambiare timbro deve cambiare il suono, non il volume. */
+      const g = ctx.createGain(); env(g, t0, 0.175, hold + 0.06);
+      o.connect(bp); bp.connect(g); tap(g, i);
+      o.start(t0); o.stop(t0 + hold + 0.09);
+    });
+  },
+
+  /* The sequencer. Same trick as the bass — the degree comes from counting the
+     written steps before this one, so the figure is welded to the bar instead
+     of to how many times it has fired. Two octaves up, into the delay. */
+  arp(t, i, s) {
+    const c = chordAt(), iv = SHAPES[shapeOf.arp].iv;
+    let k = 0;
+    for (let q = 0; q < (s || 0); q++) if (pattern[i][q]) k++;
+    const m = c.root + 24 + qual(iv[k % iv.length], c.maj);
+    if (timbre === 'chit' || timbre === 'mando') return pluck(t, i, [m], 0.30, 0, 3600);
+    /* Al picco stava già allo stab, ma 9 dB sotto in RMS perché sono plettrate
+       corte, e in un mix una cosa così sparisce. Due decibel e mezzo in più. */
+    arpOne(t, i, m, 0.15);
+  },
+
   // Two saws a few cents apart, straight into the delay. The melody stays in
   // the key's scale rather than following the chord — that is what keeps a
   // tune sounding like a tune while the harmony moves under it.
@@ -1652,6 +1770,17 @@ function hatAt(t, i, dec, hz, peak) {
 
 function stepDur() { return 60 / bpm / 4; }
 
+/* How long a held note holds: until this track's next written step. A pad on
+   0, 16, 32, 48 takes a bar each; a pad written on 0 alone takes the whole
+   turn. Better than a number per groove, because the answer is already in the
+   pattern — and it means moving a pad step changes its length, which is what
+   you would expect it to do. */
+function holdTo(i, s) {
+  if (s == null) return 1.5;                       // auditioning from the mixer
+  for (let k = 1; k <= patLen; k++) if (pattern[i][(s + k) % patLen]) return k * stepDur();
+  return patLen * stepDur();
+}
+
 /* Swing pushes the second half of every pair late. It has to work on the eighth
    off-beats, because that is what these patterns are made of: swinging only the
    odd sixteenths — which is what this did before — was silent on every groove
@@ -1676,7 +1805,11 @@ function swingAt(s) {
    clock and the whole thing sounds late rather than played. The playhead is
    *not* leaned — the cue in follow() reads the grid time, so the lane keeps
    showing the step you wrote instead of drifting off it. */
-const LEAN = { kick:0, snare:7, clap:6, hat:-2, ohat:-3, bass:0, stab:4, lead:6 };
+/* The arpeggio and the pad sit dead on the grid on purpose: one is a sequencer
+   and being machine-tight is the whole sound of it, the other has no transient
+   to be late with. A guitarist's right hand does sit behind the beat. */
+const LEAN = { kick:0, snare:7, clap:6, hat:-2, ohat:-3, bass:0,
+               pad:0, stab:4, chank:5, arp:0, lead:6 };
 let human = 1;
 function leanOf(i) {
   if (!human || !organic) return 0;
@@ -2129,7 +2262,7 @@ function paintPanel() {
 
   shapeRow.hidden = trk.kind !== 'tone';
   if (trk.kind === 'tone') {
-    shapeLabel.textContent = trk.id === 'bass' ? 'Arp' : 'Chord';
+    shapeLabel.textContent = (trk.id === 'bass' || trk.id === 'arp') ? 'Arp' : 'Chord';
     shapeSeg.innerHTML = SHAPES.map((s, k) =>
       '<button type="button" data-k="' + k + '" aria-pressed="' +
       (shapeOf[trk.id] === k) + '">' + s.name + '</button>').join('');
@@ -2691,6 +2824,48 @@ const GROOVES = [
     ghost:{ ohat:[2,10,18,26,34,42,50,58] },
     voice:{ 0:{rate:1,start:0,chop:0}, 2:{rate:1,start:0,chop:6} } },
 
+  /* Mind Enterprises: la linea di basso *è* il pezzo, la cassa è asciutta, i
+     sedicesimi di charleston respirano per accenti, e sopra c'è aria. Niente
+     arpeggio e niente chitarra qui di proposito — quel disco è fatto di poche
+     cose messe larghe, e riempirlo lo ucciderebbe. `bassIv` di otto gradi si
+     chiude esattamente in una battuta: tonica, ottava, tonica, quinta, tonica,
+     ottava, settima, quinta. */
+  { name:'Fantasia', pack:'clem', bpm:118, swing:0, pump:true, air:0.2, verb:1.05,
+    key:33, prog:'Onda', shape:{bass:1,stab:3,pad:3},
+    bassIv:[0,12,0,7,0,12,10,7],
+    steps:{ kick:[0,4,8,12], clap:[4,12],
+            hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            bass:[0,2,4,6,8,10,12,14],
+            pad:[0], stab:[7,15],
+            lead:[[6,4],[22,2],[35,4],[38,5],[54,2],[58,0]],
+            v1:[12,28,44,60], v0:[0] },
+    once:['v0'],
+    accent:{ kick:[0], clap:[12], hat:[2,6,10,14] },
+    ghost:{ hat:[1,3,5,7,9,11,13,15], stab:[15] },
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ drop:['stab'], clear:{ hat:[1,3,5,7,9,11,13,15] } } },
+    fill:{ clap:[10,11,12,13,14,15] },
+    voice:{ 1:{rate:1,start:0,chop:2}, 0:{rate:1,start:0,chop:0} } },
+
+  /* L'italo con l'arpeggio davanti, che è la cosa che a questa app mancava:
+     sedicesimi plettrati dentro l'eco in ottavo puntato, e la mano destra non
+     cambia mai. L'armonia la porta l'arpeggio, quindi lo stab non c'è. */
+  { name:'Cristallo', pack:'clem', bpm:124, swing:0, pump:true, air:0.15, verb:1.2,
+    key:36, prog:'Tramonto', shape:{bass:1,pad:3,arp:2},
+    bassIv:[0,12],
+    steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
+            arp:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            bass:[0,2,4,6,8,10,12,14], pad:[0],
+            lead:[[16,4],[20,2],[28,4],[48,5],[52,4],[60,2]],
+            v2:[8,40], v3:[0] },
+    once:['v3'],
+    accent:{ kick:[0], clap:[12], arp:[0,4,8,12] },
+    ghost:{ arp:[1,3,5,7,9,11,13,15], ohat:[6,14] },
+    vary:{ 1:{ add:{ clap:[14] } },
+           2:{ clear:{ arp:[1,3,5,7,9,11,13,15] } } },
+    fill:{ ohat:[10,11,12,13,14,15], clap:[14] },
+    voice:{ 2:{rate:1,start:0,chop:2}, 3:{rate:1,start:0,chop:0} } },
+
   /* A dance hall, which is what the name says. Swung eighths, a walking bass
      and the piano on the off-beat; no dramatic break, it just keeps going. */
   { name:'Balera', pack:'clem', bpm:126, swing:0.6, timbre:'rhodes', air:0.3, verb:1.2,
@@ -2809,6 +2984,71 @@ const GROOVES = [
     accent:{ kick:[0,48], clap:[12,28,60] },
     ghost:{ ohat:[2,10,18,26,34,42,50,58] },
     voice:{ 0:{rate:1,start:0,chop:2}, 3:{rate:1,start:0,chop:6} } },
+
+  /* Il ponte, ed è la groove per cui esiste l'arpeggio. Battiato del periodo
+     *La voce del padrone*: un sequencer di sedicesimi in maggiore sotto una
+     melodia mediterranea, drum machine e percussione vera nello stesso pezzo.
+     Qui la fisarmonica porta la melodia e il tamburello del kit registrato
+     tiene i contrattempi, mentre sotto va una macchina — ed è esattamente il
+     mezzo fra la tradizione e la rivisitazione. Il pad si ribatte a ogni
+     battuta perché il giro si muove a ogni battuta: tenuto per quattro
+     suonerebbe l'accordo della prima sopra le altre tre. */
+  { name:'Permanente', pack:'nonni', bpm:116, swing:0, timbre:'fisa', kit:'folk', air:0.35, verb:1.15,
+    key:36, prog:'Stornello', shape:{bass:1,pad:3,arp:2},
+    bassIv:[0,0,12,7],
+    steps:{ kick:[0,4,8,12], ohat:[2,6,10,14],
+            arp:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            bass:[0,2,4,6,8,10,12,14], pad:[0],
+            lead:[[0,4],[4,2],[6,4],[10,5],[12,4],
+                  [16,5],[20,4],[22,2],[26,3],[28,2],
+                  [32,6],[36,4],[38,5],[42,6],[44,7],
+                  [48,4],[52,2],[56,0],[60,2]],
+            v2:[0,32], v6:[24] },
+    accent:{ kick:[0], arp:[0,4,8,12], ohat:[2,10] },
+    ghost:{ arp:[1,3,5,7,9,11,13,15], ohat:[6,14] },
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ clear:{ arp:[1,3,5,7,9,11,13,15] } } },
+    fill:{ ohat:[10,11,12,13,14,15] },
+    voice:{ 2:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
+
+  /* Cutugno: maggiore, spinta in ottavi, chitarra che gratta e archi dietro a
+     tutto. Gli archi sono la voce che a questa app mancava per suonare piena —
+     e il fatto che la melodia la porti una clip invece del lead è il punto:
+     quella è la parte del cantante. */
+  { name:'Sanremo', pack:'nonni', bpm:100, swing:0, timbre:'chit', air:0.3, verb:1.2,
+    key:38, prog:'Stornello', shape:{bass:2,stab:3,pad:3},
+    steps:{ kick:[0,8], snare:[4,12], hat:[0,2,4,6,8,10,12,14],
+            bass:[0,2,4,6,8,10,12,14], pad:[0],
+            stab:[0,2,4,6,8,10,12,14],
+            lead:[[12,4],[28,2],[44,6],[46,4],[60,2],[62,0]],
+            v0:[0,32], v4:[16] },
+    accent:{ snare:[4,12], kick:[0], stab:[0,8] },
+    ghost:{ hat:[2,6,10,14], stab:[2,6,10,14] },
+    vary:{ 1:{ add:{ kick:[14] } },
+           2:{ drop:['stab'], add:{ ohat:[4,12] } } },
+    fill:{ snare:[12,13,14,15] },
+    voice:{ 0:{rate:1,start:0,chop:0}, 4:{rate:1,start:0,chop:0} } },
+
+  /* La rivisitazione funk. La fisarmonica tiene la parte romana — gli stab sul
+     levare e la melodia — mentre la chitarra ritmica va sui sedicesimi con il
+     suo ripiego sintetico, che fuori dal timbro Chitarra è un clavinet e per il
+     funk è meglio di una chitarra vera. Il cajón del kit registrato fa il
+     rullante e suona come una conga, che è quello che serviva. */
+  { name:'Testaccio', pack:'nonni', bpm:112, swing:0, timbre:'fisa', kit:'folk',
+    air:0.4, verb:1.15,
+    key:34, prog:'Osteria', shape:{bass:1,stab:3,pad:3,chank:3},
+    bassIv:[0,12,0,7],
+    steps:{ kick:[0,4,8,12], snare:[4,12], clap:[7,15], ohat:[2,6,10,14],
+            chank:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            bass:[0,3,6,8,11,14], pad:[0], stab:[3,11],
+            lead:[[16,4],[19,2],[22,4],[26,5],[48,4],[51,6],[54,4],[58,2]],
+            v1:[0,8], v3:[32] },
+    accent:{ kick:[0], snare:[4,12], chank:[2,6,10,14] },
+    ghost:{ chank:[1,3,5,7,9,11,13,15], ohat:[6,14], clap:[15] },
+    vary:{ 1:{ add:{ clap:[14] } },
+           2:{ drop:['stab'], clear:{ chank:[1,3,5,7,9,11,13,15] } } },
+    fill:{ clap:[10,11,12,13,14,15] },
+    voice:{ 1:{rate:1,start:0,chop:2}, 3:{rate:1,start:0,chop:0} } },
 
   /* The same dance hall, but the band is an accordion and it is slower — a
      Rhodes on this pack sounded like it had come from the wrong decade. */
@@ -3028,8 +3268,10 @@ function loadGroove(gi) {
     });
   }
   bassIv = g.bassIv || null;
-  shapeOf = { ...g.shape };
-  setTimbre(g.timbre || 'italo');
+  /* Defaults per voice, then the groove's own on top. A groove written before
+     the strings existed names neither, and SHAPES[undefined] throws. */
+  shapeOf = { bass:1, pad:3, stab:3, chank:3, arp:2, ...g.shape };
+  setTimbre(timbreForce || g.timbre || 'italo');
   setKey(g.key); setProg(progIndex(g.prog || 'Fermo'));
   swing = g.swing || 0;
   human = g.human === undefined ? 1 : g.human;
@@ -3431,6 +3673,8 @@ window.dev = {
   get organic() { return organic; },
   set kit(v) { kitForce = v || ''; },
   get kit() { return kitForce; },
+  set timbre(v) { timbreForce = v || ''; },
+  get timbre() { return timbreForce; },
   slots: () => KITS.reduce((o, k) => (k.slots && (o[k.id] = Object.assign({}, k.slots)), o), {}),
   setSlot: (kitId, slot, g) => { const K = KITS.find(k => k.id === kitId); if (K && K.slots) K.slots[slot] = g; },
 };

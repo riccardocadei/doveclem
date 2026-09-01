@@ -49,6 +49,76 @@ level. The whole kit is 24 KB.
 A slot that fails to load quietly keeps its synthesised voice, so a bad
 connection degrades the kit rather than silencing the drums.
 
+## Strings, a sequencer and a muted guitar
+
+Three voices arrived at once, and each one came from a record rather than from
+an idea about what the app was missing.
+
+**Strings** (`pad`). Four detuned saws inside a lowpass with a slow attack,
+which is what italo and eighties Italian pop actually used — there was no string
+section. It holds the bar's chord and nothing else, and it is the voice that
+makes the difference between an arrangement and a set of parts. Timbre does not
+touch it, the same way it does not touch the drums or the bass: a string synth
+is a string synth whether the tune is on an accordion or a saw.
+
+It is struck once a bar on purpose. Held across four it would sit on bar one's
+chord while the giro moved underneath, which sours everything — `holdTo()` gives
+a note the time until that track's *next written step*, so where you put the pad
+decides how long it lasts, and a pad on 0, 16, 32, 48 takes a bar each.
+
+**The sequencer** (`arp`). Sixteenth notes, plucked and resonant: a saw through a
+lowpass that shuts in a tenth of a second. This is the one thing the app was
+missing to sound like italo at all, and it is also Battiato's arpeggio off *La
+voce del padrone*. Its degree comes from counting the written steps before the
+current one, the same fix the bass got, so the figure is welded to the bar. It
+stays synthetic on every setting but the two strung ones — a machine sequencer is
+the sound; an accordion pretending to play sixteenths is neither one thing nor
+the other.
+
+**Rhythm guitar** (`chank`). A funk guitar does not play notes, it plays the
+gesture: the right hand runs the sixteenths and the left damps, so what comes out
+is a struck string with barely a pitch inside it. It is the guitar recordings
+held for a third of a step — what makes it read as muted is that it *stops*, not
+that it is filtered. Off the strung settings it is a bandpassed saw burst
+instead, which is roughly a clavinet.
+
+That fallback hid a bug worth recording. `sampled()` plays whatever bank is
+loaded, so the first version cheerfully chopped the *accordion* into
+45-millisecond bursts on the Fisarmonica setting while its own comment claimed it
+was falling through to the synth. It was not. `score.html` caught it as 8.4 dB
+under the stab; the two paths are now matched to each other at −8.7 and −9.1
+dBFS, because switching timbre should change the sound and not the volume.
+
+The levels are all measured, and two of the three were wrong when guessed. The
+pad was written at a peak that measured a decibel *above* the stab — a bed
+louder than the part it is meant to hold up — and now sits 6 to 8 dB under it.
+The sequencer was level with the stab at the peak but nine decibels under in RMS,
+which is a thing that disappears in a mix, so it came up two and a half.
+
+### Five grooves from five records
+
+- **Clem / Fantasia** — Mind Enterprises. The bassline *is* the piece:
+  `bassIv:[0,12,0,7,0,12,10,7]`, eight degrees closing exactly in a bar. Dry kick,
+  sixteenth hats breathing on accents, and no sequencer and no guitar on purpose,
+  because that music is a few things placed wide and filling it would kill it.
+- **Clem / Cristallo** — italo with the sequencer in front, inside the
+  dotted-eighth echo. The arpeggio carries the harmony, so there is no stab.
+- **Nonni / Permanente** — the bridge, and the groove the sequencer exists for.
+  A sixteenth machine in a major key under an accordion tune, drum machine and
+  tambourine in the same bar.
+- **Nonni / Sanremo** — Cutugno. Major, eighth-note push, guitar strumming,
+  strings behind everything, and the melody carried by a clip rather than by the
+  lead, because that is the singer's part.
+- **Nonni / Testaccio** — the funk one. The accordion keeps the Roman half, the
+  rhythm guitar runs sixteenths on its synth fallback, and the recorded kit's
+  cajón slap does the job a conga would.
+
+The five measure at 11.2 to 13.7 dB of crest, novelty 0.12 to 0.28, and peaks
+between −0.48 and −0.77 dBFS with nothing clipping. They are denser than the
+older grooves — 30 to 40 hits a bar against 11 to 28 — because a sequencer or a
+muted guitar *is* sixteen notes. The crest is what says that is a texture rather
+than a wall.
+
 ## Why it stopped sounding like a ringtone
 
 Every voice used to arrive dead centre, bone dry and straight into a
