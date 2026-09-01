@@ -155,6 +155,64 @@ desk adds and glues separate oscillators into one thing. It also takes the
 peaks: a bar of Liana that used to clip now peaks 0.912 with nothing clipped at
 all.
 
+## Space, and something that moves
+
+**The echo bounces.** The dotted-eighth delay italo runs everything through was
+a single mono line returning to the middle; it is two delays now, one panned
+left and one right, each feeding the other, so repeats alternate between the
+ears. That is the genre's own gesture and it is also the answer to a
+measurement: channel correlation was 0.95–0.99 on every groove, which is very
+nearly mono, and the echo is the voice that stays in longest of anything here.
+
+It worked, and it did not finish the job. Correlation is now 0.88–0.98, mean
+0.972 down to 0.946 — real, and well outside the noise floor, but real records
+sit nearer 0.5–0.8. The grooves that improved most are the ones that use the
+echo (Permanente and Testaccio both 0.96 → 0.88); the ones with `echo:false`
+did not move at all, which is exactly the confirmation you would want and also
+the limit. The loud middle — kick, bass, everything centred — sets the number,
+so going further means widening the kit, not the effects.
+
+**The room arrives in three instalments now.** A real room gives you the direct
+sound, a few single reflections off the nearest walls, then the diffuse tail.
+What was here was the tail alone, beginning at the same instant as the sound
+itself, which is precisely why it read as a wash rather than as a room. The
+impulse has 23 ms of dead silence in front of it, five discrete reflections
+between 23 and 71 ms that reach one ear a fraction before the other, and then
+the tail from 85 ms. It costs nothing while playing — it is all in the buffer.
+
+**A groove can rise.** `rise:true` sweeps the master filter: open across the
+even turn, closing over the four bars of the odd one, snapping back open at the
+top — and the fill lands at the very bottom of the close, which is how disco has
+always resolved tension. Four grooves use it. It does nothing at all if you have
+touched the filter knob, that is yours, and moving the knob cancels whatever
+ramp is in flight so your hand wins.
+
+### What the numbers could and could not see
+
+The riser exposed a hole in the measuring, and the honest version is that the
+number went the *wrong way*. Bar-to-bar novelty fell on all four grooves that
+gained a riser — because closing the filter removes the highs that carried the
+difference between bars. Novelty has a one-bar horizon and a riser is an
+eight-bar arc, so it cannot see one and mildly punishes it.
+
+`score.html` reports **arco** now: the same spectral distance taken between the
+first and second half of the render. It reads 0.075 on the four grooves with a
+riser and **0.001** on the seventeen without, which both shows the riser doing
+something and shows what the older column was blind to.
+
+The other thing the measuring learned about itself is worse and more useful. A
+fixed seed makes two renders comparable only as long as the *number* of random
+draws stays the same, and rewriting the reverb impulse changed it. Four
+different seeds move a groove's peak by up to **0.64 dB** on their own —
+clem/Chop reads −0.38, −0.69, −0.63 and −0.05 dBFS depending only on the seed.
+So a before/after peak comparison below about 0.6 dB says nothing, and two
+changes made in this session on the strength of one were pure superstition; both
+were reverted. Channel correlation, by contrast, moves by 0.01 across seeds,
+which is why the width result stands. `?seed=` is there to check.
+
+Worth knowing separately: clem/Chop genuinely has no headroom left on an unlucky
+bar. That is not new and was not caused by any of this, but it is true.
+
 ## Room tone
 
 `air` is a bed of filtered noise about 48 dB down, running under everything for

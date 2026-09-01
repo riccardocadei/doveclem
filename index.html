@@ -992,6 +992,13 @@ const VELS = [1, 1.4, 0.5];
    può stare lì: succede ogni *secondo* giro, e quattro battute non lo tengono. */
 let fillPat = null, fillHas = null, loops = 0;
 const FILL_EVERY = 2;                  // un fill ogni otto battute
+/* La salita. Sul giro pari il filtro sta aperto; sul giro dispari si chiude per
+   quattro battute e si riapre di scatto in cima — e il fill cade proprio in
+   fondo alla chiusura, che è come la disco ha sempre risolto la tensione.
+   Vale per groove, come lo swing, e non fa niente se hai toccato la manopola:
+   quella è tua. */
+let rise = false;
+const RISE_LOW = 700;
 /* Gli intervalli del basso, quando una groove ne vuole di suoi invece di una
    delle quattro forme. Nell'italo la linea di basso è il pezzo. */
 let bassIv = null;
@@ -1035,7 +1042,7 @@ function buildTracks() {
 }
 
 /* ---------------- audio ---------------- */
-let ctx = null, bus = null, master = null, delay = null, echoWet = null;
+let ctx = null, bus = null, master = null, delay = null, delay2 = null, echoWet = null;
 let duck = null, filt = null, drive = null, verb = null, verbIn = null, verbOut = null;
 let chan = [];
 const buffers = [], reversed = [], voiceLive = [];
@@ -1111,11 +1118,36 @@ function buildChain() {
   /* A room, made rather than recorded: noise decaying over a second and a half,
      darkened, different in each ear so it opens up instead of sitting in the
      middle. Sends feed it the way they feed the delay. */
+  /* A room arrives in three instalments: the direct sound, a few single
+     reflections off the nearest walls, and then the diffuse tail. What was here
+     was the tail alone, starting at the same instant as the sound itself, and
+     that is exactly why it read as a wash rather than as a room. The 23 ms of
+     dead silence in front is the distance to the wall; the discrete spikes are
+     the walls. It costs nothing at play time — it is all in the buffer. */
   verb = ctx.createConvolver();
-  const n = Math.floor(ctx.sampleRate * 1.6), ir = ctx.createBuffer(2, n, ctx.sampleRate);
+  const vsr = ctx.sampleRate;
+  const n = Math.floor(vsr * 1.7), ir = ctx.createBuffer(2, n, vsr);
+  const TAIL = 0.085;
+  // seconds, level, and which ear gets it first
+  /* Mezzi valori rispetto al primo tentativo, e per una ragione fisica, non
+     per una misura: in una stanza la prima riflessione arriva 6-12 dB sotto il
+     suono diretto, cioè fra 0.25 e 0.5, e a 0.80 questi erano muri di marmo a
+     un metro. Per la cronaca, il primo motivo che avevo scritto qui era falso —
+     avevo dato la colpa a queste di un picco a −0.05 dBFS su clem/Chop, e poi
+     quattro semi diversi hanno mostrato che quel picco oscilla di 0.64 dB da
+     solo. Confrontare picchi sotto quella soglia non significa niente. */
+  const EARLY = [[0.023, 0.40, 0], [0.031, 0.33, 1], [0.047, 0.27, 1],
+                 [0.059, 0.22, 0], [0.071, 0.18, 1]];
+  const t0 = Math.floor(vsr * TAIL);
   for (let c = 0; c < 2; c++) {
     const d = ir.getChannelData(c);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6);
+    for (let i = t0; i < n; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - (i - t0) / (n - t0), 2.6) * 0.8;
+    // the same wall reaches one ear a fraction before the other
+    EARLY.forEach(e => {
+      const k = Math.floor(vsr * e[0]) + (c === e[2] ? 0 : Math.floor(vsr * 0.0006));
+      if (k < n) d[k] += (Math.random() < 0.5 ? -1 : 1) * e[1] * (c === e[2] ? 1 : 0.7);
+    });
   }
   verb.buffer = ir;
   const vlp = ctx.createBiquadFilter(); vlp.type = 'lowpass'; vlp.frequency.value = 3600;
@@ -1134,17 +1166,38 @@ function buildChain() {
      batteria il resto passa più forte attraverso la saturazione. Non c'è.
      Se qualcuno vuole riprovarci, la misura sta in score.html. */
 
-  // Dotted-eighth feedback delay — the echo italo-disco runs everything through.
-  delay = ctx.createDelay(2);
-  delay.delayTime.value = Math.min(1.9, 3 * stepDur());
-  const fb = ctx.createGain(); fb.gain.value = 0.33;
+  /* The dotted-eighth echo italo-disco runs everything through, and it bounces
+     now: one delay on the left, one on the right, each feeding the other, so
+     the repeats alternate between the ears instead of stacking up in the
+     middle. That is the genre's own gesture, and it is also the cheapest answer
+     to a measurement — score.html put channel correlation at 0.95 to 0.99 on
+     every groove, very nearly mono, and the echo is the voice that stays in
+     longest of anything here. */
+  delay = ctx.createDelay(2);                    // the left leg
+  delay2 = ctx.createDelay(2);                   // and the right
+  const dt = Math.min(1.9, 3 * stepDur());
+  delay.delayTime.value = dt; delay2.delayTime.value = dt;
   const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 2600;
-  delay.connect(damp); damp.connect(fb); fb.connect(delay);
+  const damp2 = ctx.createBiquadFilter(); damp2.type = 'lowpass'; damp2.frequency.value = 2600;
+  /* The loop runs left → right → left, so this gain lands once per repeat, the
+     same as the single delay it replaces. 0.40 against 0.33 makes the tail a
+     little longer, which is a taste call and not a measurement; what score.html
+     can say is whether the crest collapses, and it does not. */
+  const fbA = ctx.createGain(); fbA.gain.value = 0.40;
+  const fbB = ctx.createGain(); fbB.gain.value = 0.40;
+  delay.connect(damp); damp.connect(fbA); fbA.connect(delay2);
+  delay2.connect(damp2); damp2.connect(fbB); fbB.connect(delay);
   // The echo returns through master, not straight to the bus, so the filter is
   // genuinely across everything — an echo that stays bright while you close the
   // filter is the giveaway that the knob is only on half the record.
   echoWet = ctx.createGain(); echoWet.gain.value = 0.9;
-  delay.connect(echoWet); echoWet.connect(master);
+  if (ctx.createStereoPanner) {
+    const pL = ctx.createStereoPanner(), pR = ctx.createStereoPanner();
+    pL.pan.value = -0.8; pR.pan.value = 0.8;
+    delay.connect(pL); pL.connect(echoWet);
+    delay2.connect(pR); pR.connect(echoWet);
+  } else { delay.connect(echoWet); delay2.connect(echoWet); }
+  echoWet.connect(master);
 
   chan = [];
 }
@@ -1910,6 +1963,17 @@ const AHEAD = 0.14, TICK = 25;
 function scheduler() {
   while (nextTime < ctx.currentTime + AHEAD) {
     const t = nextTime + swingAt(cursor);
+    if (cursor === 0 && rise && filt && filtV === 1) {
+      const dur = patLen * stepDur(), wide = filtHz();
+      filt.frequency.cancelScheduledValues(t);
+      if (loops % 2) {                             // il giro che si chiude
+        filt.frequency.setValueAtTime(wide, t);
+        filt.frequency.exponentialRampToValueAtTime(RISE_LOW, t + dur * 0.97);
+      } else {                                     // e quello che riapre
+        filt.frequency.setValueAtTime(RISE_LOW, t);
+        filt.frequency.exponentialRampToValueAtTime(wide, t + 0.06);
+      }
+    }
     /* Il fill vale solo sull'ultima battuta del pattern e solo un giro su due.
        Una corsia che il fill nomina viene *sostituita* in quella battuta, non
        sommata: un rullio di rullante non deve litigare con il backbeat che
@@ -1947,6 +2011,12 @@ function stop() {
   voiceLive.forEach(list => (list || []).forEach(v => {
     try { v.g.gain.setTargetAtTime(0, ctx.currentTime, 0.01); v.s.stop(ctx.currentTime + 0.1); } catch (e) {}
   }));
+  // a rise stopped halfway leaves the filter shut, and the next thing you play
+  // sounds broken rather than filtered
+  if (filt && ctx) {
+    filt.frequency.cancelScheduledValues(ctx.currentTime);
+    filt.frequency.setTargetAtTime(filtHz(), ctx.currentTime, 0.03);
+  }
   voiceLive.length = 0;
   run.setAttribute('aria-pressed', 'false');
   runLabel.textContent = 'Play';
@@ -2414,7 +2484,9 @@ run.addEventListener('click', async () => { await boot(); playing ? stop() : sta
 function setBpm(v) {
   bpm = Math.max(50, Math.min(200, v));
   bpmVal.textContent = String(bpm);
-  if (delay) delay.delayTime.value = Math.min(1.9, 3 * stepDur());
+  const dt = Math.min(1.9, 3 * stepDur());
+  if (delay) delay.delayTime.value = dt;
+  if (delay2) delay2.delayTime.value = dt;
   paintPanel();
 }
 $('bpmDown').addEventListener('click', () => setBpm(bpm - 2));
@@ -2425,7 +2497,13 @@ function setFilt(v) {
   const hz = filtHz();
   filtOut.textContent = filtV >= 0.995 ? 'aperto'
     : hz < 1000 ? Math.round(hz) + ' Hz' : (hz / 1000).toFixed(1) + ' k';
-  if (filt) filt.frequency.setTargetAtTime(hz, ctx.currentTime, 0.02);
+  /* Cancel first: with a groove's rise sweeping the same parameter, a bare
+     setTargetAtTime loses to whatever ramp is still scheduled ahead of it, and
+     the knob would appear not to work. Your hand wins. */
+  if (filt) {
+    filt.frequency.cancelScheduledValues(ctx.currentTime);
+    filt.frequency.setTargetAtTime(hz, ctx.currentTime, 0.02);
+  }
 }
 filtI.addEventListener('input', () => setFilt(Number(filtI.value)));
 
@@ -2830,7 +2908,7 @@ const GROOVES = [
      cose messe larghe, e riempirlo lo ucciderebbe. `bassIv` di otto gradi si
      chiude esattamente in una battuta: tonica, ottava, tonica, quinta, tonica,
      ottava, settima, quinta. */
-  { name:'Fantasia', pack:'clem', bpm:118, swing:0, pump:true, air:0.2, verb:1.05,
+  { name:'Fantasia', pack:'clem', bpm:118, swing:0, rise:true, pump:true, air:0.2, verb:1.05,
     key:33, prog:'Onda', shape:{bass:1,stab:3,pad:3},
     bassIv:[0,12,0,7,0,12,10,7],
     steps:{ kick:[0,4,8,12], clap:[4,12],
@@ -2850,7 +2928,7 @@ const GROOVES = [
   /* L'italo con l'arpeggio davanti, che è la cosa che a questa app mancava:
      sedicesimi plettrati dentro l'eco in ottavo puntato, e la mano destra non
      cambia mai. L'armonia la porta l'arpeggio, quindi lo stab non c'è. */
-  { name:'Cristallo', pack:'clem', bpm:124, swing:0, pump:true, air:0.15, verb:1.2,
+  { name:'Cristallo', pack:'clem', bpm:124, swing:0, rise:true, pump:true, air:0.15, verb:1.2,
     key:36, prog:'Tramonto', shape:{bass:1,pad:3,arp:2},
     bassIv:[0,12],
     steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
@@ -2910,7 +2988,7 @@ const GROOVES = [
   /* House, and house is mostly the open hat. Kick on every beat, hat lifting
      every off-beat eighth, a clap on two and four and almost nothing else —
      the space is the genre. */
-  { name:'Discoteca', pack:'clem', bpm:124, swing:0, pump:true, verb:1.15,
+  { name:'Discoteca', pack:'clem', bpm:124, swing:0, rise:true, pump:true, verb:1.15,
     /* House: la linea di basso salta l'ottava e poi la quinta invece di
        alternare due note, e il clap rulla dentro il ritorno. */
     bassIv:[0,12,0,7],
@@ -3034,7 +3112,7 @@ const GROOVES = [
      suo ripiego sintetico, che fuori dal timbro Chitarra è un clavinet e per il
      funk è meglio di una chitarra vera. Il cajón del kit registrato fa il
      rullante e suona come una conga, che è quello che serviva. */
-  { name:'Testaccio', pack:'nonni', bpm:112, swing:0, timbre:'fisa', kit:'folk',
+  { name:'Testaccio', pack:'nonni', bpm:112, swing:0, rise:true, timbre:'fisa', kit:'folk',
     air:0.4, verb:1.15,
     key:34, prog:'Osteria', shape:{bass:1,stab:3,pad:3,chank:3},
     bassIv:[0,12,0,7],
@@ -3275,6 +3353,11 @@ function loadGroove(gi) {
   setKey(g.key); setProg(progIndex(g.prog || 'Fermo'));
   swing = g.swing || 0;
   human = g.human === undefined ? 1 : g.human;
+  rise = !!g.rise;
+  if (!rise && filt && ctx) {
+    filt.frequency.cancelScheduledValues(ctx.currentTime);
+    filt.frequency.setTargetAtTime(filtHz(), ctx.currentTime, 0.03);
+  }
   pump = !!g.pump;
   if (!pump && duck && ctx) { duck.gain.cancelScheduledValues(ctx.currentTime); duck.gain.value = 1; }
   setBpm(g.bpm);
@@ -3512,7 +3595,7 @@ function snapshot() {
     // these four were being dropped: a saved pattern came back without its
     // fill, on the shape's intervals instead of its own, dead on the grid,
     // and in whatever room the last groove had left behind
-    human: human, bassIv: bassIv, verb: verbAmt,
+    human: human, bassIv: bassIv, verb: verbAmt, rise: rise,
     fill: fillPat ? TRACKS.reduce((o, trk, i) => {
       if (!fillHas[i]) return o;
       const l = [];
@@ -3567,6 +3650,7 @@ async function restore(o) {
   shapeOf = { bass:1, pad:3, stab:3, chank:3, arp:2, ...o.shape };
   bassIv = o.bassIv || null;
   human = o.human === undefined ? 1 : o.human;
+  rise = !!o.rise;
   verbAmt = o.verb === undefined ? 1 : o.verb;
   fillPat = null; fillHas = null;
   if (o.fill) {
@@ -3696,6 +3780,17 @@ async function renderOffline(gi, bars, only) {
   for (let s = 0; s < total; s++) {
     const st = s % patLen, tt = t + swingAt(st);
     // stessa regola dello scheduler, o il fill non finirebbe nella misura
+    if (st === 0 && rise && filt && filtV === 1) {
+      const dur = patLen * stepDur(), wide = filtHz();
+      filt.frequency.cancelScheduledValues(tt);
+      if (loops % 2) {                             // il giro che si chiude
+        filt.frequency.setValueAtTime(wide, tt);
+        filt.frequency.exponentialRampToValueAtTime(RISE_LOW, tt + dur * 0.97);
+      } else {                                     // e quello che riapre
+        filt.frequency.setValueAtTime(RISE_LOW, tt);
+        filt.frequency.exponentialRampToValueAtTime(wide, tt + 0.06);
+      }
+    }
     const useFill = !!fillPat && st >= patLen - barLen && (loops % FILL_EVERY === FILL_EVERY - 1);
     for (let i = 0; i < TRACKS.length; i++) {
       const v = (useFill && fillHas[i]) ? fillPat[i][st % barLen] : pattern[i][st];

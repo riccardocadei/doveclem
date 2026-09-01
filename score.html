@@ -77,7 +77,15 @@ function ready() {
 }
 
 /* Un seme fisso. Senza questo il jitter per colpo sposta ogni numero di qualche
-   punto percentuale e due misure non sono confrontabili. */
+   punto percentuale e due misure non sono confrontabili.
+
+   Ma un seme fisso confronta due misure solo finché il *numero di estrazioni*
+   non cambia: se una modifica consuma Math.random un numero diverso di volte —
+   come è successo riscrivendo l'impulso del riverbero — tutte le estrazioni a
+   valle slittano e le due rese non sono più la stessa esecuzione con una cosa
+   cambiata. Da qui `?seed=`, che serve a misurare quanto un numero si muove per
+   solo effetto del seme, cioè quanto rumore c'è sotto qualunque confronto. */
+const SEED = Number(new URLSearchParams(location.search).get('seed')) || 4242;
 function seed(w, s) {
   let x = (s || 12345) >>> 0;
   w.Math.random = function () {
@@ -210,6 +218,41 @@ function novelty(fr, sr, t0, barDur, bars) {
   return n ? r2(acc / n) : 0;
 }
 
+/* La novità guarda una battuta contro la precedente, cioè un orizzonte di una
+   battuta — e una salita del filtro è un arco di otto. Il numero non la vede, e
+   anzi la penalizza: chiudendo il filtro spariscono gli acuti che portavano la
+   differenza fra le battute, quindi la novità *scende* mentre il brano si muove
+   di più. Questo confronta la prima metà della resa con la seconda, che è la
+   scala su cui una salita esiste. */
+function arc(fr, sr, t0, dur) {
+  const LB = 14, LO = 60, HI = 12000;
+  const edge = k => LO * Math.pow(HI / LO, k / LB);
+  const bin = f => Math.max(1, Math.min(N / 2 - 1, Math.round(f * N / sr)));
+  const half = [new Float64Array(LB), new Float64Array(LB)], cnt = [0, 0];
+  fr.forEach(f => {
+    if (f.t < t0 || f.t >= t0 + dur) return;
+    const h = (f.t - t0) < dur / 2 ? 0 : 1;
+    cnt[h]++;
+    for (let k = 0; k < LB; k++) {
+      let e = 0;
+      for (let i = bin(edge(k)); i < bin(edge(k + 1)); i++) e += f.mag[i];
+      half[h][k] += Math.log10(1e-10 + e);
+    }
+  });
+  if (!cnt[0] || !cnt[1]) return 0;
+  for (let h = 0; h < 2; h++) for (let k = 0; k < LB; k++) half[h][k] /= cnt[h];
+  const x = half[0], y = half[1];
+  let mx = 0, my = 0;
+  for (let k = 0; k < LB; k++) { mx += x[k]; my += y[k]; }
+  mx /= LB; my /= LB;
+  let dot = 0, nx = 0, ny = 0;
+  for (let k = 0; k < LB; k++) {
+    const a = x[k] - mx, b = y[k] - my;
+    dot += a * b; nx += a * a; ny += b * b;
+  }
+  return r2(1 - dot / Math.sqrt(Math.max(1e-12, nx * ny)));
+}
+
 /* Energia sul battere contro energia sul levare. Un disco senza levare è una
    marcia; una tarantella senza battere non sta in piedi. */
 function pulse(d, sr, r) {
@@ -249,6 +292,7 @@ function mixStats(res) {
     peak: r2(dB(pr.peak)), rms: r2(dB(pr.rms)), crest: r2(dB(pr.peak) - dB(pr.rms)),
     bande: bandBalance(fr, sr),
     novita: novelty(fr, sr, res.t0, barDur, res.bars),
+    arco: arc(fr, sr, res.t0, res.dur),
     battere: pulse(d, sr, res),
     stereo: stereo(buf),
     dinBattute: r2(Math.max.apply(null, perBar) - Math.min.apply(null, perBar)),
@@ -330,9 +374,14 @@ const LIMITS = {
   variazionePicco:  { bad: 1,    warn: 4,   dir: 'lo', why: '% di variazione fra i colpi; sotto l\'1% è una macchina' },
   novita:           { bad: 0.02, warn: 0.06, dir: 'lo', why: 'differenza fra battute consecutive; 0 = quattro battute identiche' },
   crest:            { bad: 8,    warn: 11,  dir: 'lo', why: 'dB fra picco e RMS; sotto 8 è schiacciato' },
+  arco:             { bad: 0.01, warn: 0.03, dir: 'lo', why: 'movimento sulle otto battute; 0 = le due metà sono la stessa cosa' },
   colpiPerBattuta:  { bad: 55,   warn: 40,  dir: 'hi', why: 'oltre 55 è un muro, non un groove' },
   stereo:           { bad: 0.97, warn: 0.9, dir: 'hi', why: '1 = mono' },
-  peak:             { bad: -0.1, warn: -1,  dir: 'hi', why: 'dBFS: sopra -0.1 sta tosando' },
+  /* Attenzione a questa: quattro semi diversi spostano il picco di una stessa
+     groove fino a 0.64 dB, quindi un confronto prima/dopo sotto quella soglia
+     non dice niente — mentre lo stereo si muove di 0.01, e lì un confronto
+     regge. Se una colonna diventa rossa, provala con due o tre `?seed=`. */
+  peak:             { bad: -0.1, warn: -1,  dir: 'hi', why: 'dBFS: sopra -0.1 sta tosando; ma il seme da solo lo muove di 0.6 dB' },
 };
 function cls(k, v) {
   const L = LIMITS[k];
@@ -378,7 +427,7 @@ async function runMix() {
   const rows = [];
   for (const g of gs) {
     log('Renderizzo ' + g.pack + ' / ' + g.name + '  (' + (rows.length + 1) + ' di ' + gs.length + ')');
-    seed(w, 4242);
+    seed(w, SEED);
     /* Otto battute, non quattro: il fill cade ogni secondo giro, quindi su
        quattro non lo si vedrebbe mai e la novità direbbe che non è cambiato
        nulla. */
@@ -394,6 +443,7 @@ async function runMix() {
     ['RMS dBFS', r => r.rms],
     ['crest dB', r => r.crest, 'crest'],
     ['novità', r => r.novita, 'novita'],
+    ['arco', r => r.arco],
     ['batt/lev dB', r => r.battere],
     ['stereo', r => r.stereo, 'stereo'],
     ['din. battute dB', r => r.dinBattute],
@@ -401,7 +451,7 @@ async function runMix() {
     ['sub', r => r.bande.sub], ['basso', r => r.bande.basso], ['medbas', r => r.bande.medbas],
     ['medio', r => r.bande.medio], ['alto', r => r.bande.alto], ['aria', r => r.bande.aria],
   ], 'Il mix, quattro battute per groove',
-     'Bande in dB sul totale. <b>novità</b> è quanto ogni battuta differisce dalla precedente: 0 vuol dire quattro battute identiche. <b>batt/lev</b> positivo = l\'energia sta sul battere.'),
+     'Bande in dB sul totale. <b>novità</b> è quanto ogni battuta differisce dalla precedente: 0 vuol dire quattro battute identiche. <b>arco</b> è la stessa distanza fra la prima e la seconda metà della resa — l\'orizzonte lungo, quello su cui vivono la salita del filtro e il fill, e che la novità per costruzione non vede. <b>batt/lev</b> positivo = l\'energia sta sul battere.'),
     rows);
   return rows;
 }
@@ -423,7 +473,7 @@ async function runVoices() {
       w.dev.organic = org;
       for (const id of ids) {
         log((org ? 'dopo' : 'prima') + ' — ' + g.pack + ' / ' + id);
-        seed(w, 4242);
+        seed(w, SEED);
         let res;
         try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
         const st = trackStats(res, id);
@@ -474,7 +524,7 @@ async function runKits() {
       w.dev.kit = k;
       for (const id of ids) {
         log('kit ' + k + ' — ' + g.name + ' / ' + id);
-        seed(w, 4242);
+        seed(w, SEED);
         let res;
         try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
         const hits = res.hits.filter(h => h.id === id);
@@ -546,7 +596,7 @@ async function runLevels() {
     if (!g) { rows.push({ groove: name, voce: '— non trovata —' }); continue; }
     for (const id of ids) {
       log('livelli — ' + name + ' / ' + id);
-      seed(w, 4242);
+      seed(w, SEED);
       let res;
       try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
       const hits = res.hits.filter(h => h.id === id);
@@ -572,7 +622,7 @@ async function runLevels() {
     w.dev.timbre = tb;
     for (const id of ids) {
       log('livelli — ' + name + ' su ' + tb + ' / ' + id);
-      seed(w, 4242);
+      seed(w, SEED);
       let res;
       try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
       const hits = res.hits.filter(h => h.id === id);
