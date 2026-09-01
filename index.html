@@ -281,6 +281,7 @@
   }
   .trk-hit:active { transform:scale(.97); }
   .trk[data-mute="1"] .trk-hit { opacity:.34; }
+  .trk[data-solo="1"] { box-shadow:var(--shadow-lo), inset 0 0 0 2px var(--accent); }
   .trk-name {
     font-family:var(--mono); font-size:.5625rem; font-weight:600;
     letter-spacing:.09em; text-transform:uppercase; color:var(--ink-2);
@@ -323,7 +324,8 @@
     box-shadow:var(--inset), inset 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent);
     transition:background .1s ease, transform .07s ease;
   }
-  .cell[data-beat="1"] { background:color-mix(in srgb, var(--cell) 86%, var(--ink) 14%); }
+  .cell[data-beat="1"] { background:color-mix(in srgb, var(--cell) 92%, var(--ink) 8%); }
+  .cell[data-beat="2"] { background:color-mix(in srgb, var(--cell) 82%, var(--ink) 18%); }
   .cell[data-on="1"] { background:var(--tint); }
   .cell[data-cue="1"] { outline:2px solid var(--tint); outline-offset:1px; }
   .cell[data-on="1"][data-cue="1"] { filter:brightness(1.25); }
@@ -387,12 +389,17 @@
     box-shadow:0 1px 2px color-mix(in srgb, var(--ink) 40%, transparent);
   }
   .hnd:focus-visible::after { outline:2px solid var(--ink); outline-offset:2px; }
-  .lanetop { display:grid; grid-template-columns:1fr 1fr; gap:.45rem; margin-bottom:.45rem; }
+  .lanetop { display:grid; grid-template-columns:1fr auto 1fr; gap:.45rem; margin-bottom:.45rem;
+             align-items:stretch; }
+  .lanetop .mini.wide { padding:.3rem .6rem; white-space:nowrap; }
+  .nudge.sm { font-size:.6rem; }
   .lanetop .bars[hidden] { display:none; }
   /* a hairline on whichever bar the playhead is in, so you can see where the
      music is while you edit somewhere else */
   .bars button[data-live="1"] { box-shadow:inset 0 0 0 1px var(--accent); }
   .minis { display:flex; gap:.5rem; }
+  .rec-btn { width:100%; }
+  .rec-btn[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
   /* what you saved sits under what shipped, and looks like it */
   .saves { margin-top:.4rem; }
   .saves .chip { position:relative; padding-right:1.4rem; text-transform:none; letter-spacing:.04em; }
@@ -534,9 +541,11 @@
       <span class="glyph" aria-hidden="true"></span><span id="runLabel">Play</span>
     </button>
     <div class="tempo">
+      <button class="nudge sm" id="bpmHalf" type="button" aria-label="Half tempo">&frac12;</button>
       <button class="nudge" id="bpmDown" type="button" aria-label="Slower">&minus;</button>
       <span class="bpm"><b id="bpmVal">120</b><small>BPM</small></span>
       <button class="nudge" id="bpmUp" type="button" aria-label="Faster">+</button>
+      <button class="nudge sm" id="bpmTwice" type="button" aria-label="Double tempo">2&times;</button>
     </div>
   </section>
 
@@ -605,6 +614,7 @@
         <button type="button" data-l="16">1 bar</button>
         <button type="button" data-l="64" aria-pressed="true">4 bars</button>
       </div>
+      <button class="mini wide" id="copyBar" type="button">Copy bar</button>
       <div class="seg bars" id="bars">
         <button type="button" data-b="0" aria-pressed="true">1</button>
         <button type="button" data-b="1">2</button>
@@ -691,6 +701,25 @@
   <section class="grooves" id="grooves"></section>
   <section class="grooves saves" id="saves" hidden></section>
 
+  <div class="sect">
+    <span class="sect-t">Registra</span>
+    <span class="minis"><button class="mini" id="recSave" type="button" hidden>Save</button></span>
+  </div>
+  <section class="panel-box">
+    <button class="chip rec-btn" id="recBtn" type="button" aria-pressed="false"><span id="recLabel">Record</span></button>
+    <div id="recPanel" hidden>
+      <div class="scope" id="recScope" style="margin-top:.55rem">
+        <div class="wave" id="recWave"></div>
+        <div class="region" id="recRegion"></div>
+        <button class="hnd" id="rStart" type="button" role="slider" aria-label="Recording start"
+                aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></button>
+        <button class="hnd" id="rEnd" type="button" role="slider" aria-label="Recording end"
+                aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></button>
+      </div>
+      <p class="scope-t"><span id="recText">0.00 &ndash; 0.00 s</span><span id="recLen"></span></p>
+    </div>
+  </section>
+
   <p class="msg" id="msg" hidden></p>
 
   <details class="notes" id="notes">
@@ -724,6 +753,12 @@
           playing or lets them stack.</li>
       <li><b>Basi</b> are presets, four shared and four for the loaded pack. Swing
           and the sidechain have no buttons &mdash; a base that wants them asks.</li>
+      <li><b>Record</b> captures whatever you are playing, for as long as you leave it
+          running. Trim the result on its wave and <b>Save</b> writes a WAV &mdash; shared
+          on a phone, downloaded on a desktop.</li>
+      <li>Hold a track in the racks above to <b>solo</b> it. <b>Copy bar</b> puts the bar
+          you are looking at over the other three. <b>&frac12;</b> and <b>2&times;</b> halve
+          and double the tempo.</li>
       <li><b>Save</b> keeps what you have made in this browser, under a name. It stores
           everything: the pattern, the mix, the clip trims, tempo, key, giro and
           instrument. Saved ones appear under the presets; the &times; removes one.</li>
@@ -746,15 +781,19 @@ const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
 /* Synth voices. `echo` is the default send into the delay bus; `tone` marks the
    pitched ones, which follow the global key. */
+/* `pan` and `verb` are what stop this sounding like a phone. Everything used to
+   arrive dead centre and bone dry, which is exactly how a ringtone synth is
+   built; records put things in a room and spread them across one. Low things
+   stay in the middle — a panned kick or bass sounds broken, not wide. */
 const SYNTHS = [
-  { id:'kick',  name:'Kick',            short:'Kick',     echo:0.00 },
-  { id:'clap',  name:'Clap',            short:'Clap',     echo:0.30 },
-  { id:'snare', name:'Snare',           short:'Snare',    echo:0.24 },
-  { id:'hat',   name:'Hat, closed',     short:'Hat',      echo:0.00 },
-  { id:'ohat',  name:'Hat, open',       short:'Open hat', echo:0.20 },
-  { id:'bass',  name:'Bass arp',        short:'Bass',     echo:0.00, tone:true },
-  { id:'stab',  name:'Chord stab',      short:'Stab',     echo:0.38, tone:true },
-  { id:'lead',  name:'Lead',             short:'Lead',     echo:0.45, note:true },
+  { id:'kick',  name:'Kick',        short:'Kick',     echo:0.00, pan: 0.00, verb:0.04 },
+  { id:'clap',  name:'Clap',        short:'Clap',     echo:0.30, pan:-0.28, verb:0.34 },
+  { id:'snare', name:'Snare',       short:'Snare',    echo:0.24, pan:-0.10, verb:0.26 },
+  { id:'hat',   name:'Hat, closed', short:'Hat',      echo:0.00, pan: 0.26, verb:0.10 },
+  { id:'ohat',  name:'Hat, open',   short:'Open hat', echo:0.20, pan: 0.34, verb:0.18 },
+  { id:'bass',  name:'Bass arp',    short:'Bass',     echo:0.00, pan: 0.00, verb:0.03, tone:true },
+  { id:'stab',  name:'Chord stab',  short:'Stab',     echo:0.38, pan:-0.20, verb:0.34, tone:true },
+  { id:'lead',  name:'Lead',        short:'Lead',     echo:0.45, pan: 0.16, verb:0.30, note:true },
 ];
 const NS = SYNTHS.length;
 
@@ -787,6 +826,7 @@ const PROGS = [
      stornello; the tarantella keeps the minor but borrows a major V. */
   { name:'Stornello',  roman:'I · IV · V · I', mode:'maj', ch:[{d:0,m:0},{d:5,m:0},{d:7,m:0},{d:0,m:0}] },
   { name:'Osteria',    roman:'I · V · V · I',  mode:'maj', ch:[{d:0,m:0},{d:7,m:0},{d:7,m:0},{d:0,m:0}] },
+  { name:'Carosone',   roman:'i · iv · V · i',  mode:'arm', ch:[{d:0,m:1},{d:5,m:1},{d:7,m:0},{d:0,m:1}] },
   { name:'Tarantella', roman:'i · i · V · i',  mode:'arm', ch:[{d:0,m:1},{d:0,m:1},{d:7,m:0},{d:0,m:1}] },
 ];
 const progIndex = n => Math.max(0, PROGS.findIndex(g => g.name === n));
@@ -810,6 +850,7 @@ let timbre = 'italo';
 const VELS = [1, 1.4, 0.5];
 let pump = false, filtV = 1;
 const PUMP = 0.55;                     // how far the kick pushes everything down
+let verbAmt = 1;                       // per base: how much room there is
 const filtHz = () => 200 * Math.pow(100, filtV);
 
 const clips = () => PACKS[packIx].clips;
@@ -828,7 +869,8 @@ function buildTracks() {
   const prevPat = pattern, prevNotes = notes, prevVol = vol, prevMute = mute, prevSend = send;
   TRACKS = SYNTHS.map(s => ({ ...s, kind: s.note ? 'note' : s.tone ? 'tone' : 'synth' }))
     .concat(clips().map((c, i) => ({
-      id: 'v' + i, name: c.label, short: c.short, kind: 'voice', ci: i, echo: 0.18
+      id: 'v' + i, name: c.label, short: c.short, kind: 'voice', ci: i,
+      echo: 0.18, pan: (i % 2 ? 0.18 : -0.18), verb: 0.22
     })));
   pattern = TRACKS.map((t, i) => {
     const old = prevPat[i];
@@ -847,7 +889,7 @@ function buildTracks() {
 
 /* ---------------- audio ---------------- */
 let ctx = null, bus = null, master = null, delay = null, echoWet = null;
-let duck = null, filt = null;
+let duck = null, filt = null, drive = null, verb = null, verbIn = null, verbOut = null;
 let chan = [];
 const buffers = [], reversed = [], voiceLive = [], arpN = [];
 let ready = false, booted = false;
@@ -865,6 +907,18 @@ function openAudio() {
   ctx = new AC({ latencyHint: 'interactive' });
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
 
+  /* Gentle saturation across the whole thing. A tanh curve adds the harmonics
+     that a mixing desk adds and glues the parts together; without it, summed
+     oscillators stay a stack of separate oscillators. */
+  const shaper = ctx.createWaveShaper();
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) {
+    const x = (i / 1023) * 2 - 1;
+    curve[i] = Math.tanh(x * 1.7) / Math.tanh(1.7);
+  }
+  shaper.curve = curve; shaper.oversample = '2x';
+  drive = shaper;
+
   const glue = ctx.createDynamicsCompressor();
   glue.threshold.value = -10; glue.knee.value = 12;
   glue.ratio.value = 3; glue.attack.value = 0.004; glue.release.value = 0.2;
@@ -875,8 +929,23 @@ function openAudio() {
   // until you move it.
   filt = ctx.createBiquadFilter();
   filt.type = 'lowpass'; filt.Q.value = 0.9; filt.frequency.value = filtHz();
-  filt.connect(bus);
+  filt.connect(drive); drive.connect(bus);
   master = ctx.createGain(); master.gain.value = 0.85; master.connect(filt);
+
+  /* A room, made rather than recorded: noise decaying over a second and a half,
+     darkened, different in each ear so it opens up instead of sitting in the
+     middle. Sends feed it the way they feed the delay. */
+  verb = ctx.createConvolver();
+  const n = Math.floor(ctx.sampleRate * 1.6), ir = ctx.createBuffer(2, n, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6);
+  }
+  verb.buffer = ir;
+  const vlp = ctx.createBiquadFilter(); vlp.type = 'lowpass'; vlp.frequency.value = 3600;
+  verbIn = ctx.createGain(); verbIn.gain.value = 1;
+  verbOut = ctx.createGain(); verbOut.gain.value = 0.9;
+  verbIn.connect(vlp); vlp.connect(verb); verb.connect(verbOut); verbOut.connect(master);
 
   // The kick pushes everything else out of its way for a fifth of a second.
   // Drums bypass this; bass, chords, lead and voices go through it.
@@ -905,18 +974,35 @@ function openAudio() {
 
 function chanOf(i) {
   if (chan[i]) return chan[i];
-  const out = ctx.createGain(), snd = ctx.createGain();
-  out.gain.value = mute[i] ? 0 : vol[i];
-  snd.gain.value = mute[i] ? 0 : send[i] * vol[i];
-  out.connect(TRACKS[i] && TRACKS[i].kind === 'synth' ? master : duck);
+  const trk = TRACKS[i] || {};
+  const out = ctx.createGain(), snd = ctx.createGain(), rvb = ctx.createGain();
+  const off = mute[i] || (solo >= 0 && solo !== i);
+  out.gain.value = off ? 0 : vol[i];
+  snd.gain.value = off ? 0 : send[i] * vol[i];
+  rvb.gain.value = off ? 0 : (trk.verb || 0) * verbAmt * vol[i];
+  const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  if (pan) { pan.pan.value = trk.pan || 0; out.connect(pan); }
+  (pan || out).connect(trk.kind === 'synth' ? master : duck);
   snd.connect(delay);
-  chan[i] = { out, snd };
+  rvb.connect(verbIn);
+  chan[i] = { out, snd, rvb, pan };
   return chan[i];
 }
+/* Solo is one track at a time and lives beside mute rather than replacing it:
+   the mute buttons keep whatever you set while you listen to something alone. */
+let solo = -1;
 function reChan(i) {
   if (!ctx || !chan[i]) return;
-  chan[i].out.gain.value = mute[i] ? 0 : vol[i];
-  chan[i].snd.gain.value = mute[i] ? 0 : send[i] * vol[i];
+  const off = mute[i] || (solo >= 0 && solo !== i);
+  chan[i].out.gain.value = off ? 0 : vol[i];
+  chan[i].snd.gain.value = off ? 0 : send[i] * vol[i];
+  chan[i].rvb.gain.value = off ? 0 : (TRACKS[i].verb || 0) * verbAmt * vol[i];
+}
+function setSolo(i) {
+  solo = (solo === i) ? -1 : i;
+  trkEls.forEach((b, k) => { b.dataset.solo = k === solo ? '1' : '0'; });
+  TRACKS.forEach((_, k) => reChan(k));
+  say(solo < 0 ? 'Solo off.' : 'Solo: ' + TRACKS[solo].name + '. Hold it again to let the rest back in.');
 }
 /* Set by fire() for the length of one voice call. Putting it here rather than
    threading a gain through all eight voice functions keeps them unchanged, and
@@ -928,7 +1014,7 @@ function tap(node, i) {
     const g = ctx.createGain(); g.gain.value = hitVel;
     node.connect(g); node = g;
   }
-  node.connect(c.out); node.connect(c.snd);
+  node.connect(c.out); node.connect(c.snd); node.connect(c.rvb);
 }
 
 function decode(ab) {
@@ -1471,10 +1557,14 @@ const tbrSel = $('timbre'), kitSel = $('kit');
 
 let sel = 0, page = 0;               // which of the four bars the lane is showing
 let patLen = STEPS;                  // 12 for 6/8, 16 for one bar, 64 for all four
-/* How many steps make a beat. Four in common time, three in 6/8 — the gaps in
-   the lane, the beat shading and the ruler all read this, or a twelve-step bar
-   looks like a 4/4 one somebody cut short. */
-let grp = 4;
+/* A step is a sixteenth. Common time groups them four to a beat, four beats to
+   the bar. Six-eight is twelve sixteenths in *two* beats of three eighths — so
+   the gaps fall every six, the shading every two (one per eighth), and the
+   ruler counts the six eighths rather than four of anything. Grouping them
+   three at a time, which is what this did first, draws four dotted-eighth
+   beats: a different metre wearing the label. */
+const METER = { 12: { gap:6, beat:2, num:2, big:6 }, d: { gap:4, beat:4, num:4, big:16 } };
+let mtr = METER.d;
 let trkEls = [], dotsByBeat = [], cellEls = [];
 let rollEls = [], rollCols = [];
 
@@ -1513,13 +1603,18 @@ function buildMixer() {
       dotsByBeat[b].push(u);
     }
     hit.appendChild(dots);
+    // tap selects and auditions; hold solos
+    let soloT = 0;
     hit.addEventListener('pointerdown', async () => {
+      soloT = setTimeout(() => { soloT = 0; setSolo(i); }, 420);
       await boot();
       select(i);
       if (ctx && (ready || trk.kind !== 'voice')) fire(i, ctx.currentTime + 0.005);
       box.dataset.hit = '1';
       setTimeout(() => { box.dataset.hit = '0'; }, 110);
     });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+      hit.addEventListener(ev, () => { if (soloT) { clearTimeout(soloT); soloT = 0; } }));
 
     const m = document.createElement('button');
     m.type = 'button'; m.className = 'trk-m';
@@ -1543,18 +1638,18 @@ function buildMixer() {
 function buildSteps() {
   stepsEl.innerHTML = ''; rulerEl.innerHTML = ''; cellEls = [];
   for (let s = 0; s < BAR; s++) {
-    if (s && s % grp === 0) {
+    if (s && s % mtr.gap === 0) {
       const g = document.createElement('span'); g.className = 'gap'; stepsEl.appendChild(g);
       const g2 = document.createElement('span'); g2.className = 'gap'; rulerEl.appendChild(g2);
     }
     const c = document.createElement('button');
     c.type = 'button'; c.className = 'cell';
     c.dataset.on = '0';
-    c.dataset.beat = s % grp === 0 ? '1' : '0';
+    c.dataset.beat = s % mtr.big === 0 ? '2' : (s % mtr.beat === 0 ? '1' : '0');
     c.dataset.s = String(s);
     stepsEl.appendChild(c); cellEls.push(c);
     const lab = document.createElement('span');
-    lab.textContent = s % grp === 0 ? String(s / grp + 1) : '·';
+    lab.textContent = s % mtr.num === 0 ? String(s / mtr.num + 1) : '·';
     lab.dataset.s = String(s);
     rulerEl.appendChild(lab);
   }
@@ -1571,13 +1666,13 @@ function buildRoll() {
     row.dataset.root = (d === 0 || d === DEGS - 1) ? '1' : '0';
     rollEls[d] = [];
     for (let s = 0; s < BAR; s++) {
-      if (s && s % grp === 0) {
+      if (s && s % mtr.gap === 0) {
         const g = document.createElement('span'); g.className = 'gap'; row.appendChild(g);
       }
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'rc';
       b.dataset.on = '0';
-      b.dataset.beat = s % grp === 0 ? '1' : '0';
+      b.dataset.beat = s % mtr.beat === 0 ? '1' : '0';
       b.dataset.s = String(s); b.dataset.d = String(d);
       row.appendChild(b);
       rollEls[d][s] = b; rollCols[s].push(b);
@@ -1630,7 +1725,7 @@ function paintDots(i) {
     for (let k = 0; k < w; k++) on = on || !!row[b * w + k];
     us[b].dataset.on = on ? '1' : '0';
     us[b].dataset.out = b * w >= patLen ? '1' : '0';
-    us[b].dataset.bar = (b && b % (w === 1 ? grp : 4) === 0) ? '1' : '0';
+    us[b].dataset.bar = (b && b % (w === 1 ? mtr.gap : 4) === 0) ? '1' : '0';
   }
 }
 function paintRoll() {
@@ -1658,10 +1753,27 @@ barsEl.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (b) setPage(Number(b.dataset.b));
 });
+/* Copy the bar you are looking at over the other three. With four-bar patterns
+   you spend most of your time writing the same thing four times before changing
+   one of them; this is that, in one press. */
+$('copyBar').addEventListener('click', () => {
+  const off = page * BAR;
+  for (let b = 0; b < BARS; b++) {
+    if (b === page) continue;
+    for (let k = 0; k < BAR; k++) {
+      pattern.forEach((row, i) => { row[b * BAR + k] = row[off + k]; });
+      notes.forEach((row, i) => { row[b * BAR + k] = row[off + k]; });
+    }
+  }
+  TRACKS.forEach((_, i) => paintDots(i));
+  paintLane();
+  say('Bar ' + (page + 1) + ' copied over the other three.');
+});
+
 function setLen(n) {
   patLen = n;
-  const g = n === 12 ? 3 : 4;
-  if (g !== grp) { grp = g; buildSteps(); buildRoll(); }
+  const m = METER[n] || METER.d;
+  if (m !== mtr) { mtr = m; buildSteps(); buildRoll(); }
   lenEl.querySelectorAll('button').forEach(b =>
     b.setAttribute('aria-pressed', String(Number(b.dataset.l) === patLen)));
   barsEl.hidden = patLen <= BAR;      // nothing to page through in one bar
@@ -1857,6 +1969,10 @@ function setBpm(v) {
 }
 $('bpmDown').addEventListener('click', () => setBpm(bpm - 2));
 $('bpmUp').addEventListener('click', () => setBpm(bpm + 2));
+// Halving and doubling is the fastest way to find out whether a pattern is
+// really a slow one or a fast one written down wrong.
+$('bpmHalf').addEventListener('click', () => setBpm(Math.round(bpm / 2)));
+$('bpmTwice').addEventListener('click', () => setBpm(Math.round(bpm * 2)));
 function setFilt(v) {
   filtV = Math.max(0, Math.min(1, v));
   filtI.value = String(filtV);
@@ -2186,36 +2302,38 @@ const GROOVES = [
   /* The bass is the hook, not the tune on top of it. Only two of the four bars
      carry a lead at all — a melody that never stops is most of what makes a
      step sequencer sound like a ringtone. */
+  /* Bar three is a break: the kick and the claps step out and the bass carries
+     it alone until they come back. Four bars that all do the same thing is a
+     loop; four bars where one of them stops is an arrangement. */
   { name:'Liana', bpm:118, swing:0, pump:true, key:36, prog:'Tramonto', shape:{bass:1,stab:3},
-    steps:{ kick:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,58,60,62],
-            clap:[4,12,20,28,36,44,52,60,63],
+    steps:{ kick:[0,4,8,12,16,20,24,28,48,52,56,60,58,62],
+            clap:[4,12,20,28,52,60,63],
             ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
-            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,
-                  40,42,44,46,48,50,52,54,56,58,60,62],
-            stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55],
-            lead:[[16,4],[19,3],[22,2],[28,4],[48,2],[51,4],[54,3],
-                       [60,0]],
+            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
+            stab:[3,7,11,15,19,23,27,31,51,55,59],
+            lead:[[16,4],[19,3],[22,2],[28,4],
+                  [48,2],[51,4],[54,3],[60,0]],
             v0:[0,32] },
-    accent:{ kick:[0,32], clap:[12,28,44,60] },
+    accent:{ kick:[0,48], clap:[12,28,60] },
     ghost:{ ohat:[2,10,18,26,34,42,50,58] },
     voice:{ 0:{rate:1,start:0,chop:0} } },
-  /* Half time and major on a Rhodes. The first version put the kick and the
-     snare on the same step and the chords on top of both, which is why it
-     sounded like a doorbell; now they take turns — kick, chord, snare, chord. */
-  { name:'Sanremo', bpm:92, swing:0, timbre:'rhodes', pump:false, air:0.35,
-    key:33, prog:'Osteria', shape:{bass:0,stab:3},
-    steps:{ kick:[0,16,27,32,48,59],
-            snare:[8,24,40,56],
-            hat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
-            bass:[0,3,8,11,16,19,24,27,32,35,40,43,48,51,56,59],
-            stab:[4,12,20,28,36,44,52,60],
-            lead:[[20,4],[26,2],[30,4],[52,4],[58,2],[60,0]],
-            v0:[0,32] },
-    accent:{ snare:[8,24,40,56], kick:[0,32] },
-    ghost:{ hat:[2,10,18,26,34,42,50,58], bass:[3,11,19,27,35,43,51,59] },
+  /* Carosone, not a ballad: swung eighths, a walking bass, and the piano
+     stabbing the off-beat rather than landing on it. Bar three is its solo —
+     everything but the hat drops out and the Rhodes plays a chorus alone. */
+  { name:'Carosone', bpm:130, swing:0.62, timbre:'rhodes', air:0.3, verb:1.15,
+    key:33, prog:'Carosone', shape:{bass:2,stab:3},
+    steps:{ kick:[0,8,16,24,48,56,30,62],
+            snare:[4,12,20,28,52,60],
+            clap:[12,28,60],
+            hat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
+            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,48,50,52,54,56,58,60,62,32,40],
+            stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
+            lead:[[32,4],[34,3],[36,2],[39,0],[40,2],[42,4],[45,3],[46,2],
+                  [51,4],[54,5],[56,4],[59,2],[62,0]],
+            v0:[0,48] },
+    accent:{ snare:[4,12,20,28,52,60], clap:[12,28,60] },
+    ghost:{ hat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], stab:[7,23,55] },
     voice:{ 0:{rate:1,start:0,chop:0} } },
-  /* Drawbars, swung, and no lead at all: an organ playing the backbeat over a
-     kick that keeps missing the downbeat is already the whole idea. */
   { name:'Notte', bpm:104, swing:0.55, timbre:'organo', air:0.35, key:34, prog:'Nostalgia', shape:{bass:0,stab:3},
     steps:{ kick:[0,10,16,26,42,48,58],
             snare:[4,12,20,28,36,44,52,60],
@@ -2291,37 +2409,46 @@ const GROOVES = [
   /* A tavern, not a pop song: no snare anywhere near it, hands clapping along
      on two and four, the tambourine rolling underneath and the accordion
      filling every gap it can find. Faster than it was by eight. */
-  { name:'Osteria', pack:'nonni', timbre:'fisa', kit:'folk', air:0.6, bpm:124, swing:0, echo:false,
-    key:34, prog:'Osteria', shape:{bass:0,stab:3},
-    steps:{ kick:[0,8], clap:[4,12], ohat:[2,6,10,14],
-            bass:[0,8], stab:[2,4,6,10,12,14],
+  /* Swung, because the tavern songs are. The accordion comps the off-sixteenth
+     the way a piano would rather than landing on the beat with everyone else,
+     and the bass walks in octaves instead of sitting on one and three. */
+  { name:'Osteria', pack:'nonni', timbre:'fisa', kit:'folk', air:0.6, bpm:126, swing:0.6, echo:false,
+    key:34, prog:'Osteria', shape:{bass:1,stab:3},
+    steps:{ kick:[0,8], clap:[4,12], ohat:[0,2,4,6,8,10,12,14],
+            bass:[0,2,4,6,8,10,12,14], stab:[3,7,11,15],
             v2:[0], v6:[8] },
-    accent:{ clap:[4,12], kick:[0], stab:[4,12] },
-    ghost:{ ohat:[2,10], stab:[6,14] },
+    accent:{ clap:[4,12], kick:[0], ohat:[0,8] },
+    ghost:{ ohat:[2,6,10,14], stab:[7,15] },
     voice:{ 2:{rate:1,start:0,chop:0}, 6:{rate:1,start:0.1,chop:8} } },
-  { name:'Trastevere', pack:'nonni', timbre:'mando', kit:'folk', air:0.6, bpm:82, swing:0.55, echo:false,
-    key:36, prog:'Stornello', shape:{bass:0,stab:3},
-    steps:{ kick:[0,8], ohat:[12],
-            bass:[0,8], stab:[4,12],
+  /* A serenade that still moves: the bass walks rather than sitting, and the
+     mandolin answers between the beats instead of on them. Sparse is a matter
+     of how many notes, not of whether anything is going anywhere. */
+  { name:'Trastevere', pack:'nonni', timbre:'mando', kit:'folk', air:0.6, bpm:88, swing:0.58, echo:false,
+    key:36, prog:'Stornello', shape:{bass:2,stab:3},
+    steps:{ kick:[0,8], snare:[12], ohat:[4,12],
+            bass:[0,3,6,8,11,14], stab:[2,6,10,14],
             v6:[0], v0:[8] },
-    accent:{ stab:[4,12] },
-    ghost:{ ohat:[12] },
+    accent:{ snare:[12], kick:[0], stab:[2,10] },
+    ghost:{ ohat:[4], bass:[3,11], stab:[6,14] },
     voice:{ 6:{rate:0.9,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
-  /* A tarantella is in 6/8, and the app could only count to sixteen — so what
-     was here was a fast 4/4 wearing the name. It runs on a twelve-step bar now:
-     four beats of three, the tambourine on every one of them, the cajon on the
-     two downbeats, hands on the third of each group, the accordion answering on
-     the sixth. DUM-ka-ka, DUM-ka-ka. */
-  { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.6,
+  /* Six-eight, and the lilt is in the accents rather than in the note count:
+     the tambourine plays all twelve but only two of them are struck hard, the
+     rest are wrist. The bass leans on the two downbeats and skips ahead into
+     each of them; the accordion answers on the last of every group. */
+  /* Twelve sixteenths, counted as two beats of three eighths. The cajon takes
+     the two downbeats; the tambourine plays the six eighths with only the two
+     beats struck hard and the rest wrist; the hands land on the third eighth of
+     each group and the accordion answers on the second. DUM-ka-KA. */
+  { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.6, verb:1.1,
     bpm:96, len:12, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
-    steps:{ kick:[0,6], clap:[3,9],
-            ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
-            bass:[0,3,6,9], stab:[2,5,8,11],
-            lead:[[0,0],[3,4],[6,4],[9,2],[11,6]],
+    steps:{ kick:[0,6], clap:[4,10],
+            ohat:[0,2,4,6,8,10],
+            bass:[0,4,6,10], stab:[2,4,8,10],
+            lead:[[0,0],[2,2],[4,4],[6,4],[8,6],[10,2]],
             v1:[0] },
-    accent:{ ohat:[0,6], kick:[0,6], clap:[3,9] },
-    ghost:{ ohat:[1,2,4,5,7,8,10,11], stab:[5,11] },
+    accent:{ ohat:[0,6], kick:[0,6], clap:[4,10], bass:[0,6] },
+    ghost:{ ohat:[2,4,8,10], stab:[4,10], bass:[4,10] },
     voice:{ 1:{rate:1.2,start:0,chop:2} } }
 ];
 
@@ -2381,6 +2508,7 @@ function loadGroove(gi) {
   if (!pump && duck && ctx) { duck.gain.cancelScheduledValues(ctx.currentTime); duck.gain.value = 1; }
   setBpm(g.bpm);
   setAir(g.air);
+  verbAmt = g.verb === undefined ? 1 : g.verb;
   if ((g.kit || 'machine') !== kit) loadKit(g.kit || 'machine');
   TRACKS.forEach((_, i) => paintDots(i));
   setLen(g.len || STEPS); paintPanel();
@@ -2402,6 +2530,142 @@ function renderGrooves() {
   });
 }
 renderGrooves();
+/* ---- recording ---- */
+/* Captured off the bus in real time rather than rendered offline: you press
+   record, let it run for as long as you want, and press stop. What comes back
+   is trimmed on the same two handles the clips use, then written out as WAV —
+   uncompressed, so it opens anywhere, and short enough not to matter. */
+let recorder = null, recDest = null, recChunks = [], recBuf = null;
+let recIn = 0, recOut = 1, recT0 = 0, recTick = 0;
+const recBtn = $('recBtn'), recLabel = $('recLabel'), recPanel = $('recPanel');
+const recScope = $('recScope'), recWave = $('recWave'), recRegion = $('recRegion');
+const rStart = $('rStart'), rEnd = $('rEnd');
+const recText = $('recText'), recLen = $('recLen'), recSaveBtn = $('recSave');
+
+function wavBlob(buf, from, to) {
+  const ch = buf.numberOfChannels, sr = buf.sampleRate;
+  const a = Math.floor(from * buf.length), n = Math.max(1, Math.floor(to * buf.length) - a);
+  const v = new DataView(new ArrayBuffer(44 + n * ch * 2));
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * ch * 2, true); str(8, 'WAVEfmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * ch * 2, true);
+  v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true);
+  str(36, 'data'); v.setUint32(40, n * ch * 2, true);
+  const src = [];
+  for (let c = 0; c < ch; c++) src.push(buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < n; i++)
+    for (let c = 0; c < ch; c++) {
+      const x = Math.max(-1, Math.min(1, src[c][a + i]));
+      v.setInt16(o, x * 32767, true); o += 2;
+    }
+  return new Blob([v.buffer], { type: 'audio/wav' });
+}
+
+function paintRec() {
+  if (!recBuf) return;
+  recWave.innerHTML = bars(peaksOf(recBuf, 72));
+  recRegion.style.left = scopeAt(recIn);
+  recRegion.style.right = scopeAt(1 - recOut);
+  recRegion.style.width = '';
+  rStart.style.left = scopeAt(recIn);
+  rEnd.style.left = scopeAt(recOut);
+  rStart.setAttribute('aria-valuenow', String(Math.round(recIn * 100)));
+  rEnd.setAttribute('aria-valuenow', String(Math.round(recOut * 100)));
+  const d = recBuf.duration;
+  recText.textContent = (recIn * d).toFixed(2) + ' \u2013 ' + (recOut * d).toFixed(2) + ' s';
+  recLen.textContent = ((recOut - recIn) * d).toFixed(2) + ' s';
+}
+
+async function recStart() {
+  await boot();
+  if (!ctx || !bus) return;
+  if (typeof MediaRecorder === 'undefined') { say('This browser cannot record audio.'); return; }
+  recDest = ctx.createMediaStreamDestination();
+  bus.connect(recDest);
+  recChunks = [];
+  try { recorder = new MediaRecorder(recDest.stream); }
+  catch (e) { bus.disconnect(recDest); recDest = null; say('Could not start recording: ' + msg(e)); return; }
+  recorder.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+  recorder.onstop = async () => {
+    if (recDest) { try { bus.disconnect(recDest); } catch (e) {} recDest = null; }
+    try {
+      recBuf = await decode(await new Blob(recChunks).arrayBuffer());
+      recIn = 0; recOut = 1;
+      recPanel.hidden = false; recSaveBtn.hidden = false;
+      paintRec();
+      say('Recorded ' + recBuf.duration.toFixed(1) + ' s. Trim it on the wave, then Save.');
+    } catch (e) { say('Could not read the recording back: ' + msg(e)); }
+  };
+  recorder.start();
+  recT0 = ctx.currentTime;
+  if (!playing) start();
+  recBtn.setAttribute('aria-pressed', 'true');
+  recTick = setInterval(() => {
+    recLabel.textContent = 'Stop  ' + (ctx.currentTime - recT0).toFixed(1) + ' s';
+  }, 100);
+}
+function recStop() {
+  if (recTick) { clearInterval(recTick); recTick = 0; }
+  recBtn.setAttribute('aria-pressed', 'false');
+  recLabel.textContent = 'Record';
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+  recorder = null;
+}
+recBtn.addEventListener('click', () => { recorder ? recStop() : recStart(); });
+
+// same two handles as a clip, on their own buffer
+function recFrac(x) {
+  const r = recScope.getBoundingClientRect(), w = r.width - PAD * 2;
+  return w <= 0 ? 0 : Math.max(0, Math.min(1, (x - r.left - PAD) / w));
+}
+let recGrab = null;
+recScope.addEventListener('pointerdown', e => {
+  if (!recBuf) return;
+  const f = recFrac(e.clientX);
+  recGrab = Math.abs(f - recIn) <= Math.abs(f - recOut) ? 'in' : 'out';
+  try { recScope.setPointerCapture(e.pointerId); } catch (err) {}
+  recMove(f);
+});
+function recMove(f) {
+  if (recGrab === 'in') recIn = Math.max(0, Math.min(f, recOut - 0.01));
+  else recOut = Math.min(1, Math.max(f, recIn + 0.01));
+  paintRec();
+}
+recScope.addEventListener('pointermove', e => { if (recGrab) recMove(recFrac(e.clientX)); });
+['pointerup', 'pointercancel'].forEach(ev =>
+  recScope.addEventListener(ev, () => { recGrab = null; }));
+[[rStart, 'in'], [rEnd, 'out']].forEach(h => {
+  h[0].addEventListener('keydown', e => {
+    const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+    if (!d || !recBuf) return;
+    e.preventDefault();
+    recGrab = h[1];
+    recMove((h[1] === 'in' ? recIn : recOut) + d * (e.shiftKey ? 0.002 : 0.02));
+    recGrab = null;
+  });
+});
+
+recSaveBtn.addEventListener('click', async () => {
+  if (!recBuf) return;
+  const blob = wavBlob(recBuf, recIn, recOut);
+  const secs = ((recOut - recIn) * recBuf.duration).toFixed(1);
+  const name = 'doveclem-' + secs + 's.wav';
+  const file = new File([blob], name, { type: 'audio/wav' });
+  // On a phone, sharing is what actually gets a file somewhere you can find it
+  // again; a download link tends to land in a viewer you cannot save from.
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+});
+
 /* ---- saved patterns ---- */
 /* Everything the app can be in, minus what is rebuilt anyway. The pack is
    stored by id rather than by index so reordering PACKS cannot load a pattern

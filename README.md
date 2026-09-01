@@ -47,6 +47,29 @@ level. The whole kit is 24 KB.
 A slot that fails to load quietly keeps its synthesised voice, so a bad
 connection degrades the kit rather than silencing the drums.
 
+## Why it stopped sounding like a ringtone
+
+Every voice used to arrive dead centre, bone dry and straight into a
+compressor, which is not a description of a bad synth — it is a description of
+how a phone made sound in 2005. Three things were missing, and none of them is
+about which notes you play:
+
+**A room.** A convolution reverb whose impulse is generated rather than
+recorded: noise decaying over 1.6 seconds, darkened, different in each ear.
+Tracks feed it on a send the way they feed the delay, and how much is a
+property of the voice — a clap and a chord stab go in wet, a kick and a bass
+barely at all, because low things in a reverb are mud.
+
+**A stage.** Every track has a fixed position. Kick, snare and bass stay in the
+middle, where low and loud things belong; hats sit right of centre, claps and
+chords left, the lead just right, the voices alternate. A mix that is entirely
+mono is a mix that happened inside one speaker.
+
+**Saturation.** A `tanh` curve across the master, which adds the harmonics a
+desk adds and glues separate oscillators into one thing. It also takes the
+peaks: a bar of Liana that used to clip now peaks 0.912 with nothing clipped at
+all.
+
 ## Room tone
 
 `air` is a bed of filtered noise about 48 dB down, running under everything for
@@ -181,7 +204,7 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
 | Filtro | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
-| 6/8 · 1 bar · 4 bars | How much of the pattern loops. **6/8** is a twelve-step bar counted in threes — the lane's gaps, beat shading and ruler all regroup, or it just looks like a 4/4 bar somebody cut short. The four cells left over go dim |
+| 6/8 · 1 bar · 4 bars | How much of the pattern loops. **6/8** is twelve sixteenths in *two* beats of three eighths: gaps every six, shading on each eighth, the ruler counting one to six. Grouping them three at a time — the first attempt — draws four dotted-eighth beats, which is a different metre wearing the label. The four cells left over go dim |
 | Batteria | The drums: the synthesised **Macchina**, or **Tamburello** — a real cajón, tambourine, shaker and hand claps. It sits in the header of the rack it governs |
 | Strumenti | Bass, stab and lead: Synth italo, Fisarmonica, Mandolino, Rhodes, Organo |
 | Bar 1–4 | Which bar the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
@@ -198,6 +221,10 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Chop | Snaps the end to 1, 2, 4 or 8 steps, or Full |
 | Forward / Reverse | Sample direction — the waveform mirrors so you are still looking at what you hear |
 | Cut / Overlap | Whether re-firing a voice stops the one already playing or lets them stack |
+| Record | Captures whatever is playing, for as long as you leave it running. Trim the result on its wave; **Save** writes a WAV — shared on a phone, downloaded on a desktop |
+| Copy bar | Puts the bar you are looking at over the other three |
+| ½ · 2× | Halve and double the tempo |
+| Hold a track | Solo it. Hold again to let the rest back in |
 | Save | Keeps the whole state under a name, in this browser: pattern, mix, clip trims, tempo, key, giro and instrument. Saved ones appear under the presets |
 | Keys 1–9 | Trigger the first nine tracks from a keyboard |
 
@@ -331,7 +358,7 @@ stornello, the tarantella — and two where it appears in only half the bars.
 | | BPM | Drums | Instrument | Mode | Lead |
 | --- | --- | --- | --- | --- | --- |
 | Liana | 118 | machine | Synth italo | minor | bars 2 and 4 |
-| Sanremo | 92 | machine | Rhodes | major | bars 2 and 4 |
+| Carosone | 130 | machine | Rhodes | harmonic minor, swung | bars 3 and 4 |
 | Notte | 104 | machine | Organo | minor, swung | — |
 | Autostrada | 124 | machine | Synth italo | minor | — |
 | Riviera *(clem)* | 126 | machine | Synth italo | minor | — |
@@ -339,8 +366,8 @@ stornello, the tarantella — and two where it appears in only half the bars.
 | Chop *(clem)* | 96 | machine | Synth italo | minor | — |
 | Talk *(clem)* | 84 | machine | — | minor, swung | — |
 | Stornello *(nonni)* | 100 | tamburello | Fisarmonica | major | yes |
-| Osteria *(nonni)* | 124 | tamburello | Fisarmonica | major | — |
-| Trastevere *(nonni)* | 82 | tamburello | Mandolino | major, swung | — |
+| Osteria *(nonni)* | 126 | tamburello | Fisarmonica | major, swung | — |
+| Trastevere *(nonni)* | 88 | tamburello | Mandolino | major, swung | — |
 | Tarantella *(nonni)* | 96 | tamburello | Fisarmonica | harmonic minor, **6/8** | yes |
 
 Five of them were rewritten again after listening notes, and the reasons are
@@ -358,10 +385,21 @@ worth keeping:
   every gap.
 - **Trastevere** read as broken because it was — hits on 1, 7, 11, 13 and 15 and
   nothing on two, so there was no pulse to be sparse against.
-- **Tarantella** was not one. A tarantella is in 6/8 and the app could only
-  count to sixteen, so it was a fast 4/4 wearing the name. It runs on a
-  twelve-step bar now: cajón on the two downbeats, hands on the third of each
-  group, tambourine on all twelve, accordion answering on the sixth.
+- **Tarantella** was not one, twice over. A tarantella is in 6/8 and the app
+  could only count to sixteen, so the first version was a fast 4/4 wearing the
+  name; the second had the twelve steps but grouped them in threes, which draws
+  four dotted-eighth beats and is a different metre again. It is two beats of
+  three eighths now: cajón on the two downbeats, tambourine on the six eighths
+  with only the beats struck hard, hands on the third of each group.
+- **Sanremo** never worked and is gone. **Carosone** takes its place — swung
+  eighths, a walking bass, and the piano stabbing the off-beat instead of
+  landing on it, over a minor giro with a major dominant, which is where that
+  music lives.
+
+**Breaks.** Liana and Carosone each lose a bar: in Liana's third the kick and
+claps step out and the bass carries it alone, in Carosone's the whole rhythm
+section drops and the Rhodes plays a chorus by itself. Four bars that all do
+the same thing are a loop; four where one of them stops are an arrangement.
 
 Every one of them uses accents and ghost notes — a backbeat that leans, hats
 with every other sixteenth lightened. An unaccented pattern is a metronome
