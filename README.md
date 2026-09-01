@@ -106,7 +106,7 @@ first version used one threshold for both and clipped the ends off two clips;
 the heads are where nearly all the dead air was anyway.
 
 It reads from `records/` and writes to `app/audio/`, so `records/` stays the
-archive and the whole thing is reversible. Run `python3 trim-clips.py clips.json
+archive and the whole thing is reversible. Run `python3 app/tools/trim-clips.py
 --dry-run` first: it prints what it would remove without touching anything.
 
 ## Adding a voice pack

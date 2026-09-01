@@ -1,5 +1,5 @@
 // Bump CACHE on every release or installed copies keep serving the old build.
-const CACHE = 'doveclem-v30';
+const CACHE = 'doveclem-v31';
 
 // Shell only. Audio is cached the first time it is fetched, so adding a voice
 // pack needs no change here.

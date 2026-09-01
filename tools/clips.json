@@ -1,0 +1,14 @@
+[
+ ["records/clem/Mi chiamo Clementina.m4a",                        "app/audio/clem/01-mi-chiamo-clementina.m4a"],
+ ["records/clem/Marco 1.m4a",                                     "app/audio/clem/02-marco-1.m4a"],
+ ["records/clem/Marco 2.m4a",                                     "app/audio/clem/03-marco-2.m4a"],
+ ["records/clem/Suona un po’ sbagliato.m4a",                      "app/audio/clem/04-suona-un-po-sbagliato.m4a"],
+ ["records/clem/Theory.m4a",                                      "app/audio/clem/05-theory.m4a"],
+ ["records/nonni/Ho un disturbo.m4a",                             "app/audio/nonni/01-ho-un-disturbo.m4a"],
+ ["records/nonni/Che devo fa Uuuu.m4a",                           "app/audio/nonni/02-che-devo-fa.m4a"],
+ ["records/nonni/Alea iacta est.m4a",                             "app/audio/nonni/03-alea-iacta-est.m4a"],
+ ["records/nonni/A Gia’ sta zitto, non è vero quello che dici.m4a","app/audio/nonni/04-a-gia-sta-zitto.m4a"],
+ ["records/nonni/Vuoi un po’ di cicoria con peperoncino.m4a",     "app/audio/nonni/05-cicoria-peperoncino.m4a"],
+ ["records/nonni/E una mozzarellina de bufala.m4a",               "app/audio/nonni/06-mozzarellina-de-bufala.m4a"],
+ ["records/nonni/Quanto mi piace Antonio Tanca.m4a",              "app/audio/nonni/07-antonio-tanca.m4a"]
+]
