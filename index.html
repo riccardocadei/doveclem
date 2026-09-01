@@ -505,6 +505,40 @@
   .notes li::before { content:'\B7'; position:absolute; left:.15rem; }
   .notes b { color:var(--ink-2); font-weight:500; }
 
+  /* The door. Above the veil, so the sequence is: word, then the veil's tap to
+     start the audio, which is the gesture iOS needs and must not be spent here. */
+  .gate {
+    position:fixed; inset:0; z-index:30; display:flex; align-items:center;
+    justify-content:center; padding:1.5rem; background:var(--paper);
+  }
+  .gate[hidden] { display:none !important; }
+  .gate-box {
+    display:flex; flex-direction:column; gap:.7rem; align-items:stretch;
+    width:min(19rem, 100%); text-align:center;
+  }
+  .gate-word {
+    margin:0 0 .3rem; font-family:var(--wide); font-size:1.6rem; font-weight:700;
+    font-variation-settings:'wdth' 122; line-height:1; color:var(--ink);
+  }
+  .gate-word em { font-style:normal; color:var(--accent); }
+  .gate-lab {
+    font-family:var(--mono); font-size:.6875rem; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--ink-3);
+  }
+  .gate-in {
+    font:inherit; font-size:1rem; text-align:center; padding:.7rem .8rem;
+    border:1px solid var(--line); border-radius:10px; background:var(--pad);
+    color:var(--ink); box-shadow:var(--inset);
+  }
+  .gate-in:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  .gate-go {
+    font:inherit; font-weight:600; padding:.7rem .8rem; border:0; border-radius:10px;
+    background:var(--accent); color:var(--accent-ink); cursor:pointer;
+  }
+  .gate-go:active { opacity:.75; }
+  .gate-note { margin:.1rem 0 0; font-size:.78rem; line-height:1.45; color:var(--ink-2); }
+  .gate-note[data-bad="1"] { color:var(--accent); }
+
   .veil {
     position:fixed; inset:0; z-index:20; width:100%;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -532,6 +566,71 @@
 
   @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
 </style>
+
+<!-- Shown by default and hidden by script, so it fails closed rather than open. -->
+<div class="gate" id="gate">
+  <form class="gate-box" id="gateForm">
+    <p class="gate-word">Dov’è Clem<em>.</em></p>
+    <label class="gate-lab" for="gateIn">Parola</label>
+    <input class="gate-in" id="gateIn" type="password" required
+           autocomplete="current-password" autocapitalize="off"
+           autocorrect="off" spellcheck="false" enterkeyhint="go">
+    <button class="gate-go" type="submit">Entra</button>
+    <p class="gate-note" id="gateNote" aria-live="polite">
+      Chiedila a chi ti ha mandato il link. Te la ricorda questo telefono.
+    </p>
+  </form>
+</div>
+
+<script>
+/* The door, deliberately outside the main script: it has to settle before
+   anything else paints or loads, and it needs nothing from the audio engine.
+
+   Say plainly what this is. The repository is public and every clip has a
+   direct URL, so this stops somebody who opens the link without knowing the
+   word and stops nobody who opens the console. It is a door, not a lock. The
+   `noindex` meta in the head does the other and larger half of the job,
+   because the realistic way a stranger arrives here is a search engine rather
+   than a guess.
+
+   knock() is not cryptography and must not read as cryptography. Comparing a
+   number instead of the word itself buys exactly one thing — the word is not
+   sitting in the page for "view source" to find — and that is the one thing
+   worth buying. SubtleCrypto would look more serious and would stop working
+   the moment you test from the phone over http on the LAN, which is precisely
+   where this app has to be tested. */
+(function () {
+  var GATE = '1s193lh.1ikp4v3';        // knock('cicoria'); README says how to change it
+  var KEY = 'doveclem.gate';
+  function knock(w) {
+    var a = 0x811c9dc5, b = 5381;
+    for (var i = 0; i < w.length; i++) {
+      var c = w.charCodeAt(i);
+      // Math.imul, not *: a 32-bit product past 2^53 loses digits and the
+      // hash stops being the same hash on different inputs.
+      a = Math.imul(a ^ c, 16777619) >>> 0;
+      b = (Math.imul(b, 33) + c) >>> 0;
+    }
+    return a.toString(36) + '.' + b.toString(36);
+  }
+  var gate = document.getElementById('gate');
+  function let_in() { window.gateOpen = true; gate.hidden = true; }
+  // localStorage throws in some private-browsing modes, and a door that
+  // crashes shut is worse than one that asks again.
+  try { if (localStorage.getItem(KEY) === GATE) let_in(); } catch (e) {}
+  document.getElementById('gateForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var el = document.getElementById('gateIn'), note = document.getElementById('gateNote');
+    if (knock(el.value.trim().toLowerCase()) === GATE) {
+      try { localStorage.setItem(KEY, GATE); } catch (e2) {}
+      return let_in();
+    }
+    el.value = ''; el.focus();
+    note.dataset.bad = '1';
+    note.textContent = 'Non è quella. Riprova.';
+  });
+})();
+</script>
 
 <button class="veil" id="veil" type="button">
   <span class="veil-mark" aria-hidden="true">
@@ -1129,6 +1228,10 @@ async function loadPack() {
 const msg = e => (e && e.message) ? e.message : String(e);
 
 async function boot() {
+  /* Nothing loads before the word. Without this the capture-phase listeners
+     would open the audio context and fetch the whole pack while the door was
+     still shut, which defeats the door and spends somebody's data. */
+  if (!window.gateOpen) return;
   if (booted) {
     if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
     return;

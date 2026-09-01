@@ -203,6 +203,49 @@ python3 -m http.server 8000
 # then open http://localhost:8000
 ```
 
+## Keeping it to the family
+
+There is a word on the door. Type it once and the phone remembers it.
+
+**Be clear about what this is.** It is a door, not a lock. The repository is
+public, so every clip also has a direct URL on `raw.githubusercontent.com` that
+no password in a page can intercept, and anyone who opens the console can delete
+the overlay. It stops somebody who is sent the link without the word. It stops
+nobody who looks.
+
+The larger half of the job is the `noindex, nofollow` meta on every page,
+because the realistic way a stranger arrives at a small unlisted app is a search
+engine, not a guess. A `robots.txt` would not have worked: the site is served
+from a subdirectory of `riccardocadei.com` and crawlers only read `robots.txt` at
+the domain root, which belongs to a different repository.
+
+Real privacy would mean a private repository and hosting that can authenticate —
+GitHub Pages cannot do the second (private Pages needs Enterprise), so it would
+mean Cloudflare Pages with Cloudflare Access in front, which is free and would
+put the audio behind the same login as the page. That is a different job from
+this one.
+
+**Changing the word.** The page holds a number, not the word, which keeps it out
+of "view source" — the one thing this is actually meant to survive. It is not
+cryptography and does not pretend to be: `Math.imul`-based, so it keeps working
+when you test from the phone over plain http on the LAN, which `crypto.subtle`
+would not. Paste this into any browser console with your word in the quotes,
+lower case and no spaces, and put the result in `GATE` at the top of
+`index.html`:
+
+```js
+(w=>{let a=0x811c9dc5,b=5381;for(let i=0;i<w.length;i++){const c=w.charCodeAt(i);
+a=Math.imul(a^c,16777619)>>>0;b=(Math.imul(b,33)+c)>>>0}return a.toString(36)+'.'+b.toString(36)})('cicoria')
+```
+
+Changing it also logs everyone out, which is what you want: the stored value no
+longer matches, so the door asks again.
+
+The word is compared lower case and trimmed, so it survives being read out over
+the phone. `score.html` and `tuning.html` are not behind the door — they are
+development pages, they are `noindex` too, and gating them would add nothing
+while the clips remain directly fetchable from the public repository.
+
 ## Deploy
 
 It is live at https://www.riccardocadei.com/doveclem/ from the `main` branch of
