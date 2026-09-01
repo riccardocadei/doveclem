@@ -49,6 +49,7 @@ differiscono solo per ciò che è cambiato davvero nel codice.</p>
   <button id="kits">Pareggiare i due kit</button>
   <button id="levels">Livelli delle voci nuove</button>
   <button id="overlap">Note che si sovrappongono</button>
+  <button id="rubric">Rubriche di genere</button>
 </div>
 <div id="log"></div>
 
@@ -735,6 +736,206 @@ async function runOverlap() {
   return rows;
 }
 
+
+/* ------------------------------------------------------------------ *
+ * Cancello 2: l'intenzione.                                          *
+ * ------------------------------------------------------------------ *
+ * Ogni groove dichiara un genere, e la rubrica di quel genere afferma
+ * come controlli eseguibili le cose che quel genere richiede.
+ *
+ * Serve a due scopi, e il secondo conta più del primo. Il primo è
+ * ovvio: accorgersi che una groove che si chiama house non ha niente sul
+ * levare. Il secondo è che prende quello che oggi vive nei commenti —
+ * "Fantasia è poche cose messe larghe, alla Mind Enterprises" — e lo
+ * rende falsificabile. Se un giorno riempissi Fantasia, un controllo mi
+ * boccerebbe invece di lasciarmi il commento che dice il contrario.
+ *
+ * Non misura la bellezza. Misura se una groove è la cosa che dice di
+ * essere, che è una domanda molto più piccola e molto più rispondibile. */
+
+const BARLEN = { '4/4': 16, '3/4': 12, '6/8': 12 };
+const barLenOf = st => BARLEN[st.meter] || 16;
+
+function lane(st, id) {
+  const k = st.tracks.indexOf(id);
+  if (k < 0 || !st.pattern[k]) return [];
+  const out = [];
+  st.pattern[k].forEach((v, i) => { if (v) out.push(i); });
+  return out;
+}
+const inBar0 = (st, id) => lane(st, id).filter(x => x < barLenOf(st));
+const perBar = (st, id) => lane(st, id).length / st.bars;
+function sendOf(st, id) {
+  const k = st.tracks.indexOf(id);
+  return k < 0 ? 0 : (st.send[k] || 0);
+}
+const has = (st, id) => lane(st, id).length > 0;
+const covers = (list, want) => want.every(w => list.indexOf(w) >= 0);
+
+// i quarti esistono solo in 4/4; in 6/8 la domanda non si pone
+const everyQuarter = (st, id) =>
+  st.meter !== '4/4' ? true : covers(inBar0(st, id), [0, 4, 8, 12]);
+
+// quanti dei levare di ottavo hanno qualcosa sopra
+function offbeat(st) {
+  const want = st.meter === '4/4' ? [2, 6, 10, 14] : [1, 3, 5, 7, 9, 11];
+  const all = [];
+  ['hat', 'ohat', 'chank', 'clap'].forEach(id => inBar0(st, id).forEach(x => all.push(x)));
+  return want.filter(w => all.indexOf(w) >= 0).length / want.length;
+}
+const allSteps = (st, id) => inBar0(st, id).length >= barLenOf(st);
+const voices = st => st.tracks.filter((id, k) =>
+  id[0] === 'v' && st.pattern[k] && st.pattern[k].some(Boolean)).length;
+const pitchedOn = st => ['bass', 'pad', 'stab', 'chank', 'arp', 'lead']
+  .filter(id => has(st, id)).length;
+/* Un controllo può tornare `true`, oppure una stringa che dice *cosa* non
+   torna. "Niente poltiglia oltre il 70%" senza dire quale voce lascia il lavoro
+   a metà: il primo giro ha bocciato Testaccio e Balera senza nominare nessuno,
+   e sono andato a cercarle a mano. */
+function mush(ov, pct) {
+  const bad = ov.filter(r =>
+    ['stab', 'lead', 'arp', 'chank'].indexOf(r.voce) >= 0 && r.sovrappPct > pct);
+  return bad.length ? bad.map(r => r.voce + ' ' + r.sovrappPct + '%').join(', ') : true;
+}
+
+const COMMON = [
+  ['non tosa',                              (st, mx) => mx.peak < 0],
+  ['crest almeno 10 dB',                    (st, mx) => mx.crest >= 10],
+  ['le quattro battute non sono una sola',   (st, mx) => mx.novita > 0.07],
+  ['niente poltiglia oltre il 70%',          (st, mx, ov) => mush(ov, 70)],
+];
+
+const RUBRICS = {
+  italo: [
+    ['cassa su tutti e quattro i quarti',    st => everyQuarter(st, 'kick')],
+    ['tre levare di ottavo su quattro',      st => offbeat(st) >= 0.75],
+    ['basso almeno otto volte per battuta',  st => perBar(st, 'bass') >= 8],
+    ["una voce melodica dentro l'eco",       st => ['stab', 'lead', 'arp'].some(id => sendOf(st, id) >= 0.3)],
+    ['non più di 40 colpi per battuta',      (st, mx) => mx.colpiPerBattuta <= 40],
+  ],
+  house: [
+    ['cassa su tutti e quattro i quarti',    st => everyQuarter(st, 'kick')],
+    ['tutti i levare di ottavo coperti',     st => offbeat(st) >= 0.99],
+    ['clap sul due e sul quattro',           st => covers(inBar0(st, 'clap'), [4, 12])],
+  ],
+  balera: [
+    ['swing acceso',                         st => st.swing > 0],
+    ['rullante o clap sul due e sul quattro', st => covers(inBar0(st, 'snare'), [4, 12]) ||
+                                                   covers(inBar0(st, 'clap'), [4, 12])],
+    /* 1.5 e non 2. Il primo giro bocciava le due Notte, che hanno la cassa 1.75
+       volte per battuta — ed è giusto così: sono grooves lente da notte tarda, e
+       la cassa rada è il punto. Era il controllo sbagliato, non la groove. */
+    ['cassa almeno una volta e mezza per battuta', st => perBar(st, 'kick') >= 1.5],
+  ],
+  tarantella: [
+    ['metro 6/8',                            st => st.meter === '6/8'],
+    ['tamburello su tutti gli step',         st => allSteps(st, 'ohat')],
+    ['almeno 120 di bpm',                    st => st.bpm >= 120],
+    ['niente poltiglia oltre il 35%',        (st, mx, ov) => mush(ov, 35)],
+    ['senza eco',                            st => sendOf(st, 'lead') === 0],
+  ],
+  folk: [
+    ['senza eco',                            st => sendOf(st, 'lead') === 0],
+    ['non più di 25 colpi per battuta',      (st, mx) => mx.colpiPerBattuta <= 25],
+    ['un timbro a corda o a mantice',        st => ['chit', 'mando', 'fisa'].indexOf(st.timbre) >= 0],
+  ],
+  funk: [
+    ['qualcosa sui sedicesimi',              st => allSteps(st, 'chank') || allSteps(st, 'hat')],
+    ['clap o rullante fuori dal battere',    st => inBar0(st, 'clap').some(x => x % 4 !== 0) ||
+                                                   inBar0(st, 'snare').some(x => x % 4 !== 0)],
+    ['basso sincopato',                      st => inBar0(st, 'bass').some(x => x % 2 !== 0)],
+  ],
+  voce: [
+    /* Una, non due. Bocciava Coro, la cui idea è *una* voce sola raddoppiata dal
+       chorus: il controllo aveva codificato una mia assunzione e non un
+       requisito del genere. */
+    ['almeno una clip in gioco',             st => voices(st) >= 1],
+    ['non più di tre voci intonate',         st => pitchedOn(st) <= 3],
+  ],
+  pop: [
+    ['gli archi ci sono',                    st => has(st, 'pad')],
+    ['basso almeno otto volte per battuta',  st => perBar(st, 'bass') >= 8],
+    ['rullante sul due e sul quattro',       st => covers(inBar0(st, 'snare'), [4, 12])],
+  ],
+  sequencer: [
+    ["l'arpeggio copre tutti gli step",      st => allSteps(st, 'arp')],
+    ['gli archi ci sono',                    st => has(st, 'pad')],
+    ['cassa su tutti e quattro i quarti',    st => everyQuarter(st, 'kick')],
+  ],
+};
+
+async function runRubric() {
+  const w = await ready();
+  const gs = w.dev.grooves();
+  const PITCHED = ['stab', 'lead', 'arp', 'chank'];
+  const rows = [];
+  for (const g of gs) {
+    log('rubrica — ' + g.pack + '/' + g.name + ' (' + (g.genre || 'senza genere') + ')');
+    seed(w, SEED);
+    let res, st;
+    try {
+      res = await w.dev.render(g.i, 8);
+      st = await w.dev.state();
+    } catch (e) {
+      rows.push({ groove: g.pack + '/' + g.name, genre: g.genre,
+                  esito: 'ERRORE: ' + (e && e.message || e) });
+      continue;
+    }
+    const mx = mixStats(res);
+    // solo le voci intonate che suonano davvero, per non rendere a vuoto
+    const ov = [];
+    for (const id of PITCHED) {
+      const k = st.tracks.indexOf(id);
+      if (k < 0 || !st.pattern[k] || !st.pattern[k].some(Boolean)) continue;
+      seed(w, SEED);
+      let r2r;
+      try { r2r = await w.dev.render(g.i, 2, id); }
+      catch (e) { ov.push({ voce: id, sovrappPct: 0, nota: 'errore' }); continue; }
+      const hits = r2r.hits.filter(h => h.id === id);
+      if (hits.length < 3) continue;
+      const d = monoOf(r2r.buf), sr = r2r.buf.sampleRate;
+      const pre = Math.round(0.012 * sr), pk = Math.round(0.045 * sr);
+      let peakSum = 0, over = 0, n = 0;
+      hits.forEach((h, j) => {
+        const a = Math.round(h.at * sr);
+        peakSum += peakRms(d, a, a + pk).peak;
+        if (j) n++;
+      });
+      const mp = peakSum / hits.length;
+      hits.forEach((h, j) => {
+        if (!j) return;
+        const a = Math.round(h.at * sr);
+        if (dB(peakRms(d, a - pre, a).rms) - dB(mp) > -12) over++;
+      });
+      ov.push({ voce: id, sovrappPct: n ? r2(over / n * 100) : 0 });
+    }
+
+    const checks = COMMON.concat(RUBRICS[g.genre] || []);
+    const failed = [];
+    checks.forEach(c => {
+      let r;
+      try { r = c[1](st, mx, ov); } catch (e) { r = 'errore nel controllo'; }
+      if (r === true) return;
+      failed.push(c[0] + (typeof r === 'string' ? ' [' + r + ']' : ''));
+    });
+    rows.push({ groove: g.pack + '/' + g.name, genre: g.genre || '—',
+                controlli: checks.length, passati: checks.length - failed.length,
+                esito: failed.length ? failed.join(' · ') : 'tutto a posto' });
+  }
+  const bad = rows.filter(r => r.passati !== r.controlli).length;
+  log('fatto: ' + rows.length + ' grooves, ' + bad + ' con qualcosa da guardare.');
+  show(table(rows, [
+    ['groove', r => r.groove], ['genere', r => r.genre],
+    ['passati', r => (r.passati === undefined ? '—' : r.passati + '/' + r.controlli)],
+    ['cosa non torna', r => r.esito],
+  ], 'Ogni groove è la cosa che dice di essere?',
+     'Quattro controlli valgono per tutte, il resto dipende dal genere dichiarato. <b>Non è un giudizio di bellezza</b>: dice se una groove mantiene la promessa del suo genere e dei commenti che le stanno attorno. Un controllo che boccia una groove che ti piace è il controllo sbagliato, non la groove — cambialo qui.'),
+    rows);
+  return rows;
+}
+
+document.getElementById('rubric').addEventListener('click', e => { e.target.disabled = true; runRubric(); });
+
 document.getElementById('overlap').addEventListener('click', e => { e.target.disabled = true; runOverlap(); });
 document.getElementById('levels').addEventListener('click', e => { e.target.disabled = true; runLevels(); });
 document.getElementById('kits').addEventListener('click', e => { e.target.disabled = true; runKits(); });
@@ -752,6 +953,7 @@ document.getElementById('voices').addEventListener('click', e => { e.target.disa
     else if (q === 'kits') await runKits();
     else if (q === 'levels') await runLevels();
     else if (q === 'overlap') await runOverlap();
+    else if (q === 'rubric') await runRubric();
     else if (q === 'all') { await runVoices(); await runKits(); await runMix(); }
     document.title = 'SCORE_DONE';
   } catch (e) {

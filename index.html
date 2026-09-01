@@ -410,6 +410,10 @@
      music is while you edit somewhere else */
   .bars button[data-live="1"] { box-shadow:inset 0 0 0 1px var(--accent); }
   .minis { display:flex; gap:.5rem; }
+  /* Il giudizio: chip che vanno a capo, non una griglia fissa come le grooves,
+     perché le etichette hanno lunghezze diverse. */
+  .tags { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .tags .chip { padding:.45rem .6rem; text-transform:none; letter-spacing:.03em; font-size:.6875rem; }
   .rec-btn { width:100%; }
   .rec-btn[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
   #recActs { margin-top:.55rem; }
@@ -815,6 +819,20 @@
   </div>
   <section class="grooves" id="grooves"></section>
   <section class="grooves saves" id="saves" hidden></section>
+
+  <div class="sect">
+    <span class="sect-t">Giudizio</span>
+    <span class="sect-x" id="noteWho">&mdash;</span>
+  </div>
+  <section class="panel-box">
+    <div class="tags" id="noteTags"></div>
+    <div class="tags" id="noteTracks" hidden style="margin-top:.45rem"></div>
+    <span class="minis" style="margin-top:.6rem">
+      <button class="mini" id="noteCopy" type="button">Copia tutto</button>
+      <button class="mini" id="noteClear" type="button">Svuota</button>
+    </span>
+    <p class="sect-x" id="noteOut" style="margin:.5rem 0 0"></p>
+  </section>
 
   <div class="sect">
     <span class="sect-t">Registra</span>
@@ -2903,7 +2921,7 @@ const GROOVES = [
      what a vocal is. */
 
   /* ---- Clem ---- */
-  { name:'Liana', pack:'clem', bpm:118, swing:0, pump:true, verb:1.1,
+  { name:'Liana', pack:'clem', genre:'italo', bpm:118, swing:0, pump:true, verb:1.1,
     key:36, prog:'Tramonto', shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12,16,20,24,28,48,52,56,60,58,62], clap:[4,12,20,28,52,60,63],
             ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
@@ -2925,7 +2943,7 @@ const GROOVES = [
      cose messe larghe, e riempirlo lo ucciderebbe. `bassIv` di otto gradi si
      chiude esattamente in una battuta: tonica, ottava, tonica, quinta, tonica,
      ottava, settima, quinta. */
-  { name:'Fantasia', pack:'clem', bpm:118, swing:0, rise:true, pump:true, air:0.2, verb:1.05,
+  { name:'Fantasia', pack:'clem', genre:'italo', bpm:118, swing:0, rise:true, pump:true, air:0.2, verb:1.05,
     key:33, prog:'Onda', shape:{bass:1,stab:3,pad:3},
     bassIv:[0,12,0,7,0,12,10,7],
     steps:{ kick:[0,4,8,12], clap:[4,12],
@@ -2945,7 +2963,7 @@ const GROOVES = [
   /* L'italo con l'arpeggio davanti, che è la cosa che a questa app mancava:
      sedicesimi plettrati dentro l'eco in ottavo puntato, e la mano destra non
      cambia mai. L'armonia la porta l'arpeggio, quindi lo stab non c'è. */
-  { name:'Cristallo', pack:'clem', bpm:124, swing:0, rise:true, pump:true, air:0.15, verb:1.2,
+  { name:'Cristallo', pack:'clem', genre:'italo', bpm:124, swing:0, rise:true, pump:true, air:0.15, verb:1.2,
     key:36, prog:'Tramonto', shape:{bass:1,pad:3,arp:2},
     bassIv:[0,12],
     steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
@@ -2963,7 +2981,7 @@ const GROOVES = [
 
   /* A dance hall, which is what the name says. Swung eighths, a walking bass
      and the piano on the off-beat; no dramatic break, it just keeps going. */
-  { name:'Balera', pack:'clem', bpm:126, swing:0.6, timbre:'rhodes', air:0.3, verb:1.2,
+  { name:'Balera', pack:'clem', genre:'balera', bpm:126, swing:0.6, timbre:'rhodes', air:0.3, verb:1.2,
     /* Sala da ballo: la seconda battuta alza un aperto sul finale, la terza
        assottiglia il charleston a quarti e manda a sedere il clap. */
     vary:{ 1:{ add:{ ohat:[15] } },
@@ -2987,7 +3005,7 @@ const GROOVES = [
     ghost:{ hat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], stab:[7,23,39,55] },
     voice:{ 4:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:0} } },
 
-  { name:'Notte', pack:'clem', bpm:104, swing:0.55, timbre:'organo', air:0.35, verb:1.2,
+  { name:'Notte', pack:'clem', genre:'balera', bpm:104, swing:0.55, timbre:'organo', air:0.35, verb:1.2,
     vary:{ 1:{ add:{ hat:[15] } },
            2:{ drop:['stab'] } },
     fill:{ snare:[12,13,14,15], hat:[13,15] },
@@ -3005,7 +3023,7 @@ const GROOVES = [
   /* House, and house is mostly the open hat. Kick on every beat, hat lifting
      every off-beat eighth, a clap on two and four and almost nothing else —
      the space is the genre. */
-  { name:'Discoteca', pack:'clem', bpm:124, swing:0, rise:true, pump:true, verb:1.15,
+  { name:'Discoteca', pack:'clem', genre:'house', bpm:124, swing:0, rise:true, pump:true, verb:1.15,
     /* House: la linea di basso salta l'ottava e poi la quinta invece di
        alternare due note, e il clap rulla dentro il ritorno. */
     bassIv:[0,12,0,7],
@@ -3023,7 +3041,7 @@ const GROOVES = [
     ghost:{ ohat:[6,22,38,54] },
     voice:{ 4:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:2} } },
 
-  { name:'Riviera', pack:'clem', bpm:126, swing:0, pump:true, verb:1.1,
+  { name:'Riviera', pack:'clem', genre:'italo', bpm:126, swing:0, pump:true, verb:1.1,
     bassIv:[0,12,0,7],
     vary:{ 1:{ add:{ clap:[14] } },
            2:{ clear:{ hat:[10] }, add:{ ohat:[10] } } },
@@ -3038,7 +3056,7 @@ const GROOVES = [
     voice:{ 1:{rate:1.25,start:0,chop:2} } },
 
   /* One voice doubled, not detuned into another species. */
-  { name:'Coro', pack:'clem', bpm:104, swing:0, timbre:'rhodes', kit:'folk', air:0.5, verb:1.3,
+  { name:'Coro', pack:'clem', genre:'voce', bpm:104, swing:0, timbre:'rhodes', kit:'folk', air:0.5, verb:1.3,
     key:40, prog:'Stornello', shape:{bass:1,stab:3},
     steps:{ kick:[0,8], ohat:[4,12],
             bass:[0,4,8,12], stab:[2,6,10,14],
@@ -3047,7 +3065,7 @@ const GROOVES = [
     ghost:{ stab:[6,14], ohat:[4] },
     voice:{ 0:{rate:1,start:0,chop:0,over:true,chorus:true} } },
 
-  { name:'Chop', pack:'clem', bpm:96, swing:0, echo:false, key:36, prog:'Fermo', shape:{bass:0,stab:3},
+  { name:'Chop', pack:'clem', genre:'voce', bpm:96, swing:0, echo:false, key:36, prog:'Fermo', shape:{bass:0,stab:3},
     vary:{ 1:{ clear:{ v0:[2] } },
            2:{ add:{ v1:[10] } } },
     fill:{ snare:[12,14,15], clap:[15] },
@@ -3058,7 +3076,7 @@ const GROOVES = [
     voice:{ 0:{rate:1,start:0.06,chop:2}, 1:{rate:1.25,start:0,chop:2},
             2:{rate:0.8,start:0.1,chop:2}, 3:{rate:1,start:0.2,chop:4} } },
 
-  { name:'Talk', pack:'clem', bpm:84, swing:0.55, echo:false, key:33, prog:'Fermo', shape:{bass:0,stab:3},
+  { name:'Talk', pack:'clem', genre:'voce', bpm:84, swing:0.55, echo:false, key:33, prog:'Fermo', shape:{bass:0,stab:3},
     vary:{ 1:{ add:{ hat:[15] } },
            2:{ drop:['hat'] } },
     fill:{ snare:[12,13,14,15] },
@@ -3068,7 +3086,7 @@ const GROOVES = [
     voice:{ 0:{rate:1,start:0,chop:0}, 4:{rate:1,start:0,chop:0} } },
 
   /* ---- Nonni ---- */
-  { name:'Liana', pack:'nonni', bpm:118, swing:0, pump:true, kit:'folk', air:0.35, verb:1.1,
+  { name:'Liana', pack:'nonni', genre:'italo', bpm:118, swing:0, pump:true, kit:'folk', air:0.35, verb:1.1,
     key:36, prog:'Tramonto', shape:{bass:1,stab:3},
     steps:{ kick:[0,4,8,12,16,20,24,28,48,52,56,60,58,62], clap:[4,12,20,28,52,60,63],
             ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
@@ -3088,7 +3106,7 @@ const GROOVES = [
      mezzo fra la tradizione e la rivisitazione. Il pad si ribatte a ogni
      battuta perché il giro si muove a ogni battuta: tenuto per quattro
      suonerebbe l'accordo della prima sopra le altre tre. */
-  { name:'Permanente', pack:'nonni', bpm:116, swing:0, timbre:'fisa', kit:'folk', air:0.35, verb:1.15,
+  { name:'Permanente', pack:'nonni', genre:'sequencer', bpm:116, swing:0, timbre:'fisa', kit:'folk', air:0.35, verb:1.15,
     key:36, prog:'Stornello', shape:{bass:1,pad:3,arp:2},
     bassIv:[0,0,12,7],
     steps:{ kick:[0,4,8,12], ohat:[2,6,10,14],
@@ -3110,7 +3128,7 @@ const GROOVES = [
      tutto. Gli archi sono la voce che a questa app mancava per suonare piena —
      e il fatto che la melodia la porti una clip invece del lead è il punto:
      quella è la parte del cantante. */
-  { name:'Sanremo', pack:'nonni', bpm:100, swing:0, timbre:'chit', air:0.3, verb:1.2,
+  { name:'Sanremo', pack:'nonni', genre:'pop', bpm:100, swing:0, timbre:'chit', air:0.3, verb:1.2,
     key:38, prog:'Stornello', shape:{bass:2,stab:3,pad:3},
     steps:{ kick:[0,8], snare:[4,12], hat:[0,2,4,6,8,10,12,14],
             bass:[0,2,4,6,8,10,12,14], pad:[0],
@@ -3129,7 +3147,7 @@ const GROOVES = [
      suo ripiego sintetico, che fuori dal timbro Chitarra è un clavinet e per il
      funk è meglio di una chitarra vera. Il cajón del kit registrato fa il
      rullante e suona come una conga, che è quello che serviva. */
-  { name:'Testaccio', pack:'nonni', bpm:112, swing:0, rise:true, timbre:'fisa', kit:'folk',
+  { name:'Testaccio', pack:'nonni', genre:'funk', bpm:112, swing:0, rise:true, timbre:'fisa', kit:'folk',
     air:0.4, verb:1.15,
     key:34, prog:'Osteria', shape:{bass:1,stab:3,pad:3,chank:3},
     bassIv:[0,12,0,7],
@@ -3147,7 +3165,7 @@ const GROOVES = [
 
   /* The same dance hall, but the band is an accordion and it is slower — a
      Rhodes on this pack sounded like it had come from the wrong decade. */
-  { name:'Balera', pack:'nonni', bpm:112, swing:0.6, timbre:'fisa', kit:'folk', air:0.55, verb:1.3,
+  { name:'Balera', pack:'nonni', genre:'balera', bpm:112, swing:0.6, timbre:'fisa', kit:'folk', air:0.55, verb:1.3,
     vary:{ 1:{ add:{ ohat:[15] } },
            2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] } },
     fill:{ snare:[10,11,12,13,14,15], ohat:[15] },
@@ -3161,7 +3179,7 @@ const GROOVES = [
     ghost:{ hat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], stab:[7,23,39,55] },
     voice:{ 2:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
 
-  { name:'Notte', pack:'nonni', bpm:104, swing:0.55, timbre:'organo', air:0.4, verb:1.25,
+  { name:'Notte', pack:'nonni', genre:'balera', bpm:104, swing:0.55, timbre:'organo', air:0.4, verb:1.25,
     key:34, prog:'Nostalgia', shape:{bass:0,stab:3},
     steps:{ kick:[0,10,16,26,48,58,42], snare:[4,12,20,28,36,44,52,60],
             hat:[2,6,14,18,22,30,34,38,46,50,54,62],
@@ -3179,7 +3197,7 @@ const GROOVES = [
      tambourine keeps the beat, the mandolin strums the off-beats the way a
      rhythm guitar does, and a tune runs over the top. Cicoria and Antonio play
      right through it. */
-  { name:'Campagna', pack:'nonni', bpm:92, swing:0.55, timbre:'chit', kit:'folk',
+  { name:'Campagna', pack:'nonni', genre:'folk', bpm:92, swing:0.55, timbre:'chit', kit:'folk',
     /* Il tamburello teneva i quarti per quattro battute uguali. Ora la terza
        ne perde due e l'ultima rulla: è come si suona un tamburello, non come si
        programma una drum machine. */
@@ -3200,7 +3218,7 @@ const GROOVES = [
     accent:{ ohat:[0,16,32,48], kick:[0,32] },
     ghost:{ ohat:[4,12,20,28,36,44,52,60], stab:[6,14,22,30,38,46,54,62] },
     voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:0.95,start:0,chop:0} } },
-  { name:'Stornello', pack:'nonni', timbre:'chit', kit:'folk', air:0.45, verb:1.2,
+  { name:'Stornello', pack:'nonni', genre:'folk', timbre:'chit', kit:'folk', air:0.45, verb:1.2,
     vary:{ 1:{ add:{ ohat:[14] } },
            2:{ drop:['stab'], add:{ bass:[12] } } },
     fill:{ ohat:[12,13,14,15] },
@@ -3219,7 +3237,7 @@ const GROOVES = [
      including a voice arriving alone — happened again four times a loop, which
      is not an intro, it is a stutter. Cicoria opens it once; Antonio takes the
      second half. */
-  { name:'Osteria', pack:'nonni', timbre:'fisa', kit:'folk', air:0.5, verb:1.35,
+  { name:'Osteria', pack:'nonni', genre:'balera', timbre:'fisa', kit:'folk', air:0.5, verb:1.35,
     bpm:126, swing:0.6, echo:false,
     key:34, prog:'Osteria', shape:{bass:1,stab:3},
     steps:{ kick:[0,8,16,24,32,40,48,56],
@@ -3233,7 +3251,7 @@ const GROOVES = [
     voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
   /* It had a rhythm section and no tune at all, which is why it read as empty
      rather than as sparse. The mandolin plays a serenade over it now. */
-  { name:'Trastevere', pack:'nonni', timbre:'chit', kit:'folk', air:0.45, verb:1.25,
+  { name:'Trastevere', pack:'nonni', genre:'folk', timbre:'chit', kit:'folk', air:0.45, verb:1.25,
     vary:{ 1:{ add:{ ohat:[15] } },
            2:{ drop:['stab'], clear:{ ohat:[6,14] } } },
     fill:{ snare:[12,13,14,15], ohat:[15] },
@@ -3255,7 +3273,7 @@ const GROOVES = [
      risponde due volte per battuta invece di quattro, il tamburello rulla su
      tutti i dodici step con l'accento sui due tempi, e gira a 132 su quattro
      battute così il giro si muove sotto la melodia invece che a fianco. */
-  { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.2, verb:1.1,
+  { name:'Tarantella', pack:'nonni', genre:'tarantella', timbre:'fisa', kit:'folk', air:0.2, verb:1.1,
     bpm:132, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     steps:{ kick:[0,6], clap:[4,10],
@@ -3280,7 +3298,7 @@ const GROOVES = [
      un mandolino tiene una nota lunga non avendo sostegno. Lo slap del cajón
      fa le mani sul tamburo. Stesso giro della tarantella di proposito: cambia
      il passo, non l'armonia, ed è esattamente la differenza fra le due. */
-  { name:'Pizzica', pack:'nonni', timbre:'mando', kit:'folk', air:0.3, verb:1.1,
+  { name:'Pizzica', pack:'nonni', genre:'tarantella', timbre:'mando', kit:'folk', air:0.3, verb:1.1,
     bpm:160, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:0,stab:3},
     steps:{ kick:[0,6], snare:[4,10], clap:[3,9],
@@ -3428,6 +3446,8 @@ function loadGroove(gi) {
   const want = kitForce || g.kit || 'machine';
   if (!noAutoKit && want !== kit) loadKit(want);
   TRACKS.forEach((_, i) => paintDots(i));
+  noteGroove = (g.pack || 'any') + '/' + g.name;
+  paintNotes();
   setPage(0); paintPanel();
 }
 
@@ -3619,6 +3639,92 @@ recSaveBtn.addEventListener('click', async () => {
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+});
+
+/* ---- giudizio ---- */
+/* Tre tocchi, non un paragrafo. "Fa cagare" è arrivato una volta e ci sono
+   volute due ore per scoprire che voleva dire "le note si sovrappongono a sé
+   stesse"; arrivato come "impastato" avrebbe puntato lì subito. Il punto di
+   questo modulo non è raccogliere opinioni: è che ogni etichetta che si ripete
+   diventa una misura in score.html, ed è esattamente così che `coda` è nata. */
+const NOTE_KEY = 'doveclem.notes.v1';
+const TAGS = [
+  ['forte',   'troppo forte'],
+  ['noia',    'si annoia'],
+  ['impasto', 'impastato'],
+  ['melodia', 'la melodia non regge'],
+  ['ok',      'va bene'],
+];
+const noteWho = $('noteWho'), noteTagsEl = $('noteTags'), noteTracksEl = $('noteTracks');
+const noteOut = $('noteOut');
+let noteGroove = '';
+
+function readNotes() {
+  try { return JSON.parse(localStorage.getItem(NOTE_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function writeNotes(o) {
+  try { localStorage.setItem(NOTE_KEY, JSON.stringify(o)); }
+  catch (e) { say('Non riesco a salvare il giudizio: ' + msg(e)); }
+}
+function noteFor() {
+  const all = readNotes();
+  return all[noteGroove] || { tags: [], tracks: [] };
+}
+function paintNotes() {
+  noteWho.textContent = noteGroove || '—';
+  const cur = noteFor();
+  noteTagsEl.innerHTML = '';
+  TAGS.forEach(t => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip';
+    b.textContent = t[1];
+    b.setAttribute('aria-pressed', String(cur.tags.indexOf(t[0]) >= 0));
+    b.addEventListener('click', () => {
+      const all = readNotes(), e = all[noteGroove] || { tags: [], tracks: [] };
+      const k = e.tags.indexOf(t[0]);
+      if (k >= 0) e.tags.splice(k, 1); else e.tags.push(t[0]);
+      // "va bene" e una lamentela non stanno insieme
+      if (t[0] === 'ok' && e.tags.indexOf('ok') >= 0) { e.tags = ['ok']; e.tracks = []; }
+      else if (t[0] !== 'ok') { const j = e.tags.indexOf('ok'); if (j >= 0) e.tags.splice(j, 1); }
+      e.t = new Date().toISOString();
+      all[noteGroove] = e; writeNotes(all); paintNotes();
+    });
+    noteTagsEl.appendChild(b);
+  });
+  // "troppo forte" senza sapere *cosa* non è azionabile, quindi chiede la traccia
+  const wants = cur.tags.indexOf('forte') >= 0;
+  noteTracksEl.hidden = !wants;
+  noteTracksEl.innerHTML = '';
+  if (wants) TRACKS.forEach(trk => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip';
+    b.textContent = trk.short;
+    b.setAttribute('aria-pressed', String(cur.tracks.indexOf(trk.id) >= 0));
+    b.addEventListener('click', () => {
+      const all = readNotes(), e = all[noteGroove] || { tags: [], tracks: [] };
+      const k = e.tracks.indexOf(trk.id);
+      if (k >= 0) e.tracks.splice(k, 1); else e.tracks.push(trk.id);
+      e.t = new Date().toISOString();
+      all[noteGroove] = e; writeNotes(all); paintNotes();
+    });
+    noteTracksEl.appendChild(b);
+  });
+  const all = readNotes(), n = Object.keys(all).filter(g => (all[g].tags || []).length).length;
+  noteOut.textContent = n ? n + (n === 1 ? ' groove' : ' grooves') + ' con un giudizio'
+                          : 'nessun giudizio ancora';
+}
+$('noteCopy').addEventListener('click', async () => {
+  const txt = JSON.stringify(readNotes(), null, 1);
+  try { await navigator.clipboard.writeText(txt); noteOut.textContent = 'copiato negli appunti'; }
+  catch (e) {
+    // su iOS un download finisce in un visore da cui non si salva: mostralo
+    noteOut.textContent = txt;
+  }
+});
+$('noteClear').addEventListener('click', () => {
+  if (noteGroove) { const all = readNotes(); delete all[noteGroove]; writeNotes(all); }
+  paintNotes();
 });
 
 /* ---- saved patterns ---- */
@@ -3875,6 +3981,7 @@ window.dev = {
   render: renderOffline,
   grooves: () => GROOVES.map((g, i) => ({ i: i, name: g.name, pack: g.pack || 'any',
     bpm: g.bpm, bars: g.bars || 4, meter: g.meter || '4/4', timbre: g.timbre || 'italo',
+    genre: g.genre || '',
     kit: g.kit || 'machine', hits: Object.keys(g.steps).reduce((n, k) => n + g.steps[k].length, 0) })),
   set organic(v) { organic = v ? 1 : 0; },
   get organic() { return organic; },
@@ -3882,6 +3989,8 @@ window.dev = {
   get kit() { return kitForce; },
   set timbre(v) { timbreForce = v || ''; },
   get timbre() { return timbreForce; },
+  // la rubrica ha bisogno di leggere lo stato dopo un caricamento
+  state: () => snapshot(),
   slots: () => KITS.reduce((o, k) => (k.slots && (o[k.id] = Object.assign({}, k.slots)), o), {}),
   setSlot: (kitId, slot, g) => { const K = KITS.find(k => k.id === kitId); if (K && K.slots) K.slots[slot] = g; },
 };

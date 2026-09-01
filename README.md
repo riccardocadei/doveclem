@@ -341,6 +341,53 @@ it to `v0`, unchopped and at speed, and it lands on whatever is in the machine.
 A groove can also carry `timbre:'fisa'` and a `prog` whose giro is in a major or
 harmonic-minor mode, which is how the Nonni presets get their accordion.
 
+## Three gates
+
+Judging whether a groove is any good was one question, and it turns out to be
+three. Keeping them apart is most of the value.
+
+**Gate one, mechanical.** `score.html`, automatic, no ears: does it clip, is it
+squashed, is it mono, are the four bars one bar, are consecutive hits the same
+waveform, do notes play on top of each other, are the levels sane. It finds
+*defects*, never quality, and every column has a threshold with a reason.
+
+**Gate two, intention.** Every groove now declares a `genre`, and the rubric for
+that genre asserts, as executable checks, what the genre requires — a house
+groove needs a kick on all four quarters and something on every off-beat eighth;
+a tarantella needs 6/8, a tambourine on every step, and no pitched voice above
+35% overlap. Four checks apply to everything.
+
+The second reason for it matters more than the first. It takes what currently
+lives in comments — *"Fantasia is a few things placed wide, in the Mind
+Enterprises manner"* — and makes it falsifiable. If Fantasia ever gets filled in,
+a check fails instead of a comment continuing to claim otherwise.
+
+The first run bounced five grooves and **three of them were wrong checks, not
+wrong grooves**: the balera rubric wanted a kick at least twice a bar and both
+Nottes run it 1.75 times, which is the point of a late-night groove; the voce
+rubric wanted two clips and Coro's whole idea is *one* voice doubled by the
+chorus. Those were my assumptions written as requirements, and they were
+relaxed. A check that fails a groove you like is the wrong check — it is in
+`RUBRICS` in `score.html`, go and change it.
+
+Twenty-one of twenty-two pass now. The one left is `nonni/Balera — stab 85.71%`,
+and it is left on purpose: the residue is reverb rather than envelope, so whether
+a wet accordion in a dance hall is right is not a question a number can answer.
+It is a located, specific question, which is exactly what gate one and two are
+for handing to gate three.
+
+**Gate three, taste.** The app has a **Giudizio** panel: the groove you are
+listening to, and five one-tap answers — *troppo forte* (which then asks which
+track), *si annoia*, *impastato*, *la melodia non regge*, *va bene*. Stored per
+groove, and **Copia tutto** puts the lot on the clipboard.
+
+Three taps, not a paragraph. The reason is not politeness about anyone's time:
+"the accordion is terrible" arrived once and cost two hours to turn into "the
+notes overlap themselves", whereas the same complaint arriving as *impastato*
+would have pointed straight at it. And that is the loop the three gates exist
+to close — **every label that recurs in gate three becomes a measurement in gate
+one**. `coda` is the first one that did.
+
 ## Measuring instead of guessing
 
 `score.html` renders any groove through an `OfflineAudioContext` — the real
