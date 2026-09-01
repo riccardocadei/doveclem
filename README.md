@@ -341,7 +341,7 @@ moves the Stab and the Bass with it:
 | --- | --- |
 | Synth italo | Detuned sawtooths straight into the delay |
 | Fisarmonica | Three reeds a few cents apart; the beating between them is the wobble |
-| Mandolino | Paired strings that never quite agree, plucked and gone in half a second. Chords are strummed, not struck; the lead tremolo-picks, because a mandolin holds a note by repeating it |
+| Mandolino | Karplus-Strong: a burst of noise going round a loop one period long, losing its top on every pass, which is what a plucked string physically does. Two strings to a course, chords strummed rather than struck, and the lead tremolo-picks because a mandolin holds a note by repeating it |
 | Rhodes | A struck tine — a sine body under a bright partial that dies at once |
 | Organo | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
 

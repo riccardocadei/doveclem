@@ -1147,7 +1147,7 @@ function reeds(t, i, midi, peak, hold) {
   // the reed block and the grille colour everything, so two body resonances
   // rather than one bare roll-off
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
-  lp.frequency.value = 4200; lp.Q.value = 0.5;
+  lp.frequency.value = 3400; lp.Q.value = 0.5;
   const b1 = ctx.createBiquadFilter(); b1.type = 'peaking';
   b1.frequency.value = 520; b1.Q.value = 1.1; b1.gain.value = 5;
   const b2 = ctx.createBiquadFilter(); b2.type = 'peaking';
@@ -1167,7 +1167,7 @@ function reeds(t, i, midi, peak, hold) {
     const f = freq(m);
     // The upper reeds speak a few milliseconds late: the harmonics arrive after
     // the fundamental, and that lag is most of what an attack sounds like.
-    [[0, 'sawtooth', 0], [-5, 'sawtooth', 0.011], [6, 'triangle', 0.006]].forEach(r => {
+    [[0, 'sawtooth', 0], [-5, 'triangle', 0.011], [6, 'triangle', 0.006]].forEach(r => {
       const o = ctx.createOscillator(); o.type = r[1];
       o.frequency.value = f;
       o.detune.value = r[0] + (Math.random() - 0.5) * 3;
@@ -1194,22 +1194,56 @@ function reeds(t, i, midi, peak, hold) {
   air.start(t); air.stop(off);
 }
 
+/* Karplus-Strong. A burst of noise goes round a loop exactly one period long,
+   losing a little of its top on every pass — which is what a plucked string
+   physically does, and it sounds like it. Two sawtooths through a bandpass,
+   which is what was here, never will.
+
+   It is rendered into a buffer rather than built from a DelayNode because a
+   Web Audio feedback loop cannot be shorter than one render quantum: 128
+   samples puts a floor of about 375 Hz on the pitch, and a mandolin's bottom
+   string is 196. Buffers are cached per note; there are only ever a couple of
+   dozen. */
+const plucks = {};
+function pluckBuf(m) {
+  const key = m | 0;
+  if (plucks[key]) return plucks[key];
+  const sr = ctx.sampleRate, n = Math.max(2, Math.round(sr / freq(key)));
+  const len = Math.floor(sr * 0.9);
+  const buf = ctx.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0), ring = new Float32Array(n);
+  for (let i = 0; i < n; i++) ring[i] = Math.random() * 2 - 1;
+  const g = Math.exp(-1 / (sr * 0.34));   // a mandolin is gone in a third of a second
+  let p = 0;
+  for (let i = 0; i < len; i++) {
+    const cur = ring[p], nxt = ring[(p + 1) % n];
+    d[i] = cur;
+    ring[p] = (cur + nxt) * 0.5 * g;
+    p = (p + 1) % n;
+  }
+  plucks[key] = buf;
+  return buf;
+}
+
 /* A mandolin course is two strings tuned to the same note and never quite
-   getting there, and that near miss is the whole shimmer of the instrument.
-   Plucked: no attack worth the name and gone in half a second. A chord is
-   strummed rather than struck, so the notes arrive a few milliseconds apart —
-   `spread` is that hand moving across the strings. */
+   getting there. A chord is strummed rather than struck, so the notes arrive a
+   few milliseconds apart — `spread` is that hand crossing the strings. */
 function pluck(t, i, midi, peak, spread, hz) {
   midi.forEach((m, k) => {
-    const t0 = t + k * (spread || 0), f = freq(m);
+    const t0 = t + k * (spread || 0);
     const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = hz || 1900; bp.Q.value = 0.55;
-    const g = ctx.createGain(); env(g, t0, peak, 0.5);
+    bp.type = 'lowpass'; bp.frequency.value = hz || 5200; bp.Q.value = 0.6;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.85);
     bp.connect(g); tap(g, i);
-    [-9, 9].forEach(cents => {
-      const o = ctx.createOscillator(); o.type = 'sawtooth';
-      o.frequency.value = f; o.detune.value = cents + (Math.random() - 0.5) * 4;
-      o.connect(bp); o.start(t0); o.stop(t0 + 0.55);
+    [0, 7].forEach((cents, c) => {          // the two strings of the course
+      const src = ctx.createBufferSource();
+      src.buffer = pluckBuf(m);
+      src.detune.value = cents + (Math.random() - 0.5) * 5;
+      src.connect(bp);
+      src.start(t0 + c * 0.002); src.stop(t0 + 0.9);
     });
   });
 }
@@ -1333,7 +1367,7 @@ const VOICES = {
     const c = chordAt();
     const m = c.root + qual(iv[k % iv.length], c.maj), f = freq(m);
     if (timbre === 'fisa')   return button(t, i, f);
-    if (timbre === 'mando')  return pluck(t, i, [m], 0.256, 0, 600);
+    if (timbre === 'mando')  return pluck(t, i, [m], 0.42, 0, 1400);
     if (timbre === 'rhodes') return tine(t, i, [m], 0.24);
     if (timbre === 'organo') return drawbars(t, i, [m], 0.26, Math.max(0.1, stepDur()));
     const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
@@ -1352,7 +1386,7 @@ const VOICES = {
     const c = chordAt(), iv = SHAPES[shapeOf.stab].iv, root = c.root + 24;
     const md = iv.map(x => root + qual(x, c.maj));
     if (timbre === 'fisa')   return reeds(t, i, md, 0.028, Math.max(0.24, stepDur() * 3));
-    if (timbre === 'mando')  return pluck(t, i, md, 0.093, 0.014);
+    if (timbre === 'mando')  return pluck(t, i, md, 0.125, 0.016);
     if (timbre === 'rhodes') return tine(t, i, md, 0.041);
     if (timbre === 'organo') return drawbars(t, i, md, 0.038, Math.max(0.22, stepDur() * 3));
     iv.forEach((semi, k) => {
@@ -1373,7 +1407,7 @@ const VOICES = {
     // Tremolo picking: a mandolin has no sustain, so it holds a note by
     // repeating it. That flutter is what the instrument sounds like.
     if (timbre === 'mando') {
-      for (let k = 0; k < 4; k++) pluck(t + k * 0.055, i, [n], 0.215 * (k ? 0.78 : 1), 0);
+      for (let k = 0; k < 4; k++) pluck(t + k * 0.055, i, [n], 0.34 * (k ? 0.78 : 1), 0);
       return;
     }
     if (timbre === 'rhodes') return tine(t, i, [n], 0.22);
@@ -2029,7 +2063,7 @@ filtI.addEventListener('input', () => setFilt(Number(filtI.value)));
    same loudness. */
 const KITS = [
   { id:'machine', name:'Macchina' },
-  { id:'folk', name:'Tamburello', slots:{ kick:0.50, snare:0.88, clap:0.19, hat:0.90, ohat:0.38 } },
+  { id:'folk', name:'Tamburello', slots:{ kick:0.50, snare:0.88, clap:0.19, hat:0.90, ohat:0.62 } },
 ];
 let kit = 'machine';
 const kitBuf = {};
@@ -2456,18 +2490,26 @@ const GROOVES = [
 
   /* Bucolic: no kit at all except a tambourine on the beat, a mandolin, and the
      two longest recordings left to run whole. Nearly everything is silence. */
+  /* The first version was not bucolic, it was empty — one note every four beats
+     and nothing on the pulse at all. Country music is gentle, not absent: the
+     tambourine keeps the beat, the mandolin strums the off-beats the way a
+     rhythm guitar does, and a tune runs over the top. Cicoria and Antonio play
+     right through it. */
   { name:'Campagna', pack:'nonni', bpm:92, swing:0.55, timbre:'mando', kit:'folk',
-    air:0.75, verb:1.5, echo:false,
+    air:0.7, verb:1.4, echo:false,
     key:36, prog:'Stornello', shape:{bass:0,stab:3},
-    steps:{ ohat:[0,16,32,48],
-            bass:[0,16,32,48], stab:[8,24,40,56],
-            lead:[[4,4],[20,2],[36,4],[52,0]],
-            v6:[0], v4:[32] },
-    accent:{ ohat:[0,32] },
-    ghost:{ stab:[24,56] },
-    voice:{ 6:{rate:0.95,start:0,chop:0}, 4:{rate:1,start:0,chop:0} } },
-
-  /* A stornello is sung over a mandolin, so it is a mandolin that plays it. */
+    steps:{ kick:[0,8,16,24,32,40,48,56],
+            ohat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60],
+            bass:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60],
+            stab:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
+            lead:[[2,2],[6,4],[10,2],[13,0],
+                  [18,4],[22,5],[26,4],[29,2],
+                  [34,2],[38,0],[42,2],[45,4],
+                  [50,4],[54,2],[58,0],[61,2]],
+            v4:[0], v6:[32] },
+    accent:{ ohat:[0,16,32,48], kick:[0,32] },
+    ghost:{ ohat:[4,12,20,28,36,44,52,60], stab:[6,14,22,30,38,46,54,62] },
+    voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:0.95,start:0,chop:0} } },
   { name:'Stornello', pack:'nonni', timbre:'mando', kit:'folk', air:0.6, verb:1.3,
     bpm:100, swing:0, echo:false,
     key:36, prog:'Stornello', shape:{bass:0,stab:3},
@@ -2479,29 +2521,35 @@ const GROOVES = [
     ghost:{ ohat:[4] },
     voice:{ 0:{rate:1,start:0,chop:0}, 3:{rate:1,start:0,chop:8} } },
 
+  /* Written across all four bars so nothing restarts every time round. The one
+     that was here tiled a single bar, so whatever happened at the top of it —
+     including a voice arriving alone — happened again four times a loop, which
+     is not an intro, it is a stutter. Cicoria opens it once; Antonio takes the
+     second half. */
   { name:'Osteria', pack:'nonni', timbre:'fisa', kit:'folk', air:0.75, verb:1.45,
     bpm:126, swing:0.6, echo:false,
     key:34, prog:'Osteria', shape:{bass:1,stab:3},
-    steps:{ kick:[0,8], clap:[4,12], ohat:[0,2,4,6,8,10,12,14],
-            bass:[0,2,4,6,8,10,12,14], stab:[3,7,11,15],
+    steps:{ kick:[0,8,16,24,32,40,48,56],
+            clap:[4,12,20,28,36,44,52,60],
+            ohat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
+            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
+            stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
             v4:[0], v6:[32] },
-    accent:{ clap:[4,12], kick:[0], ohat:[0,8] },
-    ghost:{ ohat:[2,6,10,14], stab:[7,15] },
+    accent:{ clap:[4,12,20,28,36,44,52,60], kick:[0,32], ohat:[0,16,32,48] },
+    ghost:{ ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62], stab:[7,23,39,55] },
     voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
-
-  /* It kept reading as broken because the backbeat was on four but not on two.
-     Plain and regular now; sparse is a matter of how many notes, not of leaving
-     holes where the ear is waiting for something. */
+  /* It had a rhythm section and no tune at all, which is why it read as empty
+     rather than as sparse. The mandolin plays a serenade over it now. */
   { name:'Trastevere', pack:'nonni', timbre:'mando', kit:'folk', air:0.7, verb:1.4,
     bpm:88, swing:0.58, echo:false,
     key:36, prog:'Stornello', shape:{bass:0,stab:3},
     steps:{ kick:[0,8], snare:[4,12], ohat:[2,6,10,14],
             bass:[0,8], stab:[4,12],
+            lead:[[0,4],[3,2],[6,4],[10,5],[14,4]],
             v6:[0], v0:[40] },
     accent:{ snare:[4,12], kick:[0] },
     ghost:{ ohat:[2,6,10,14] },
     voice:{ 6:{rate:0.95,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
-
   { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.85, verb:1.6,
     bpm:96, meter:'6/8', bars:1, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
