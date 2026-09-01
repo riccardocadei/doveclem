@@ -797,7 +797,7 @@ const PACKS = [
    "1 bar" and "4 bars" as though a time signature were a length: `barLen` is
    the metre — sixteen sixteenths in common time, twelve in 6/8 — and `barsN` is
    how many of those bars go round. patLen is their product. */
-const STEPS = 64;
+const STEPS = 64, BARS_MAX = 4;
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
 /* Synth voices. `echo` is the default send into the delay bus; `tone` marks the
@@ -1317,7 +1317,8 @@ function button(t, i, f) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.1);
   lp.connect(g); tap(g, i);
   const off = t + hold + 0.12;
-  [[f, 'triangle', 0], [f, 'sawtooth', -6], [f * 2, 'triangle', 5]].forEach(r => {
+  // No sawtooth: it read as buzz next to a recorded right hand.
+  [[f, 'triangle', 0], [f, 'triangle', -6], [f * 2, 'triangle', 5]].forEach(r => {
     const o = ctx.createOscillator(); o.type = r[1];
     o.frequency.value = r[0]; o.detune.value = r[2];
     o.connect(lp); o.start(t); o.stop(off);
@@ -2585,7 +2586,7 @@ const GROOVES = [
      including a voice arriving alone — happened again four times a loop, which
      is not an intro, it is a stutter. Cicoria opens it once; Antonio takes the
      second half. */
-  { name:'Osteria', pack:'nonni', timbre:'fisa', kit:'folk', air:0.75, verb:1.45,
+  { name:'Osteria', pack:'nonni', timbre:'fisa', kit:'folk', air:0.5, verb:1.35,
     bpm:126, swing:0.6, echo:false,
     key:34, prog:'Osteria', shape:{bass:1,stab:3},
     steps:{ kick:[0,8,16,24,32,40,48,56],
@@ -2609,7 +2610,7 @@ const GROOVES = [
     accent:{ snare:[4,12], kick:[0] },
     ghost:{ ohat:[2,6,10,14] },
     voice:{ 6:{rate:0.95,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
-  { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.85, verb:1.6,
+  { name:'Tarantella', pack:'nonni', timbre:'fisa', kit:'folk', air:0.4, verb:1.35,
     bpm:96, meter:'6/8', bars:1, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     steps:{ kick:[0,6], clap:[4,10],
@@ -2624,16 +2625,23 @@ const GROOVES = [
 
 function loadGroove(gi) {
   const g = GROOVES[gi];
+  /* The metre has to be settled before the pattern is filled, because tiling
+     measures a bar in steps. Setting it afterwards meant loading a 4/4 pattern
+     straight after a 6/8 one laid it out on a twelve-step grid. */
+  setLen(g.meter || '4/4', g.bars || 4);
   pattern.forEach(row => row.fill(0));
   notes.forEach(row => row.fill(0));
-  // A groove that never names a step past the first bar is written for one bar
-  // and gets tiled across all four; one that does is taken as authored whole,
-  // which is how a groove earns a fill or a bar that drops out.
-  const oneBar = Object.keys(g.steps).every(k =>
-    g.steps[k].every(v => (v.length ? v[0] : v) < barLen));
-  const reps = oneBar ? barsN : 1;
+  /* Tiling is decided per lane, not per pattern. A lane written inside the
+     first bar is repeated across the rest; one that names a step beyond it is
+     taken as authored. Deciding it for the whole pattern meant a single voice
+     dropped at step 40 switched tiling off for the drums as well — Trastevere
+     played one bar and then three bars of silence, which is exactly what it
+     sounded like. */
+  const inFirstBar = list => list.every(v => (v.length ? v[0] : v) < barLen);
+  const repsFor = k => (g.steps[k] && !inFirstBar(g.steps[k])) ? 1 : BARS_MAX;
   TRACKS.forEach((trk, i) => {
     const k = trk.kind === 'voice' ? 'v' + trk.ci : trk.id;
+    const reps = repsFor(k);
     (g.steps[k] || []).forEach(v => {
       const s0 = v.length ? v[0] : v, d = v.length ? v[1] : 0;
       for (let b = 0; b < reps; b++) {
@@ -2649,8 +2657,9 @@ function loadGroove(gi) {
     [[g.accent, VELS[1]], [g.ghost, VELS[2]]].forEach(pair => {
       const list = pair[0] && pair[0][k];
       if (!list) return;
+      const areps = inFirstBar(list) ? reps : 1;
       list.forEach(s0 => {
-        for (let b = 0; b < reps; b++) {
+        for (let b = 0; b < areps; b++) {
           const s = s0 + b * barLen;
           if (s >= STEPS) break;
           if (pattern[i][s]) pattern[i][s] = pair[1];
@@ -2681,7 +2690,7 @@ function loadGroove(gi) {
   verbAmt = g.verb === undefined ? 1 : g.verb;
   if ((g.kit || 'machine') !== kit) loadKit(g.kit || 'machine');
   TRACKS.forEach((_, i) => paintDots(i));
-  setLen(g.meter || '4/4', g.bars || 4); paintPanel();
+  setPage(0); paintPanel();
 }
 
 function renderGrooves() {

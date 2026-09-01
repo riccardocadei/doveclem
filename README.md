@@ -261,9 +261,11 @@ bar 4 on the fourth.
 
 The lane shows one bar at a time, picked with the four buttons above it; the
 mixer shows all sixty-four steps at once, a dot per beat, because sixty-four
-dots on a mixer chip would be under two pixels each. A groove that never names
-a step past the first bar is written for one bar and gets tiled across all
-four. **Liana** is the one authored across the whole pattern — a four-bar lead,
+dots on a mixer chip would be under two pixels each. Tiling is decided **per lane**. A lane written inside the first bar is repeated
+across the rest; one that names a step beyond it is taken as authored, which is
+how a pattern earns a fill or a bar that drops out. Deciding it for the whole
+pattern is a trap: a single voice dropped at step 40 switched tiling off for the
+drums as well, and Trastevere played one bar followed by three of silence. **Liana** is the one authored across the whole pattern — a four-bar lead,
 a stab that sits out the last half bar, a fill into the top. Put it next to any
 of the others and the difference is the point of the change.
 
