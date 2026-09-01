@@ -376,10 +376,40 @@ a wet accordion in a dance hall is right is not a question a number can answer.
 It is a located, specific question, which is exactly what gate one and two are
 for handing to gate three.
 
-**Gate three, taste.** The app has a **Giudizio** panel: the groove you are
-listening to, and five one-tap answers — *troppo forte* (which then asks which
-track), *si annoia*, *impastato*, *la melodia non regge*, *va bene*. Stored per
-groove, and **Copia tutto** puts the lot on the clipboard.
+**Gate three, taste.** The app has a **Giudizio** panel, and it is not a feature
+of the app — it is a working tool, so it does not appear to whoever opens the
+link. Turn it on once per phone by visiting
+`…/doveclem/?autore=1`; it stays on. `?autore=0` turns it off. That is a
+visibility switch and not a lock — anyone reading this source knows how to flip
+it — but somebody else's judgments would not reach anywhere anyway: they sit in
+their own `localStorage` and stay there.
+
+Which is also the thing to know about your own. **The judgments never leave the
+phone by themselves.** There is no server; `Copia tutto` puts them on the
+clipboard as one readable line per groove, and that line has to be pasted
+somewhere a person will read it:
+
+```
+nonni/Balera — troppo forte: Stab · impastato
+clem/Chop — si annoia · «la voce si taglia a metà parola»
+```
+
+The vocabulary is twenty-two labels on two levels — tap a category, its entries
+open — so a precise complaint is still two taps rather than a wall of
+twenty-two chips. Five labels was too few for somebody with something to say
+about nearly every groove.
+
+Livelli: *troppo forte · troppo piano · impastato · impastato in basso · duro
+sugli acuti · troppo bagnato · troppo asciutto · troppa eco*. Ritmo: *si annoia ·
+non respira · troppo vuota · non spinge · troppo lenta · troppo veloce · il tempo
+balla*. Melodia: *la melodia non regge · stona · il basso non segue · tonalità
+troppo alta · troppo bassa*. Suono: *sa di finto · il suono non va · la voce è
+tagliata male*. Buona: *va bene · bella · la migliore*. Three of them ask which
+track, because "too loud" without saying what is not actionable.
+
+And there is a free-text box, which is not a fallback but the valve that keeps
+the vocabulary honest: **free text that recurs becomes a label, a label that
+recurs becomes a measurement.** Same loop as `coda`, one floor up.
 
 Three taps, not a paragraph. The reason is not politeness about anyone's time:
 "the accordion is terrible" arrived once and cost two hours to turn into "the

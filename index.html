@@ -414,6 +414,13 @@
      perché le etichette hanno lunghezze diverse. */
   .tags { display:flex; flex-wrap:wrap; gap:.4rem; }
   .tags .chip { padding:.45rem .6rem; text-transform:none; letter-spacing:.03em; font-size:.6875rem; }
+  #noteCats .chip { font-weight:600; }
+  #noteText {
+    display:block; width:100%; margin-top:.55rem; font:inherit; font-size:.75rem;
+    padding:.5rem .6rem; border:1px solid var(--line); border-radius:9px;
+    background:var(--pad); color:var(--ink); box-shadow:var(--inset); resize:vertical;
+  }
+  #noteText:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
   .rec-btn { width:100%; }
   .rec-btn[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
   #recActs { margin-top:.55rem; }
@@ -820,13 +827,16 @@
   <section class="grooves" id="grooves"></section>
   <section class="grooves saves" id="saves" hidden></section>
 
-  <div class="sect">
+  <!-- Nascosto a chiunque non abbia acceso il modo autore su questo telefono. -->
+  <div class="sect" id="noteHead" hidden>
     <span class="sect-t">Giudizio</span>
     <span class="sect-x" id="noteWho">&mdash;</span>
   </div>
-  <section class="panel-box">
-    <div class="tags" id="noteTags"></div>
+  <section class="panel-box" id="noteBox" hidden>
+    <div class="tags" id="noteCats"></div>
+    <div class="tags" id="noteTags" style="margin-top:.45rem"></div>
     <div class="tags" id="noteTracks" hidden style="margin-top:.45rem"></div>
+    <textarea id="noteText" rows="2" placeholder="quello che le etichette non dicono"></textarea>
     <span class="minis" style="margin-top:.6rem">
       <button class="mini" id="noteCopy" type="button">Copia tutto</button>
       <button class="mini" id="noteClear" type="button">Svuota</button>
@@ -3648,16 +3658,65 @@ recSaveBtn.addEventListener('click', async () => {
    questo modulo non è raccogliere opinioni: è che ogni etichetta che si ripete
    diventa una misura in score.html, ed è esattamente così che `coda` è nata. */
 const NOTE_KEY = 'doveclem.notes.v1';
-const TAGS = [
-  ['forte',   'troppo forte'],
-  ['noia',    'si annoia'],
-  ['impasto', 'impastato'],
-  ['melodia', 'la melodia non regge'],
-  ['ok',      'va bene'],
+/* Cinque etichette erano troppo poche: "avrei critiche di quasi ogni base ma
+   quel vocabolario è limitato". Ora sono ventidue, su due livelli — si tocca
+   una categoria e si aprono le sue voci — così restano due tocchi per arrivare
+   a una critica precisa invece di un muro di ventidue chip.
+
+   I cinque identificatori originali sopravvivono con lo stesso significato
+   (`forte`, `noia`, `impasto`, `melodia`, `ok`), perché ci sono già dei giudizi
+   scritti e buttarli via sarebbe stupido.
+
+   E c'è il campo libero, che non è un ripiego: è la valvola che tiene onesto il
+   vocabolario. Un testo libero che si ripete diventa un'etichetta, un'etichetta
+   che si ripete diventa una misura in score.html. È lo stesso giro di `coda`,
+   un piano più su. */
+const GROUPS = [
+  ['Livelli', [
+    ['forte',    'troppo forte'],
+    ['piano',    'troppo piano'],
+    ['impasto',  'impastato'],
+    ['mudbass',  'impastato in basso'],
+    ['duro',     'duro sugli acuti'],
+    ['bagnato',  'troppo bagnato'],
+    ['asciutto', 'troppo asciutto'],
+    ['ecotroppo', 'troppa eco'],
+  ]],
+  ['Ritmo', [
+    ['noia',     'si annoia'],
+    ['pieno',    'non respira'],
+    ['vuota',    'troppo vuota'],
+    ['spinta',   'non spinge'],
+    ['lenta',    'troppo lenta'],
+    ['veloce',   'troppo veloce'],
+    ['tempo',    'il tempo balla'],
+  ]],
+  ['Melodia', [
+    ['melodia',  'la melodia non regge'],
+    ['stona',    'stona'],
+    ['basso',    'il basso non segue'],
+    ['alta',     'tonalità troppo alta'],
+    ['bassa',    'tonalità troppo bassa'],
+  ]],
+  ['Suono', [
+    ['finto',    'sa di finto'],
+    ['suono',    'il suono non va'],
+    ['taglio',   'la voce è tagliata male'],
+  ]],
+  ['Buona', [
+    ['ok',       'va bene'],
+    ['bella',    'bella'],
+    ['top',      'la migliore'],
+  ]],
 ];
+const TAGS = GROUPS.reduce((a, g) => a.concat(g[1]), []);
+const LABEL = TAGS.reduce((o, t) => (o[t[0]] = t[1], o), {});
+const POS = ['ok', 'bella', 'top'];
+// queste tre non dicono niente se non si sa *quale* traccia
+const NEEDS_TRACK = ['forte', 'piano', 'suono'];
 const noteWho = $('noteWho'), noteTagsEl = $('noteTags'), noteTracksEl = $('noteTracks');
-const noteOut = $('noteOut');
-let noteGroove = '';
+const noteOut = $('noteOut'), noteBox = $('noteBox'), noteText = $('noteText');
+let noteGroove = '', noteOpen = '';
 
 function readNotes() {
   try { return JSON.parse(localStorage.getItem(NOTE_KEY)) || {}; }
@@ -3671,51 +3730,104 @@ function noteFor() {
   const all = readNotes();
   return all[noteGroove] || { tags: [], tracks: [] };
 }
+function edit(fn) {
+  const all = readNotes();
+  const e = all[noteGroove] || { tags: [], tracks: [], nota: '' };
+  fn(e);
+  e.t = new Date().toISOString();
+  if (!e.tags.length && !e.tracks.length && !(e.nota || '').trim()) delete all[noteGroove];
+  else all[noteGroove] = e;
+  writeNotes(all);
+}
+function chip(label, on, fn) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip';
+  b.textContent = label;
+  b.setAttribute('aria-pressed', String(!!on));
+  b.addEventListener('click', fn);
+  return b;
+}
 function paintNotes() {
+  if (noteBox.hidden) return;
   noteWho.textContent = noteGroove || '—';
   const cur = noteFor();
-  noteTagsEl.innerHTML = '';
-  TAGS.forEach(t => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'chip';
-    b.textContent = t[1];
-    b.setAttribute('aria-pressed', String(cur.tags.indexOf(t[0]) >= 0));
-    b.addEventListener('click', () => {
-      const all = readNotes(), e = all[noteGroove] || { tags: [], tracks: [] };
-      const k = e.tags.indexOf(t[0]);
-      if (k >= 0) e.tags.splice(k, 1); else e.tags.push(t[0]);
-      // "va bene" e una lamentela non stanno insieme
-      if (t[0] === 'ok' && e.tags.indexOf('ok') >= 0) { e.tags = ['ok']; e.tracks = []; }
-      else if (t[0] !== 'ok') { const j = e.tags.indexOf('ok'); if (j >= 0) e.tags.splice(j, 1); }
-      e.t = new Date().toISOString();
-      all[noteGroove] = e; writeNotes(all); paintNotes();
-    });
-    noteTagsEl.appendChild(b);
+  // primo livello: le categorie. Aperta quella che contiene già qualcosa.
+  if (!noteOpen) {
+    const g = GROUPS.find(gr => gr[1].some(t => cur.tags.indexOf(t[0]) >= 0));
+    noteOpen = g ? g[0] : GROUPS[0][0];
+  }
+  const cats = $('noteCats');
+  cats.innerHTML = '';
+  GROUPS.forEach(gr => {
+    const n = gr[1].filter(t => cur.tags.indexOf(t[0]) >= 0).length;
+    cats.appendChild(chip(gr[0] + (n ? ' ' + n : ''), gr[0] === noteOpen,
+      () => { noteOpen = gr[0]; paintNotes(); }));
   });
-  // "troppo forte" senza sapere *cosa* non è azionabile, quindi chiede la traccia
-  const wants = cur.tags.indexOf('forte') >= 0;
+  // secondo livello: le voci della categoria aperta
+  const open = GROUPS.find(gr => gr[0] === noteOpen) || GROUPS[0];
+  noteTagsEl.innerHTML = '';
+  open[1].forEach(t => {
+    noteTagsEl.appendChild(chip(t[1], cur.tags.indexOf(t[0]) >= 0, () => {
+      edit(e => {
+        const k = e.tags.indexOf(t[0]);
+        if (k >= 0) e.tags.splice(k, 1); else e.tags.push(t[0]);
+        /* Un elogio e una lamentela sullo stesso pezzo non stanno insieme: la
+           lista serve a dirmi cosa fare, e "bella però impastata" è una
+           lamentela. */
+        const pos = POS.indexOf(t[0]) >= 0;
+        if (pos && e.tags.indexOf(t[0]) >= 0) { e.tags = [t[0]]; e.tracks = []; }
+        else if (!pos) e.tags = e.tags.filter(x => POS.indexOf(x) < 0);
+      });
+      paintNotes();
+    }));
+  });
+  // e la traccia, quando l'etichetta da sola non dice niente
+  const wants = cur.tags.some(x => NEEDS_TRACK.indexOf(x) >= 0);
   noteTracksEl.hidden = !wants;
   noteTracksEl.innerHTML = '';
   if (wants) TRACKS.forEach(trk => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'chip';
-    b.textContent = trk.short;
-    b.setAttribute('aria-pressed', String(cur.tracks.indexOf(trk.id) >= 0));
-    b.addEventListener('click', () => {
-      const all = readNotes(), e = all[noteGroove] || { tags: [], tracks: [] };
-      const k = e.tracks.indexOf(trk.id);
-      if (k >= 0) e.tracks.splice(k, 1); else e.tracks.push(trk.id);
-      e.t = new Date().toISOString();
-      all[noteGroove] = e; writeNotes(all); paintNotes();
-    });
-    noteTracksEl.appendChild(b);
+    noteTracksEl.appendChild(chip(trk.short, cur.tracks.indexOf(trk.id) >= 0, () => {
+      edit(e => {
+        const k = e.tracks.indexOf(trk.id);
+        if (k >= 0) e.tracks.splice(k, 1); else e.tracks.push(trk.id);
+      });
+      paintNotes();
+    }));
   });
-  const all = readNotes(), n = Object.keys(all).filter(g => (all[g].tags || []).length).length;
+  if (noteText.value !== (cur.nota || '')) noteText.value = cur.nota || '';
+  const all = readNotes(), n = Object.keys(all).length;
   noteOut.textContent = n ? n + (n === 1 ? ' groove' : ' grooves') + ' con un giudizio'
                           : 'nessun giudizio ancora';
 }
+noteText.addEventListener('input', () => {
+  edit(e => { e.nota = noteText.value.slice(0, 400); });
+  const all = readNotes(), n = Object.keys(all).length;
+  noteOut.textContent = n + (n === 1 ? ' groove' : ' grooves') + ' con un giudizio';
+});
+/* Testo leggibile e non JSON: questo va incollato in una conversazione, non
+   letto da un programma, e una riga per groove si legge a colpo d'occhio. */
+function notesText() {
+  const all = readNotes(), names = Object.keys(all).sort();
+  if (!names.length) return 'nessun giudizio';
+  return names.map(g => {
+    const e = all[g], bits = [];
+    (e.tags || []).forEach(t => {
+      let l = LABEL[t] || t;
+      if (NEEDS_TRACK.indexOf(t) >= 0 && (e.tracks || []).length) {
+        const names2 = e.tracks.map(id => {
+          const trk = TRACKS.find(x => x.id === id);
+          return trk ? trk.short : id;
+        });
+        l += ': ' + names2.join(', ');
+      }
+      bits.push(l);
+    });
+    if ((e.nota || '').trim()) bits.push('«' + e.nota.trim() + '»');
+    return g + ' — ' + (bits.join(' · ') || '(vuoto)');
+  }).join('\n');
+}
 $('noteCopy').addEventListener('click', async () => {
-  const txt = JSON.stringify(readNotes(), null, 1);
+  const txt = notesText();
   try { await navigator.clipboard.writeText(txt); noteOut.textContent = 'copiato negli appunti'; }
   catch (e) {
     // su iOS un download finisce in un visore da cui non si salva: mostralo
@@ -3724,8 +3836,29 @@ $('noteCopy').addEventListener('click', async () => {
 });
 $('noteClear').addEventListener('click', () => {
   if (noteGroove) { const all = readNotes(); delete all[noteGroove]; writeNotes(all); }
+  noteText.value = '';
   paintNotes();
 });
+
+/* ---- modo autore ---- */
+/* Il pannello Giudizio non è una funzione dell'app, è uno strumento di lavoro, e
+   non deve comparire a chi apre il link. Si accende una volta per telefono con
+   ?autore=1 e resta acceso; ?autore=0 lo spegne. È un interruttore di
+   visibilità e non una serratura — chiunque leggesse questo sorgente saprebbe
+   come accenderlo — ma i giudizi di un altro non arriverebbero comunque da
+   nessuna parte: stanno nel suo localStorage e ci restano. */
+const AUTHOR_KEY = 'doveclem.autore';
+(function () {
+  const q = new URLSearchParams(location.search).get('autore');
+  try {
+    if (q === '1') localStorage.setItem(AUTHOR_KEY, '1');
+    else if (q === '0') localStorage.removeItem(AUTHOR_KEY);
+  } catch (e) {}
+  let on = false;
+  try { on = localStorage.getItem(AUTHOR_KEY) === '1'; } catch (e) { on = q === '1'; }
+  $('noteHead').hidden = !on;
+  noteBox.hidden = !on;
+})();
 
 /* ---- saved patterns ---- */
 /* Everything the app can be in, minus what is rebuilt anyway. The pack is
