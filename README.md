@@ -165,21 +165,26 @@ app does on launch (`navigator.audioSession`); on older iOS the switch still win
 
 ## Playing it
 
-**Mixer** shows every track at once, split into **Machine** — the synthesised
-drums, bass, stab and lead — and the current pack's **voices**. Each chip has 16
-dots for its pattern, the tall bright dot is the playhead, and a chip tints as it
-fires, so you can see what is making the sound. Tap a chip to select and hear it;
-the bar down its right edge mutes.
+The tracks live in three racks, each under the picker that decides what it is
+played on: **Batteria** for the five drums, **Strumenti** for the bass, stab and
+lead, **Voci** for the current pack's clips. It used to be one box called Mixer
+with a header inside reading "Machine", which named neither the thing nor what
+the picker two inches away would do to it.
+
+Each chip carries the pattern as dots — one per beat across four bars, or one
+per step in a short bar, with the ones outside the loop dimmed. The tall bright
+dot is the playhead, and a chip tints as it fires, so you can see what is making
+the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 
 | Control | What it does |
 | --- | --- |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
 | Filtro | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
-| 6/8 · 1 bar · 4 bars | How much of the pattern loops. **6/8** is a twelve-step bar — four beats of three — which is what a tarantella actually is; the four cells left over go dim |
-| Batteria | The drums: the synthesised **Macchina**, or **Tamburello** — a real cajón, tambourine, shaker and hand claps |
+| 6/8 · 1 bar · 4 bars | How much of the pattern loops. **6/8** is a twelve-step bar counted in threes — the lane's gaps, beat shading and ruler all regroup, or it just looks like a 4/4 bar somebody cut short. The four cells left over go dim |
+| Batteria | The drums: the synthesised **Macchina**, or **Tamburello** — a real cajón, tambourine, shaker and hand claps. It sits in the header of the rack it governs |
+| Strumenti | Bass, stab and lead: Synth italo, Fisarmonica, Mandolino, Rhodes, Organo |
 | Bar 1–4 | Which bar the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
-| Strumento | What the pitched tracks are played on — Synth italo, Fisarmonica, Rhodes or Organo. Stab, Lead and Bass follow it; the drums never change |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
 | Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root. The giro also picks the Lead's scale |
 | Pattern | Tap a step to write it, tap it again to clear it, drag to paint a run or to erase one. **Hold** a written step to walk it round: normal, accent, ghost |
@@ -292,6 +297,7 @@ moves the Stab and the Bass with it:
 | --- | --- |
 | Synth italo | Detuned sawtooths straight into the delay |
 | Fisarmonica | Three reeds a few cents apart; the beating between them is the wobble |
+| Mandolino | Paired strings that never quite agree, plucked and gone in half a second. Chords are strummed, not struck; the lead tremolo-picks, because a mandolin holds a note by repeating it |
 | Rhodes | A struck tine — a sine body under a bright partial that dies at once |
 | Organo | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
 
@@ -334,7 +340,7 @@ stornello, the tarantella — and two where it appears in only half the bars.
 | Talk *(clem)* | 84 | machine | — | minor, swung | — |
 | Stornello *(nonni)* | 100 | tamburello | Fisarmonica | major | yes |
 | Osteria *(nonni)* | 124 | tamburello | Fisarmonica | major | — |
-| Trastevere *(nonni)* | 82 | tamburello | Fisarmonica | major, swung | — |
+| Trastevere *(nonni)* | 82 | tamburello | Mandolino | major, swung | — |
 | Tarantella *(nonni)* | 96 | tamburello | Fisarmonica | harmonic minor, **6/8** | yes |
 
 Five of them were rewritten again after listening notes, and the reasons are
