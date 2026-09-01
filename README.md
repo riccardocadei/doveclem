@@ -353,7 +353,7 @@ place a note, drag to draw a line, tap a lit cell again to erase. The lead stays
 in the key's scale rather than transposing with the chords, which is what lets a
 tune stay recognisable while the harmony moves under it.
 
-### Basi
+### Patterns
 
 They are called **basi** — backing tracks — rather than grooves, because a
 groove is a rhythmic feel and these are more than that: each one carries the
@@ -373,22 +373,25 @@ is not. Clem's *Liana* states Clementina twice and lets Marco answer in the
 third bar; Nonni's chops "Ho un disturbo" into the beat and drops "A Già, sta
 zitto" across the break.
 
-| | BPM | Drums | Instrument | Mode | Lead |
-| --- | --- | --- | --- | --- | --- |
-| Liana | 118 | machine | Synth italo | minor | bars 2 and 4 |
-| Carosone | 130 | machine | Rhodes | harmonic minor, swung | bars 3 and 4 |
-| Notte | 104 | machine | Organo | minor, swung | — |
-| Autostrada | 124 | machine | Synth italo | minor | — |
-| Riviera *(clem)* | 126 | machine | Synth italo | minor | — |
-| Coro *(clem)* | 104 | tamburello | Rhodes | major | — |
-| Chop *(clem)* | 96 | machine | Synth italo | minor | — |
-| Talk *(clem)* | 84 | machine | — | minor, swung | — |
-| Stornello *(nonni)* | 100 | tamburello | Fisarmonica | major | yes |
-| Osteria *(nonni)* | 126 | tamburello | Fisarmonica | major, swung | — |
-| Trastevere *(nonni)* | 88 | tamburello | Mandolino | major, swung | — |
-| Tarantella *(nonni)* | 96 | tamburello | Fisarmonica | harmonic minor, **6/8** | yes |
+| | BPM | Drums | Instrument | Voices |
+| --- | --- | --- | --- | --- |
+| Liana | 118 | machine · folk | Synth italo | Clementina whole / Disturbo chopped |
+| Balera | 126 · 112 | machine · folk | Rhodes · Fisarmonica | two long clips whole |
+| Notte | 104 | machine | Organo | one whole, one chopped |
+| Discoteca *(clem)* | 124 | machine | Synth italo | Theory whole under the beat |
+| Campagna *(nonni)* | 92 | folk | Mandolino | the two longest, whole |
+| Riviera *(clem)* | 126 | machine | Synth italo | Marco chopped |
+| Coro *(clem)* | 104 | folk | Rhodes | Clementina, doubled |
+| Chop *(clem)* | 96 | machine | Synth italo | four, sliced to two steps |
+| Talk *(clem)* | 84 | machine | — | two, whole |
+| Stornello *(nonni)* | 100 | folk | Mandolino | whole and chopped |
+| Osteria *(nonni)* | 126 | folk | Fisarmonica | two long clips whole |
+| Trastevere *(nonni)* | 88 | folk | Mandolino | two, whole |
+| Tarantella *(nonni)* | 96 · 6/8 | folk | Fisarmonica | one, stuttered |
 
-The first four exist in both packs; Nonni's take the folk kit and a room.
+Five names exist in both packs with the same machine under them and different
+talking on top. **Long clips are left whole** — a four-second recording running
+across four bars is a vocal; the same recording cut into eighths is confetti.
 
 Five of them were rewritten again after listening notes, and the reasons are
 worth keeping:
