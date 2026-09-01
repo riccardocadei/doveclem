@@ -95,6 +95,19 @@ louder than the part it is meant to hold up — and now sits 6 to 8 dB under it.
 The sequencer was level with the stab at the peak but nine decibels under in RMS,
 which is a thing that disappears in a mix, so it came up two and a half.
 
+### Saved patterns survive a change of voices
+
+A snapshot stores its rows by position, which was fine until three voices went
+in *between* the ones already there. Every pattern anybody had saved would have
+loaded its chord stab onto the strings and its lead onto the stab, silently.
+Snapshots carry the list of track ids they were written with now, and the ones
+that predate it are read against the order they were written in. Saves also
+kept losing four things — the humanising amount, a groove's own bass intervals,
+the reverb amount and the fill — so a pattern came back dead on the grid and
+without its fill. Both are fixed and both are tested: a v1-shaped snapshot
+restores with its six stab hits on the stab, and the strings, the guitar and
+the sequencer empty rather than holding somebody else's part.
+
 ### Five grooves from five records
 
 - **Clem / Fantasia** — Mind Enterprises. The bassline *is* the piece:

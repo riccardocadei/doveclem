@@ -3483,6 +3483,14 @@ recSaveBtn.addEventListener('click', async () => {
    stored by id rather than by index so reordering PACKS cannot load a pattern
    onto the wrong voices. */
 const SAVE_KEY = 'doveclem.saves.v1';
+/* The order of SYNTHS changed when the strings, the rhythm guitar and the
+   sequencer went in *between* the voices that were already there, and a
+   snapshot stores its rows by position. Left alone, every pattern anybody had
+   saved would have loaded its chord stab onto the strings and its lead onto the
+   stab — silently, with no error to notice. Snapshots carry their track ids
+   now; the ones that do not are read against the order they were written in.
+   Do not delete this list, and do not reorder SYNTHS without adding another. */
+const V1_TRACKS = ['kick', 'clap', 'snare', 'hat', 'ohat', 'bass', 'stab', 'lead'];
 const savesEl = $('saves');
 
 function readSaves() {
@@ -3495,9 +3503,23 @@ function writeSaves(o) {
 }
 function snapshot() {
   return {
+    /* Which row is which. Everything below is stored by position, so without
+       this a snapshot is only readable by the exact build that wrote it. */
+    tracks: TRACKS.map(t => t.id),
     pack: PACKS[packIx].id, bpm: bpm, key: key, prog: PROGS[progIx].name,
     timbre: timbre, kit: kit, air: air, swing: swing, pump: pump,
     meter: mtr.id, bars: barsN, shape: { ...shapeOf }, filt: filtV,
+    // these four were being dropped: a saved pattern came back without its
+    // fill, on the shape's intervals instead of its own, dead on the grid,
+    // and in whatever room the last groove had left behind
+    human: human, bassIv: bassIv, verb: verbAmt,
+    fill: fillPat ? TRACKS.reduce((o, trk, i) => {
+      if (!fillHas[i]) return o;
+      const l = [];
+      fillPat[i].forEach((v, q) => { if (v) l.push([q, v]); });
+      o[trk.id] = l;
+      return o;
+    }, {}) : null,
     pattern: pattern.map(r => r.slice()), notes: notes.map(r => r.slice()),
     vol: vol.slice(), mute: mute.slice(), send: send.slice(),
     voice: vparams.map(v => ({ ...v }))
@@ -3510,14 +3532,28 @@ async function restore(o) {
     packSel.dispatchEvent(new Event('change'));
     await new Promise(r => setTimeout(r, 0));
   }
-  pattern = o.pattern.map(r => r.slice());
-  notes = o.notes.map(r => r.slice());
+  /* Rows are matched by track id, not by position. A snapshot from before the
+     three new voices lists eight synths and then its clips, and reading it
+     positionally against eleven synths puts every part one or two tracks off. */
+  const ids = o.tracks || V1_TRACKS.concat(
+    ((PACKS.find(p => p.id === o.pack) || PACKS[0]).clips || []).map((_, k) => 'v' + k));
+  const at = {};
+  ids.forEach((id, k) => { at[id] = k; });
+  const row = (arr, i) => {
+    const k = at[TRACKS[i].id];
+    const r = (k !== undefined && arr) ? arr[k] : null;
+    return (r && r.length === STEPS) ? r.slice() : new Array(STEPS).fill(0);
+  };
+  const scalar = (arr, i, dflt) => {
+    const k = at[TRACKS[i].id];
+    return (k !== undefined && arr && arr[k] !== undefined) ? arr[k] : dflt;
+  };
+  pattern = TRACKS.map((_, i) => row(o.pattern, i));
+  notes = TRACKS.map((_, i) => row(o.notes, i));
   TRACKS.forEach((trk, i) => {
-    if (!pattern[i]) pattern[i] = new Array(STEPS).fill(0);
-    if (!notes[i]) notes[i] = new Array(STEPS).fill(0);
-    vol[i] = o.vol[i] !== undefined ? o.vol[i] : 1;
-    mute[i] = !!o.mute[i];
-    send[i] = o.send[i] !== undefined ? o.send[i] : trk.echo;
+    vol[i] = scalar(o.vol, i, 1);
+    mute[i] = !!scalar(o.mute, i, false);
+    send[i] = scalar(o.send, i, trk.echo);
     if (trkEls[i]) {
       trkEls[i].dataset.mute = mute[i] ? '1' : '0';
       const m = trkEls[i].querySelector('.trk-m');
@@ -3526,7 +3562,23 @@ async function restore(o) {
     reChan(i);
   });
   (o.voice || []).forEach((v, i) => { if (vparams[i]) Object.assign(vparams[i], v); });
-  shapeOf = { ...o.shape };
+  // same defaults as loadGroove: a snapshot written before the strings existed
+  // names no shape for them, and SHAPES[undefined] throws the moment one fires
+  shapeOf = { bass:1, pad:3, stab:3, chank:3, arp:2, ...o.shape };
+  bassIv = o.bassIv || null;
+  human = o.human === undefined ? 1 : o.human;
+  verbAmt = o.verb === undefined ? 1 : o.verb;
+  fillPat = null; fillHas = null;
+  if (o.fill) {
+    fillPat = TRACKS.map(() => new Array(barLen).fill(0));
+    fillHas = TRACKS.map(() => false);
+    TRACKS.forEach((trk, i) => {
+      const l = o.fill[trk.id];
+      if (!l) return;
+      fillHas[i] = true;
+      l.forEach(x => { if (x[0] < barLen) fillPat[i][x[0]] = x[1]; });
+    });
+  }
   setTimbre(o.timbre); setKey(o.key); setProg(progIndex(o.prog));
   setAir(o.air); if ((o.kit || 'machine') !== kit) loadKit(o.kit || 'machine');
   swing = o.swing || 0; pump = !!o.pump;
