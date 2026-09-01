@@ -27,6 +27,17 @@ audio/<pack>/*.m4a         one folder per voice pack
 icons/*.png                home-screen and maskable icons
 ```
 
+## Saving what you make
+
+**Save** writes the whole state into this browser's `localStorage` under a name:
+the pattern with its accents, every track's level, mute and echo send, the clip
+trims, tempo, key, giro, instrument, filter, and whether one bar or four is
+looping. The pack is stored by id, not by index, so reordering `PACKS` can never
+load a pattern onto the wrong voices.
+
+It is per browser and per device — nothing leaves the phone, and nothing is
+shared between the installed app and the same site in Safari.
+
 ## Trimming the clips
 
 A phone voice memo has dead air at both ends, and it is not digital silence —
@@ -153,6 +164,7 @@ the bar down its right edge mutes.
 | Chop | Snaps the end to 1, 2, 4 or 8 steps, or Full |
 | Forward / Reverse | Sample direction — the waveform mirrors so you are still looking at what you hear |
 | Cut / Overlap | Whether re-firing a voice stops the one already playing or lets them stack |
+| Save | Keeps the whole state under a name, in this browser: pattern, mix, clip trims, tempo, key, giro and instrument. Saved ones appear under the presets |
 | Keys 1–9 | Trigger the first nine tracks from a keyboard |
 
 ### Four bars
@@ -262,39 +274,45 @@ place a note, drag to draw a line, tap a lit cell again to erase. The lead stays
 in the key's scale rather than transposing with the chords, which is what lets a
 tune stay recognisable while the harmony moves under it.
 
-### Grooves
+### Basi
 
-Four shared and four for the pack you have loaded, eight on screen. They are
-ordered by how finished they sound, which is a structural judgement and not a
+They are called **basi** — backing tracks — rather than grooves, because a
+groove is a rhythmic feel and these are more than that: each one carries the
+pattern, the tempo, the key, the four-bar giro, the instrument, the mix and the
+clip trims. Loading one replaces everything.
+
+Four shared and four for the pack you have loaded, eight on screen, ordered by
+how finished they sound. That ordering is a structural judgement and not a
 verdict on taste — reorder them freely, it is one array.
 
-What they are not is four takes on one idea. No two share a tempo, and
-instrument, mode, feel and density all move across the set:
+Two things went wrong before and are worth writing down. The first set were
+four takes on one idea at slightly different tempos. The second set fixed that
+but nearly every one carried a lead playing all the way through, and **a melody
+that never stops is the sound of a ringtone**. Eight of the twelve have no lead
+at all now: in italo the hook is the bass line, and where a voice is playing,
+the voice is the melody. The four that keep one are the song forms — the
+stornello, the tarantella — and two where it appears in only half the bars.
 
-| | BPM | Instrument | Mode | Hits/bar |
-| --- | --- | --- | --- | --- |
-| Liana | 118 | Synth italo | minor | 29 |
-| Sanremo | 92 | Rhodes | major | 16 |
-| Notte | 104 | Organo | minor, swung | 15 |
-| Autostrada | 132 | Synth italo | minor | 38 |
-| Riviera *(clem)* | 126 | Synth italo | minor | 30 |
-| Coro *(clem)* | 108 | Rhodes | major | 17 |
-| Chop *(clem)* | 96 | Synth italo | minor | 23 |
-| Talk *(clem)* | 84 | — | minor, swung | 11 |
-| Stornello *(nonni)* | 100 | Fisarmonica | major | 18 |
-| Osteria *(nonni)* | 116 | Fisarmonica | major | 29 |
-| Trastevere *(nonni)* | 80 | Fisarmonica | major, swung | 10 |
-| Tarantella *(nonni)* | 142 | Fisarmonica | harmonic minor | 41 |
+| | BPM | Instrument | Mode | Lead | Hits/bar |
+| --- | --- | --- | --- | --- | --- |
+| Liana | 118 | Synth italo | minor | bars 2 and 4 | 25 |
+| Sanremo | 92 | Rhodes | major | bars 2 and 4 | 15 |
+| Notte | 104 | Organo | minor, swung | — | 12 |
+| Autostrada | 132 | Synth italo | minor | bars 3 and 4 | 43 |
+| Riviera *(clem)* | 126 | Synth italo | minor | — | 22 |
+| Coro *(clem)* | 108 | Rhodes | major | — | 13 |
+| Chop *(clem)* | 96 | Synth italo | minor | — | 23 |
+| Talk *(clem)* | 84 | — | minor, swung | — | 11 |
+| Stornello *(nonni)* | 100 | Fisarmonica | major | yes | 14 |
+| Osteria *(nonni)* | 116 | Fisarmonica | major | — | 23 |
+| Trastevere *(nonni)* | 80 | Fisarmonica | major, swung | — | 8 |
+| Tarantella *(nonni)* | 142 | Fisarmonica | harmonic minor | yes | 41 |
 
-The four shared ones are written across all sixty-four steps — **Liana** has a
-lead that never repeats and a stab that sits out the last half bar; **Autostrada**
-drops its sixteenth bass to eighths in the fourth bar and lets the hats run, which
-is space by subtraction rather than by playing less. The pack ones are one bar and
-get tiled, because what varies in those is the talking. **Coro** is the odd one:
-three voices with Overlap on, piling up on each other instead of cutting.
+Every one of them uses accents and ghost notes — a backbeat that leans, hats
+with every other sixteenth lightened. An unaccented pattern is a metronome
+whatever is playing on it.
 
-Density is most of what separates a groove from a wall. An earlier preset landed
-59 hits in a bar — hats on all sixteen, bass on all sixteen, a thirteen-note lead
-— and read as noise. It is gone.
+A base can declare `accent:{ kick:[0,32] }` and `ghost:{ hat:[...] }` alongside
+its steps; both tile across the four bars the same way the steps do.
 
 Patterns live in memory only, so they reset when the app is closed.
