@@ -25,6 +25,8 @@ manifest.webmanifest       PWA metadata — name, icons, standalone display
 sw.js                      service worker: network-first shell, cached audio
 audio/<pack>/*.m4a         one folder per voice pack
 audio/kit/<kit>/*.m4a      one folder per drum kit
+audio/instr/<id>/<midi>.m4a  recorded instruments, one file per note
+tuning.html                a sample against a sine, for checking an octave
 icons/*.png                home-screen and maskable icons
 ```
 
@@ -340,7 +342,7 @@ moves the Stab and the Bass with it:
 | | |
 | --- | --- |
 | Synth italo | Detuned sawtooths straight into the delay |
-| Fisarmonica | Three reeds a few cents apart; the beating between them is the wobble |
+| Fisarmonica | A recorded Hohner button accordion — eight notes, the rest repitched between them, never more than two semitones. The synthesised reeds remain as the fallback if the notes do not load |
 | Mandolino | Karplus-Strong: a burst of noise going round a loop one period long, losing its top on every pass, which is what a plucked string physically does. Two strings to a course, chords strummed rather than struck, and the lead tremolo-picks because a mandolin holds a note by repeating it |
 | Rhodes | A struck tine — a sine body under a bright partial that dies at once |
 | Organo | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
