@@ -343,17 +343,18 @@ groove is a rhythmic feel and these are more than that: each one carries the
 pattern, the tempo, the key, the four-bar giro, the instrument, the mix and the
 clip trims. Loading one replaces everything.
 
-Four shared and four for the pack you have loaded, eight on screen, ordered by
-how finished they sound. That ordering is a structural judgement and not a
-verdict on taste — reorder them freely, it is one array.
+Eight per pack, ordered by how finished they sound — a structural judgement,
+not a verdict on taste; reorder them freely, it is one array.
 
-Two things went wrong before and are worth writing down. The first set were
-four takes on one idea at slightly different tempos. The second set fixed that
-but nearly every one carried a lead playing all the way through, and **a melody
-that never stops is the sound of a ringtone**. Eight of the twelve have no lead
-at all now: in italo the hook is the bass line, and where a voice is playing,
-the voice is the melody. The four that keep one are the song forms — the
-stornello, the tarantella — and two where it appears in only half the bars.
+**There is no such thing as a base that does not care which voices are loaded.**
+Four of these used to be shared between the packs, and a shared base can only
+ever touch `v0`, whole and unchopped, because that is all any pack is
+guaranteed to have — which is the weakest possible use of the one thing this
+app is for. Every base belongs to a pack now. Where two packs have a base with
+the same name the machine underneath is the same; what it does with the talking
+is not. Clem's *Liana* states Clementina twice and lets Marco answer in the
+third bar; Nonni's chops "Ho un disturbo" into the beat and drops "A Già, sta
+zitto" across the break.
 
 | | BPM | Drums | Instrument | Mode | Lead |
 | --- | --- | --- | --- | --- | --- |
@@ -369,6 +370,8 @@ stornello, the tarantella — and two where it appears in only half the bars.
 | Osteria *(nonni)* | 126 | tamburello | Fisarmonica | major, swung | — |
 | Trastevere *(nonni)* | 88 | tamburello | Mandolino | major, swung | — |
 | Tarantella *(nonni)* | 96 | tamburello | Fisarmonica | harmonic minor, **6/8** | yes |
+
+The first four exist in both packs; Nonni's take the folk kit and a room.
 
 Five of them were rewritten again after listening notes, and the reasons are
 worth keeping:
