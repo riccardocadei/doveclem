@@ -378,11 +378,28 @@ for handing to gate three.
 
 **Gate three, taste.** The app has a **Giudizio** panel, and it is not a feature
 of the app — it is a working tool, so it does not appear to whoever opens the
-link. Turn it on once per phone by visiting
-`…/doveclem/?autore=1`; it stays on. `?autore=0` turns it off. That is a
-visibility switch and not a lock — anyone reading this source knows how to flip
-it — but somebody else's judgments would not reach anywhere anyway: they sit in
-their own `localStorage` and stay there.
+link. Two ways to turn it on, and neither needs a URL:
+
+- **Type `riccardo` at the door** instead of `cicoria`. It unlocks *and* turns on
+  author mode.
+- **Press and hold the logo** for a second, on a phone that is already unlocked.
+  It toggles, and says which way it went.
+
+`?autore=1` and `?autore=0` also work, but only in a browser with an address bar.
+That was the *only* mechanism at first and it was the wrong one: the manifest has
+`start_url: "./"` and `display: standalone`, so the home-screen icon opens the app
+with no parameters and nowhere to add one. On a phone where the door had already
+been answered there was no way in at all.
+
+It is a visibility switch and not a lock — anyone reading this source knows how
+to flip it — but somebody else's judgments would not reach anywhere anyway: they
+sit in their own `localStorage` and stay there.
+
+**One trap worth knowing.** On iOS a home-screen web app and Safari are separate
+storage. A judgment written in the installed app is not visible in Safari and the
+other way round, so `Copia tutto` has to be pressed in the same place the
+judgments were written. The panel's own counter tells you which context you are
+in: it says how many judgments *this* one holds.
 
 Which is also the thing to know about your own. **The judgments never leave the
 phone by themselves.** There is no server; `Copia tutto` puts them on the

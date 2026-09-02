@@ -550,6 +550,10 @@
   .gate-note { margin:.1rem 0 0; font-size:.78rem; line-height:1.45; color:var(--ink-2); }
   .gate-note[data-bad="1"] { color:var(--accent); }
 
+  /* Il logo prende una pressione lunga (modo autore), quindi niente selezione
+     del testo né menu contestuale sopra. */
+  .wordmark { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+
   .veil {
     position:fixed; inset:0; z-index:20; width:100%;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -612,6 +616,12 @@
    where this app has to be tested. */
 (function () {
   var GATE = '1s193lh.1ikp4v3';        // knock('cicoria'); README says how to change it
+  /* Una seconda parola che apre *e* accende il modo autore. Serve perché
+     `?autore=1` è irraggiungibile dall'app installata: il manifest ha
+     start_url "./" e display standalone, quindi l'icona sulla home apre la
+     pagina senza parametri e non c'è barra degli indirizzi in cui aggiungerne
+     uno. La porta invece c'è sempre. */
+  var GATE_AUTORE = '13d6ps0.dtf4b0';  // knock('riccardo')
   var KEY = 'doveclem.gate';
   function knock(w) {
     var a = 0x811c9dc5, b = 5381;
@@ -632,7 +642,17 @@
   document.getElementById('gateForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var el = document.getElementById('gateIn'), note = document.getElementById('gateNote');
-    if (knock(el.value.trim().toLowerCase()) === GATE) {
+    var k = knock(el.value.trim().toLowerCase());
+    if (k === GATE_AUTORE) {
+      try { localStorage.setItem(KEY, GATE); localStorage.setItem('doveclem.autore', '1'); } catch (e2) {}
+      // il pannello è già nel documento a questo punto: si scopre da qui
+      var h = document.getElementById('noteHead'), bx = document.getElementById('noteBox');
+      if (h) h.hidden = false;
+      if (bx) bx.hidden = false;
+      if (window.paintNotes) window.paintNotes();
+      return let_in();
+    }
+    if (k === GATE) {
       try { localStorage.setItem(KEY, GATE); } catch (e2) {}
       return let_in();
     }
@@ -3848,16 +3868,48 @@ $('noteClear').addEventListener('click', () => {
    come accenderlo — ma i giudizi di un altro non arriverebbero comunque da
    nessuna parte: stanno nel suo localStorage e ci restano. */
 const AUTHOR_KEY = 'doveclem.autore';
+function setAuthor(on) {
+  try {
+    if (on) localStorage.setItem(AUTHOR_KEY, '1');
+    else localStorage.removeItem(AUTHOR_KEY);
+  } catch (e) {}
+  $('noteHead').hidden = !on;
+  noteBox.hidden = !on;
+  if (on) paintNotes();
+}
 (function () {
   const q = new URLSearchParams(location.search).get('autore');
+  let on = false;
   try {
     if (q === '1') localStorage.setItem(AUTHOR_KEY, '1');
     else if (q === '0') localStorage.removeItem(AUTHOR_KEY);
-  } catch (e) {}
-  let on = false;
-  try { on = localStorage.getItem(AUTHOR_KEY) === '1'; } catch (e) { on = q === '1'; }
+    on = localStorage.getItem(AUTHOR_KEY) === '1';
+  } catch (e) { on = q === '1'; }
   $('noteHead').hidden = !on;
   noteBox.hidden = !on;
+})();
+
+/* Una pressione lunga sul logo accende e spegne il modo autore.
+   `?autore=1` da solo non basta: l'app installata apre start_url "./" senza
+   barra degli indirizzi, quindi su un telefono che ha già la porta aperta non
+   esisteva nessun modo di accendere il pannello. Un secondo sul titolo sì, e
+   nessuno ci arriva per caso. */
+(function () {
+  const mark = document.querySelector('.wordmark');
+  if (!mark) return;
+  let hold = 0;
+  const cancel = () => { if (hold) { clearTimeout(hold); hold = 0; } };
+  mark.addEventListener('pointerdown', () => {
+    hold = setTimeout(() => {
+      hold = 0;
+      const on = noteBox.hidden;
+      setAuthor(on);
+      say(on ? 'Modo autore acceso: il pannello Giudizio è in fondo.'
+             : 'Modo autore spento. I giudizi restano dove sono.');
+    }, 900);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+    mark.addEventListener(ev, cancel));
 })();
 
 /* ---- saved patterns ---- */
