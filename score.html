@@ -670,6 +670,10 @@ async function runLevels() {
     ['Permanente', ['bass', 'arp', 'pad', 'lead']],
     ['Balera',     ['bass', 'stab', 'lead']],
     ['Testaccio',  ['bass', 'stab', 'chank', 'pad', 'lead']],
+    /* The box's own left hand. It replaces a recorded electric bass on the
+       traditional grooves, and two instruments swapping places have no reason
+       at all to arrive at the same loudness. */
+    ['Tarantella', ['bass', 'stab', 'lead']],
   ];
   /* The rhythm guitar has two paths — the samples on the Guitar setting and
      the synthetic stand-in everywhere else — and only one of them was being
@@ -680,6 +684,10 @@ async function runLevels() {
      instrument changed, so the two peaks are directly comparable. Guitar is
      the reference on both because it is a real recording that has been in
      scale for a while. */
+  /* Same bar, same notes, one thing changed: the bass that plays it. This is
+     how the accordion's 4.8 dB was found and it is the only comparison worth
+     making between two different instruments. */
+  const boxes = [['Tarantella', 'on'], ['Tarantella', 'off']];
   const forced = [['Testaccio', 'chit', ['chank', 'stab']],
                   ['Notte', 'organo', ['stab', 'lead']],
                   ['Notte', 'chit',   ['stab', 'lead']],
@@ -740,6 +748,35 @@ async function runLevels() {
                   picco: r2(dB(pk)), rms: r2(dB(Math.sqrt(sq / Math.max(1, n)))) });
     }
   }
+  // the forced loop above leaves a timbre set, and this one needs the groove's
+  // own — the box bass only exists on the accordion
+  w.dev.timbre = '';
+  for (const [name, mode] of boxes) {
+    const g = gs.find(x => x.name === name);
+    if (!g) continue;
+    w.dev.boxBass = mode;
+    log('levels \u2014 ' + name + ' bass ' + (mode === 'on' ? 'on the box' : 'on the record'));
+    seed(w, SEED);
+    let res;
+    try { res = await w.dev.render(g.i, 2, 'bass'); }
+    catch (e) { rows.push({ groove: name + ' \u00b7 box ' + mode, voce: 'bass',
+                            colpi: 'ERROR: ' + (e && e.message || e) }); continue; }
+    const hits = res.hits.filter(h => h.id === 'bass');
+    if (!hits.length) continue;
+    const d = monoOf(res.buf), sr = res.buf.sampleRate;
+    const win = Math.round(0.12 * sr);
+    let pk = 0, sq = 0, n = 0;
+    hits.forEach(h => {
+      const a = Math.round(h.at * sr);
+      for (let k = a; k < a + win && k < d.length; k++) {
+        const v = d[k], av = v < 0 ? -v : v;
+        if (av > pk) pk = av; sq += v * v; n++;
+      }
+    });
+    rows.push({ groove: name + ' \u00b7 box ' + mode, voce: 'bass', colpi: hits.length,
+                picco: r2(dB(pk)), rms: r2(dB(Math.sqrt(sq / Math.max(1, n)))) });
+  }
+  w.dev.boxBass = '';
   w.dev.timbre = '';
 
   // each voice's offset against the stab (or the arpeggio where there is none)

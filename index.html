@@ -591,6 +591,13 @@
     text-transform:uppercase; color:var(--ink-3);
   }
   .veil-go:active .veil-cue { color:var(--accent); }
+  .veil-inst {
+    font-family:var(--mono); font-size:.625rem; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-2); cursor:pointer;
+    background:none; border:1px solid var(--line); border-radius:999px;
+    padding:.45rem .9rem;
+  }
+  .veil-inst:active { color:var(--accent); border-color:var(--accent); }
 
 
   [hidden] { display:none !important; }
@@ -623,8 +630,8 @@
   /* One password per library, because the two libraries are two different
      people's voices and get handed to two different sets of people. README has
      the one-liner that computes these. */
-  var PASSWORDS = { clem:'h93cow.ykf7xi',      // knock('clem')
-                    nonni:'1s193lh.1ikp4v3' }; // knock('cicoria')
+  var PASSWORDS = { clem:'1tl4eg4.1vuycka',    // knock('boston')
+                    nonni:'1u1t1n9.1c0rgl' };  // knock('anguillara')
   /* A password that opens whichever library is on screen *and* turns on author
      mode. It has to exist because `?autore=1` is unreachable from the
      installed app: the manifest has start_url "./" and display standalone, so
@@ -651,13 +658,18 @@
   // crashes shut is worse than one that asks again.
   function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function put(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  /* Every key from before the libraries had their own doors, cleared rather
-     than left lying in storage under a name nothing reads any more. Author mode
-     is not one of these and is deliberately left alone. */
+  /* Keys that no longer answer to anything, cleared rather than left lying in
+     storage: the ones from before the libraries had their own doors, and the
+     ones holding a password that has since been changed. Changing a password
+     asks everybody again all by itself — the stored value stops matching — so
+     this is tidiness rather than the mechanism. Author mode is deliberately
+     left alone. */
   try {
-    localStorage.removeItem('doveclem.gate');
-    localStorage.removeItem('doveclem.gate.clem');
-    localStorage.removeItem('doveclem.gate.nonni');
+    ['doveclem.gate', 'doveclem.gate.clem', 'doveclem.gate.nonni'].forEach(k =>
+      localStorage.removeItem(k));
+    Object.keys(PASSWORDS).forEach(id => {
+      if (localStorage.getItem(KEY + id) !== PASSWORDS[id]) localStorage.removeItem(KEY + id);
+    });
   } catch (e) {}
   window.doorOpen = function (id) { return !!PASSWORDS[id] && get(KEY + id) === PASSWORDS[id]; };
   // '' wrong · 'ok' right · 'autore' right, and the Verdict panel with it
@@ -695,6 +707,10 @@
   <button class="veil-go" id="veilGo" type="button">
     <span class="veil-cue">Tap to start</span>
   </button>
+  <!-- Android only, and only when Chrome says the app is installable. iOS never
+       fires the event, so this never appears there and the Share sheet stays
+       the way in. -->
+  <button class="veil-inst" id="veilInstall" type="button" hidden>Add to home screen</button>
   <p class="gate-note" id="gateNote" aria-live="polite" hidden></p>
 </div>
 
@@ -1112,6 +1128,9 @@ const RISE_LOW = 700;
 /* The bass intervals, for when a groove wants its own instead of one of the
    four shapes. In italo the bass line is the piece. */
 let bassIv = null;
+/* Whether the accordion plays its own bass. Set per groove by loadGroove and
+   defaulted from the genre, so a new tarantella gets it without asking. */
+let boxBass = false;
 let pump = false, filtV = 1;
 const PUMP = 0.55;                     // how far the kick pushes everything down
 let verbAmt = 1;                       // per base: how much room there is
@@ -1173,7 +1192,7 @@ let organic = 1;
 /* A kit forced from outside, so the same groove can be rendered with the
    synthesised kit and with the recorded one and the two levelled against each
    other. Empty in the app. */
-let kitForce = '', timbreForce = '', noAutoKit = false;
+let kitForce = '', timbreForce = '', boxForce = '', noAutoKit = false;
 
 function b64ToBuf(b64) {
   const bin = atob(b64), u8 = new Uint8Array(bin.length);
@@ -1470,6 +1489,7 @@ async function boot() {
   if (!window.gateOpen) return;
   if (booted) {
     if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+    startAir();          // hush() stopped it; it is a no-op if it is still going
     return;
   }
   booted = true;
@@ -1670,7 +1690,7 @@ function rrPluck(m) {
    string, and score.html read this 1.8 dB over the guitar on the same bar of
    the same groove. The change was inside here, so the correction is spread
    across all four callers rather than put on one of them. */
-function pluck(t, i, midi, peak, spread, hz) {
+function pluck(t, i, midi, peak, spread, hz, dec) {
   midi.forEach((m, k) => {
     const t0 = t + k * (spread || 0);
     const bp = ctx.createBiquadFilter();
@@ -1679,14 +1699,16 @@ function pluck(t, i, midi, peak, spread, hz) {
     const pk = jit(peak, 0.07);
     g.gain.setValueAtTime(0, t0);
     g.gain.linearRampToValueAtTime(pk, t0 + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.85);
+    // a damped chop is the same string with the left hand on it
+    const d = dec || 0.85;
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
     bp.connect(g); tap(g, i);
     [0, 7].forEach((cents, c) => {          // the two strings of the course
       const src = ctx.createBufferSource();
       src.buffer = pluckBuf(m, rrPluck(m));
       src.detune.value = cents + (Math.random() - 0.5) * 5;
       src.connect(bp);
-      src.start(t0 + c * 0.002); src.stop(t0 + 0.9);
+      src.start(t0 + c * 0.002); src.stop(t0 + d + 0.05);
     });
     /* The plectrum. A Karplus-Strong string starts from noise already inside
        the loop, so it fades *in* — and a plucked instrument is recognised by
@@ -1758,8 +1780,12 @@ function button(t, i, f) {
   lp.type = 'lowpass'; lp.frequency.value = 760; lp.Q.value = 0.6;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.15, t + 0.012);
-  g.gain.setValueAtTime(0.15, t + hold);
+  /* 0.20 and not 0.15, measured rather than judged: this replaces the recorded
+     electric bass on the traditional grooves, and score.html rendered
+     Tarantella's bass both ways on the same bar — the box came out 2.8 dB
+     under. Two instruments swapping places must not change the volume. */
+  g.gain.linearRampToValueAtTime(0.20, t + 0.012);
+  g.gain.setValueAtTime(0.20, t + hold);
   g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.1);
   lp.connect(g); tap(g, i);
   const off = t + hold + 0.12;
@@ -1912,6 +1938,13 @@ const VOICES = {
        yourself interaction invites — and a recorded bass is still at full
        plateau when the next note lands. `mush()` would not catch it either: it
        only inspects stab, lead, arp and chank. */
+    /* Before the recorded bass, and only on the accordion: in a tarantella or a
+       stornello the bass *is* the box's left hand, and a fingered electric bass
+       under it is the anachronism you can hear. A balera band has a bass player
+       and keeps one; so does the sequencer and the funk. `boxBass` is the
+       groove's call, defaulting from its genre — and it is a global a groove
+       sets, so it is in snapshot() and restore() like the rest. */
+    if (boxBass && timbre === 'fisa') return button(t, i, f);
     if (BASS_TIMBRES.indexOf(timbre) >= 0 &&
         sampledBass(t, i, m, 0.50, playFor(i, s, Math.max(0.14, stepDur() * 1.6)))) return;
     if (timbre === 'fisa')   return button(t, i, f);
@@ -1957,7 +1990,14 @@ const VOICES = {
          same notes and same pattern, and reads the accordion at -13.6 dBFS
          against the guitar's -8.78. One number, one reference, measured on the
          same bar. */
-      return sampled(t, i, md, 0.175, hold) || reeds(t, i, md, 0.049, hold);
+      /* Six milliseconds apart, and a shorter release than the default. A
+         stradella chord is one button opening three or four valves off one
+         bellows: they speak in sequence rather than on the same sample, and
+         when the button comes up the air stops — it does not fade for a tenth
+         of a second. Four copies of one mono recording starting on the same
+         sample with the same envelope is what made this read as a sampler
+         rather than a box. */
+      return sampled(t, i, md, 0.175, hold, 0.006) || reeds(t, i, md, 0.049, hold);
     }
     // strummed: the notes of a chord arrive as a hand crosses the strings
     if (timbre === 'chit')   return sampled(t, i, md, 0.13, playFor(i, s, Math.max(0.3, stepDur() * 3)), 0.018);
@@ -2029,7 +2069,11 @@ const VOICES = {
     const c = chordAt(), iv = SHAPES[shapeOf.chank].iv, root = c.root + 24;
     const md = iv.map(x => root + qual(x, c.maj));
     const hold = Math.max(0.03, stepDur() * 0.34);
-    if ((timbre === 'chit' || timbre === 'mando') && sampled(t, i, md, 0.12, hold, 0.005)) return;
+    /* The mandolin has no bank of its own, so `sampled` returns false here and
+       this used to fall through to the bandpassed saw — a clavinet in the
+       middle of a pizzica. It has strings; let it damp them. */
+    if (timbre === 'mando') return pluck(t, i, md, 0.105, 0.004, 3000, hold + 0.05);
+    if (timbre === 'chit' && sampled(t, i, md, 0.12, hold, 0.005)) return;
     md.forEach((m, k) => {
       const t0 = t + k * 0.005;                    // the hand crossing the strings
       const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq(m);
@@ -2149,7 +2193,8 @@ function shaper(k) {
   return w;
 }
 
-function stepDur() { return 60 / bpm / 4; }
+// A step is a sixteenth; how many of them go to a beat is the metre's business.
+function stepDur() { return 60 / bpm / mtr.pulse; }
 
 /* How long a held note holds: until this track's next written step. A pad on
    0, 16, 32, 48 takes a bar each; a pad written on 0 alone takes the whole
@@ -2321,6 +2366,22 @@ const queue = [];
 const AHEAD = 0.25, TICK = 25;
 
 function scheduler() {
+  /* Never play a backlog. A backgrounded tab has its timers throttled to about
+     once a second while the audio clock keeps running, so by the time this wakes
+     up `nextTime` can be seconds behind — and then the loop below fires every
+     step in between at a time that has already passed, which Web Audio renders
+     as "now". Measured: a three-second stall produced 59 hits in one tick, 48 of
+     them scheduled in the past. That burst is the "weird sounds" you get when
+     the app comes back, and it is not a stuck note — it is the whole backlog
+     arriving at once. Skip to the present instead, losing the bars nobody heard.
+     One step of slack, so ordinary jitter does not resync. */
+  if (nextTime < ctx.currentTime - stepDur()) {
+    const miss = Math.ceil((ctx.currentTime - nextTime) / stepDur());
+    nextTime += miss * stepDur();
+    cursor = (cursor + miss) % patLen;
+    bar = Math.floor(cursor / barLen);
+    queue.length = 0;
+  }
   while (nextTime < ctx.currentTime + AHEAD) {
     const t = nextTime + swingAt(cursor);
     if (cursor === 0 && rise && filt && filtV === 1) {
@@ -2434,13 +2495,30 @@ let barLen = 16, barsN = 4, patLen = 64;
 /* Three-four and six-eight are both twelve sixteenths and they are not the
    same bar: a waltz is three beats of four, six-eight is two beats of three.
    The gaps are the whole difference — 4+4+4 against 6+6. */
+/* `len` steps to the bar, `gap` where the dividers fall, `beat`/`big`/`num` how
+   the lane is shaded and numbered.
+
+   `pulse` is new and it is the one that was wrong: steps to the beat you
+   actually feel, which is what a tempo is counted in. Four in common time and
+   in a waltz, because the beat is a quarter; **six** in 6/8, because the beat
+   is a dotted quarter and nobody counts a 6/8 dance in quarter notes. stepDur
+   used to divide by four whatever the metre, so a 6/8 groove marked 132 was
+   running at 88 of the beats you hear — the number on screen and the speed of
+   the dance were different things.
+
+   `dot` is the mixer's unit: a quarter in the two simple metres, an eighth in
+   6/8. It was a flat four, which in a twelve-step bar puts a dot boundary in
+   the middle of the second beat and — worse — put the bar dividers every 16
+   steps when the bar is 12 long. Both 12-step metres had their bars drawn in
+   the wrong place on every chip. */
 const METERS = [
-  { id:'4/4', len:16, gap:4, beat:4, num:4, big:16 },
-  { id:'3/4', len:12, gap:4, beat:4, num:4, big:12 },
-  { id:'6/8', len:12, gap:6, beat:2, num:2, big:6 },
+  { id:'4/4', len:16, gap:4, beat:4, num:4, big:16, pulse:4, dot:4 },
+  { id:'3/4', len:12, gap:4, beat:4, num:4, big:12, pulse:4, dot:4 },
+  { id:'6/8', len:12, gap:6, beat:2, num:2, big:6,  pulse:6, dot:2 },
 ];
 let mtr = METERS[0];
 let trkEls = [], dotsByBeat = [], cellEls = [];
+let mixSpan = 4, mixDots = STEPS / 4;
 let rollEls = [], rollCols = [];
 
 function say(text) { msgEl.innerHTML = text; msgEl.hidden = false; }
@@ -2456,7 +2534,11 @@ const laneOf = trk => trk.kind === 'voice' ? 2 : (trk.kind === 'synth' ? 0 : 1);
 function buildMixer() {
   mixEls.forEach(el => { el.innerHTML = ''; });
   trkEls = [];
-  dotsByBeat = Array.from({ length: STEPS / 4 }, () => []);
+  // the span can change with the metre, so the chips are built for the one in
+  // force and setLen rebuilds them when it moves
+  mixSpan = dotSpan();
+  mixDots = Math.ceil(STEPS / mixSpan);
+  dotsByBeat = Array.from({ length: mixDots }, () => []);
   forgetCue();   // the dots and chips these lit no longer exist
   TRACKS.forEach((trk, i) => {
     const box = document.createElement('div');
@@ -2471,10 +2553,10 @@ function buildMixer() {
     const dots = document.createElement('span');
     dots.className = 'dots';
     // Sixty-four dots would be under two pixels each on a phone, so the mixer
-    // reads the pattern a beat at a time: sixteen dots over four bars.
-    for (let b = 0; b < STEPS / 4; b++) {
+    // reads the pattern a beat at a time — sixteen over four bars in common
+    // time, twenty-four in 6/8, where the beat that matters is the eighth.
+    for (let b = 0; b < mixDots; b++) {
       const u = document.createElement('u');
-      if (b && b % 4 === 0) u.dataset.bar = '1';
       dots.appendChild(u);
       dotsByBeat[b].push(u);
     }
@@ -2626,7 +2708,7 @@ function paintCue(s) {
 function forgetCue() { lastBeat = lastCol = lastBarBtn = -1; litEls = []; }
 // Four bars will not fit as one dot per step, so the mixer reads a beat at a
 // time; a single short bar does fit, and shows every step.
-const dotSpan = () => (patLen <= 16 ? 1 : 4);
+const dotSpan = () => (patLen <= 16 ? 1 : mtr.dot);
 function paintDots(i) {
   const us = trkEls[i] ? trkEls[i].querySelectorAll('.dots u') : [];
   const row = pattern[i], w = dotSpan();
@@ -2635,7 +2717,8 @@ function paintDots(i) {
     for (let k = 0; k < w; k++) on = on || !!row[b * w + k];
     us[b].dataset.on = on ? '1' : '0';
     us[b].dataset.out = b * w >= patLen ? '1' : '0';
-    us[b].dataset.bar = (b && b % (w === 1 ? mtr.gap : 4) === 0) ? '1' : '0';
+    // a divider where a bar starts, which is barLen steps and not sixteen
+    us[b].dataset.bar = (b && (b * w) % barLen === 0) ? '1' : '0';
   }
 }
 function paintRoll() {
@@ -2685,6 +2768,10 @@ function setLen(meter, n) {
   barsN = n;
   if (m !== mtr) { mtr = m; barLen = m.len; buildSteps(); buildRoll(); }
   patLen = barLen * barsN;
+  // stepDur and the mixer's dot both depend on the metre: the echo has to be
+  // retimed and the chips rebuilt when the span moves, or they keep the old one
+  setBpm(bpm);
+  if (dotSpan() !== mixSpan) buildMixer();
   meterEl.querySelectorAll('button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.m === mtr.id)));
   barsSeg.querySelectorAll('button').forEach(b =>
@@ -3015,6 +3102,14 @@ function startAir() {
   airSrc.connect(hp); hp.connect(lp); lp.connect(airGain); airGain.connect(master);
   try { airSrc.start(); } catch (e) {}
 }
+/* The one source in this file that never ends on its own: it loops. Which is
+   right while the app is open and wrong the moment it is not, so hush() stops
+   it and boot() starts it again. */
+function stopAir() {
+  if (!airSrc) return;
+  try { airSrc.stop(); } catch (e) {}
+  airSrc = null; airGain = null;
+}
 function setAir(v) {
   air = v || 0;
   if (airGain) airGain.gain.setTargetAtTime(air * 0.006, ctx.currentTime, 0.15);
@@ -3029,7 +3124,9 @@ const TIMBRES = [
      is B3 and the bass sits two octaves under that — stretching a sample that
      far smears the reed into a drone. reeds() stays as the fallback for when
      the notes have not arrived yet, or at all. */
-  { id:'fisa',   name:'Accordion', notes:[59, 62, 66, 69, 72, 76, 79, 83] },
+  /* `rel` is how long the note takes to stop: the default tenth of a second is
+     a fade, and a reed does not fade — the valve closes and the air stops. */
+  { id:'fisa',   name:'Accordion', notes:[59, 62, 66, 69, 72, 76, 79, 83], rel:0.045 },
   /* A recorded Spanish classical guitar, CC0, eleven notes from A1 to B5 —
      the only sampled instrument that reaches low enough to play the bass too,
      so nothing on this setting is synthesised. Three modelled instruments is
@@ -3163,6 +3260,7 @@ function sampled(t, i, midi, peak, hold, spread, bank, sus) {
   const b = bank || smp;
   const keys = Object.keys(b);
   if (!keys.length) return false;
+  const rel = ((TIMBRES.find(x => x.id === timbre) || {}).rel) || 0.09;
   midi.forEach((m, k) => {
     const t0 = t + k * (spread || 0);
     let best = +keys[0];
@@ -3188,9 +3286,9 @@ function sampled(t, i, midi, peak, hold, spread, bank, sus) {
     g.gain.setValueAtTime(0, t0);
     g.gain.linearRampToValueAtTime(pk, t0 + atk);
     g.gain.setValueAtTime(pk, t0 + hold);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + hold + 0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + hold + rel);
     src.connect(g); tap(g, i);
-    src.start(t0, off); src.stop(t0 + hold + 0.12);
+    src.start(t0, off); src.stop(t0 + hold + rel + 0.03);
   });
   return true;
 }
@@ -3702,28 +3800,35 @@ const GROOVES = [
      between this and what it was. The accordion has a tune to play as well —
      it used to do nothing but comp, which is why it read as a backing track
      waiting for someone who never turned up. */
-  { name:'Balera', pack:'nonni', genre:'balera', bpm:112, swing:0.6, timbre:'fisa',
-    kit:'folk', air:0.45, verb:1.15,
-    key:33, prog:'Carosone', shape:{bass:1,stab:3},
-    steps:{ kick:[0,8], snare:[4,12], clap:[12],
-            hat:[0,2,4,6,8,10,12,14],
+  /* The third italo one, and it took Balera's place rather than being added:
+     eight is the number, and nonni's balera was doing a job that clem's balera
+     already does better while the pack had only two four-on-the-floor grooves
+     against four traditional ones.
+
+     It is the plain one on purpose. Nottata is the brass record and Lungomare
+     is the sequencer record; neither is the saw stab with a clavinet chopping
+     under it, which is the sound most people mean by italo-disco. Nostalgia is
+     the giro, because the other two have Onda and Tramonto between them. */
+  { name:'Cinecitt\u00e0', pack:'nonni', genre:'italo', bpm:122, swing:0, rise:true, pump:true,
+    air:0.2, verb:1.1,
+    key:34, prog:'Nostalgia', shape:{bass:1,stab:3,pad:3,chank:3},
+    /* Root, octave, fifth, octave — the figure that walks without going
+       anywhere, which is the whole point of an italo bass. */
+    bassIv:[0,12,7,12],
+    steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
             bass:[0,2,4,6,8,10,12,14],
-            stab:[3,7,11,15],
-            lead:[[16,4],[20,2],[23,4],[28,5],
-                  [48,4],[52,5],[55,4],[58,2],[62,0]] },
-    accent:{ snare:[4,12], clap:[12], bass:[0,8] },
-    ghost:{ hat:[0,4,8,12], stab:[7,15] },
-    /* Four bars that were nearly one. This measured 0.07 on bar-to-bar
-       novelty, sitting exactly on the line and falling under it from one
-       render to the next — which for a groove where the hat, the bass and the
-       chord all repeat every bar is the measurement being right. Each bar now
-       loses or gains something: the third takes the hat down to quarters and
-       sends the clap away, the fourth answers with the open hat and a chord on
-       the downbeat. */
-    vary:{ 1:{ add:{ ohat:[15] }, clear:{ stab:[7] } },
-           2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] },
-           3:{ add:{ ohat:[6,14], stab:[0] }, accent:{ snare:[4,12] } } },
-    fill:{ snare:[10,11,12,13,14,15], ohat:[15] } },
+            chank:[0,2,4,6,8,10,12,14],
+            pad:[0], stab:[6,14],
+            /* The back half of the bar, so the dotted-eighth echo has
+               somewhere to land instead of on the next note. */
+            lead:[[8,4],[11,5],[14,4],
+                  [40,7],[43,5],[46,4],[54,2]] },
+    accent:{ kick:[0], clap:[12], chank:[0,4,8,12], stab:[6] },
+    ghost:{ chank:[2,6,10,14], ohat:[6,14] },
+    vary:{ 1:{ add:{ ohat:[15] }, clear:{ stab:[14] } },
+           2:{ drop:['chank','pad'], clear:{ ohat:[2,10] } },
+           3:{ add:{ clap:[14], stab:[0] }, accent:{ ohat:[2,10] } } },
+    fill:{ clap:[10,11,12,13,14,15], ohat:[15] } },
 
   /* Bucolic, and the first two attempts at it were empty rather than sparse.
      Country music is gentle, not absent: the tambourine keeps the beat, a
@@ -3760,7 +3865,7 @@ const GROOVES = [
      moves under the melody rather than beside it. */
   { name:'Tarantella', pack:'nonni', genre:'tarantella', timbre:'fisa', kit:'folk',
     air:0.2, verb:1.1,
-    bpm:132, meter:'6/8', bars:4, swing:0, echo:false,
+    bpm:120, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     /* Root on the first beat, fifth on the second, and each one arrives an
        eighth early. Two notes a bar was the oom of an oom-pah with no oom-pah
@@ -3770,17 +3875,24 @@ const GROOVES = [
        is above the bank: the figure would keep flipping register on bar three
        and nowhere else. */
     bassIv:[0,0,7,7],
+    /* Oom-pah-pah. The box answers the bass on the two off-beat eighths of each
+       group, which is what the right hand of this music does and four chords a
+       bar instead of two. They were on steps 3 and 9 — odd steps, which in a
+       twelve-sixteenth bar are the sixteenth *between* the eighths, so the
+       chords were landing on a syncopation that no tarantella has. */
     steps:{ kick:[0,6], clap:[4,10],
             ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
-            bass:[0,4,6,10], stab:[3,9],
+            bass:[0,4,6,10], stab:[2,4,8,10],
             lead:[[0,4],[2,3],[4,2],[6,4],[8,3],[10,2],
                   [12,0],[14,2],[16,3],[18,2],[20,0],
                   [24,4],[26,6],[28,4],[30,2],[32,4],[34,6],
                   [36,7],[38,4],[40,2],[42,0],[46,0]] },
     accent:{ ohat:[0,6], kick:[0,6], clap:[4,10] },
     ghost:{ ohat:[1,2,3,4,5,7,8,9,10,11] },
-    vary:{ 1:{ clear:{ stab:[9] } },
-           2:{ add:{ clap:[7] }, clear:{ ohat:[1,4,7,10] } },
+    /* The steps here follow the lane: clearing a step the stab no longer has is
+       a silent no-op, and a bar that varies by nothing is a bar that repeats. */
+    vary:{ 1:{ clear:{ stab:[10] } },
+           2:{ add:{ clap:[8] }, clear:{ ohat:[1,4,7,10] } },
            3:{ accent:{ bass:[0,6] } } },
     fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] } },
 
@@ -3794,7 +3906,7 @@ const GROOVES = [
      difference between the two. */
   { name:'Pizzica', pack:'nonni', genre:'tarantella', timbre:'mando', kit:'folk',
     air:0.3, verb:1.1,
-    bpm:160, meter:'6/8', bars:4, swing:0, echo:false,
+    bpm:132, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:0,stab:3,chank:3},
     /* Twice the notes, alternating root and fifth every eighth — where the
        tarantella sits on its root and answers on the second beat, the pizzica
@@ -3808,9 +3920,11 @@ const GROOVES = [
        every bar is four bars that are more alike. Four costs 0.45 dB and 0.06
        and doubles the line, which is the trade that was worth making. */
     bassIv:[0,7,0,7],
-    steps:{ kick:[0,6], snare:[4,10], clap:[3,9],
+    // same correction as the tarantella's, and the mandolin now damps its own
+    // strings on the off-beat eighths instead of a saw pretending to
+    steps:{ kick:[0,6], snare:[4,10], clap:[2,8],
             ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
-            bass:[0,4,6,10], chank:[3,9],
+            bass:[0,4,6,10], chank:[2,4,8,10],
             lead:[[0,4],[3,2],[6,4],[9,5],
                   [12,4],[15,2],[18,0],[21,2],
                   [24,4],[27,6],[30,4],[33,6],
@@ -3822,9 +3936,9 @@ const GROOVES = [
        identical bars are not. The third bar makes the break — the tambourine
        thins, the mandolin stops, and what is left is the pulse — which is a
        thing that happens in a pizzica for real. */
-    vary:{ 1:{ add:{ clap:[7] }, accent:{ ohat:[3,9] } },
+    vary:{ 1:{ add:{ clap:[10] }, accent:{ ohat:[3,9] } },
            2:{ drop:['chank','clap'], clear:{ ohat:[1,4,7,10] } },
-           3:{ add:{ clap:[7] } } },
+           3:{ add:{ clap:[10] } } },
     fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] } }
 ];
 
@@ -3940,6 +4054,10 @@ function loadGroove(gi) {
     });
   }
   bassIv = g.bassIv || null;
+  // the accordion's own left hand where the box is the band; a groove may say
+  boxBass = boxForce ? boxForce === 'on'
+          : g.boxBass !== undefined ? !!g.boxBass
+          : (g.genre === 'tarantella' || g.genre === 'folk');
   /* Defaults per voice, then the groove's own on top. A groove written before
      the strings existed names neither, and SHAPES[undefined] throws. */
   shapeOf = { bass:1, pad:3, stab:3, chank:3, arp:2, ...g.shape };
@@ -4444,7 +4562,7 @@ function snapshot() {
     // these four were being dropped: a saved pattern came back without its
     // fill, on the shape's intervals instead of its own, dead on the grid,
     // and in whatever room the last groove had left behind
-    human: human, bassIv: bassIv, verb: verbAmt, rise: rise,
+    human: human, bassIv: bassIv, verb: verbAmt, rise: rise, boxBass: boxBass,
     fill: fillPat ? TRACKS.reduce((o, trk, i) => {
       if (!fillHas[i]) return o;
       const l = [];
@@ -4493,6 +4611,7 @@ async function restore(o) {
   bassIv = o.bassIv || null;
   human = o.human === undefined ? 1 : o.human;
   rise = !!o.rise;
+  boxBass = !!o.boxBass;
   verbAmt = o.verb === undefined ? 1 : o.verb;
   fillPat = null; fillHas = null;
   if (o.fill) {
@@ -4675,6 +4794,9 @@ window.dev = {
   get kit() { return kitForce; },
   set timbre(v) { timbreForce = v || ''; },
   get timbre() { return timbreForce; },
+  // '' groove's own · 'on' the box's left hand · 'off' the recorded bass
+  set boxBass(v) { boxForce = v || ''; },
+  get boxBass() { return boxForce; },
   // the rubric needs to read the state after a load
   state: () => snapshot(),
   /* The bass line as it will actually sound, folding included, so a check can
@@ -4749,6 +4871,27 @@ function goHome() {
   veil.hidden = false;
 }
 
+/* Installing on Android. Chrome fires this when the app qualifies — manifest,
+   service worker, https — and hides its own prompt if you call preventDefault,
+   so the offer has to be made somewhere or it is only in the browser menu.
+   Safari has no such event and never will: on iOS the Share sheet is the way,
+   which is why this button simply does not appear there rather than lying about
+   what it does. Clicking it cannot start the audio — boot() returns until the
+   opening page sets gateOpen. */
+let installer = null;
+addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  installer = e;
+  $('veilInstall').hidden = false;
+});
+$('veilInstall').addEventListener('click', async () => {
+  if (!installer) return;
+  const p = installer; installer = null;
+  $('veilInstall').hidden = true;
+  try { await p.prompt(); } catch (e) {}
+});
+addEventListener('appinstalled', () => { installer = null; $('veilInstall').hidden = true; });
+
 PACKS.forEach((pk, i) => {
   const o = document.createElement('option');
   o.value = String(i); o.textContent = pk.name;
@@ -4785,6 +4928,26 @@ landOn(firstGroove());
 namePack();
 veilPack.value = String(packIx);
 paintVeil();
+
+/* Closing or backgrounding the app has to take the sound with it. There was
+   nothing here at all, so an installed copy that was swiped away kept a running
+   AudioContext: the air bed loops forever by design and the scheduler kept
+   waking up throttled, which is the other half of the sounds that would not
+   stop. Stopping the transport also cancels what is already scheduled up to
+   AHEAD ahead, which suspending on its own would not.
+
+   `pagehide` and not `unload`: iOS never fires `unload` for a page going into
+   the back/forward cache, and `visibilitychange` is what fires when the app is
+   merely backgrounded. Resuming is deliberately not automatic — coming back to
+   silence and pressing Play is right, coming back to a machine that started
+   itself is not. */
+function hush() {
+  if (playing) stop();
+  stopAir();
+  if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {});
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) hush(); });
+addEventListener('pagehide', hush);
 
 // Safari grants user activation on click / touchend / keydown — never on
 // pointerdown or touchstart. Bind all three in the capture phase. boot() is a

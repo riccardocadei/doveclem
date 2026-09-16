@@ -16,7 +16,8 @@ arrangement; that is the whole interaction.
 Two libraries ship with it, and you pick one on the way in — the opening page
 says **Dov’è ⟨Clem⟩** with the name as a dropdown, and whichever you choose is
 the title the app then wears. **Clem** is the italo-disco one it started as.
-**Nonni** is Roman: accordion reeds instead of saws, major and harmonic-minor
+**Nonni** is Roman: three italo-disco ones, a sequencer, a funk, and three traditional —
+accordion reeds instead of saws, major and harmonic-minor
 scales, and grooves built on the stornello and the tarantella rather than on a
 four-on-the-floor. Each library has its own password, asked once per phone.
 Tapping the title in the top-left takes you back to the opening page to change
@@ -30,7 +31,14 @@ any voice works, so the app is not named after one person.
 Everything is client-side: no build step, no dependencies, no runtime network
 calls. The drums, bass and chords are generated with the Web Audio API; the
 voices are decoded once into memory and triggered by a look-ahead scheduler, so
-timing does not drift the way `setInterval` playback does. A 25 ms timer
+timing does not drift the way `setInterval` playback does. **Backgrounding or
+closing the app stops it**: the transport stops, the room tone stops and the
+audio context suspends, which is what it should always have done — a
+backgrounded tab has its timers throttled while the audio clock keeps running,
+and the scheduler then woke up seconds behind and fired the whole backlog at
+once. Measured: a three-second stall produced 59 hits in one tick, 48 of them
+scheduled in the past, which a browser renders as *now*. That burst is the
+sound that would not stop. It skips to the present instead. A 25 ms timer
 schedules every hit up to a quarter of a second ahead against the audio clock;
 that quarter second is how long the main thread may stall before you hear a
 hole, and it used to be 0.14, which a phone can lose to a single garbage
@@ -559,8 +567,8 @@ python3 -m http.server 8000
 ## Keeping it to the family
 
 There is a password on the door — **one per library**, asked the first time you
-pick that library on a phone and remembered from then on. Clem's is `clem`,
-Nonni's is `cicoria`. Unlocking one says nothing about the other.
+pick that library on a phone and remembered from then on. Clem's is `boston`,
+Nonni's is `anguillara`. Unlocking one says nothing about the other.
 
 **Be clear about what this is.** It is a door, not a lock. The repository is
 public, so every clip also has a direct URL on `raw.githubusercontent.com` that
@@ -589,7 +597,7 @@ lower case and no spaces:
 
 ```js
 (w=>{let a=0x811c9dc5,b=5381;for(let i=0;i<w.length;i++){const c=w.charCodeAt(i);
-a=Math.imul(a^c,16777619)>>>0;b=(Math.imul(b,33)+c)>>>0}return a.toString(36)+'.'+b.toString(36)})('cicoria')
+a=Math.imul(a^c,16777619)>>>0;b=(Math.imul(b,33)+c)>>>0}return a.toString(36)+'.'+b.toString(36)})('anguillara')
 ```
 
 Put the result in `PASSWORDS` in `index.html`, under the `id` of the pack it
@@ -607,6 +615,26 @@ Passwords are compared lower case and trimmed, so they survive being read out
 over the phone. `score.html` and `tuning.html` are not behind the door — they are
 development pages, they are `noindex` too, and gating them would add nothing
 while the clips remain directly fetchable from the public repository.
+
+## Putting it on a phone
+
+It is a PWA, so there is no store and no install file — the page becomes the app.
+
+**iPhone.** Open the link in Safari, Share, *Add to Home Screen*. It has to be
+Safari: on iOS no other browser may install a web app. The icon then opens it
+with no address bar, which is the reason author mode has a way in through the
+door rather than through `?autore=1`.
+
+**Android.** Open it in Chrome and the opening page shows an *Add to home
+screen* button, which is Chrome's own install prompt — the app qualifies for it
+(https, a manifest, a service worker with a fetch handler, 192 and 512 px icons
+and a maskable one). If you dismiss it, the same thing is in Chrome's ⋮ menu as
+*Install app*. The button appears only where the browser offers the prompt, so
+it is never on screen on iOS, where the Share sheet is the way and no script can
+do it for you.
+
+Both keep their own storage: a password entered in the installed app is not the
+one entered in the browser, and neither are the saved patterns or the verdicts.
 
 ## Deploy
 
@@ -642,7 +670,11 @@ with a header inside reading "Machine", which named neither the thing nor what
 the picker two inches away would do to it.
 
 Each chip carries the pattern as dots — one per beat across four bars, or one
-per step in a short bar, with the ones outside the loop dimmed. The tall bright
+per step in a short bar, with the ones outside the loop dimmed. The beat is the
+metre's: a quarter in 4/4 and 3/4, an eighth in 6/8, where a quarter would put a
+dot boundary in the middle of the second beat. The dividers fall where a bar
+starts, which is `barLen` steps — they used to fall every sixteen, so both
+twelve-step metres had their bars drawn in the wrong place on every chip. The tall bright
 dot is the playhead, and a chip tints as it fires, so you can see what is making
 the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 
@@ -650,6 +682,7 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | --- | --- |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
+| Metre | 4/4, 3/4 or 6/8. **The tempo is counted in the beat the metre has**: quarters in the first two, dotted quarters in 6/8, because that is the beat you feel in a 6/8 dance and nobody counts a tarantella in quarter notes. It used to divide by four whatever the metre, so a 6/8 groove marked 132 was moving at 88 of its own beats — the number on screen and the speed of the dance were different things |
 | Filter | One lowpass across the record, 200 Hz to wide open. The echo returns through it too. **The voices do not go through it** — nor through the riser, which is the same filter moving. A synth reads as filtered; a recorded sentence reads as broken, and nothing in a spoken phrase asked for a lowpass. Their echo and reverb still return through it, so the room is allowed to sweep while the words are not |
 | 4/4 · 3/4 · 6/8 | The metre, beside the tempo. A bar is sixteen steps in common time and twelve in the other two — but a waltz is three beats of four and 6/8 is two beats of three, which is the whole difference between them |
 | 1 bar · 4 bars | How many bars go round |
@@ -890,9 +923,13 @@ moves the Stab and the Bass with it:
 | Organ | A recorded [setBfree Hammond](https://freepats.zenvoid.org/Organ/electric-organ.html) (FreePats, CC0) — ten notes every major third from C3 to C6. Five sine drawbars is what an organ is on paper and not what one sounds like: the tonewheels leak into each other and the Leslie is a rotating speaker in a room, which one tremolo gain cannot be. Because the rotor is inside the recording, each note starts at a different point in it. The synthesised drawbars stay for the bass, which sits two octaves below the bank |
 | Brass | [Synth Brass 2](https://freepats.zenvoid.org/Synthesizer/synth-brass.html) from FreePats, CC0: a DX7 BRASS 7 patch recorded through Dexed. This is the italo-disco stab and it is the one sound here that could not be faked — FM brass is six operators beating against each other, and two sawtooths through a lowpass sound like two sawtooths through a lowpass |
 
-**The bass is not one of them.** On the accordion, guitar and mandolin settings
-it is a recorded [fingered Yamaha RBX](https://freepats.zenvoid.org/ElectricGuitar/clean-electric-bass.html)
-(FreePats, CC0); on the electronic settings it stays a pair of detuned saws
+**The bass is not one of them.** On the traditional grooves — the tarantella,
+the pizzica, the folk one — the accordion plays its own bass, because in that
+music the box *is* the band and a fingered electric bass under a pizzica is an
+anachronism you can hear. Everywhere else, on the accordion, guitar and mandolin
+settings, it is a recorded [fingered Yamaha RBX](https://freepats.zenvoid.org/ElectricGuitar/clean-electric-bass.html)
+(FreePats, CC0) — a balera band has a bass player and keeps one. The two are
+level-matched by rendering the same bar both ways; on the electronic settings it stays a pair of detuned saws
 through a resonant filter with a soft clipper after it — the drive is the part
 that was missing, because a clean saw is a polite sound and italo was not
 played through polite equipment. An accordion band has a bass player and an
@@ -977,10 +1014,10 @@ not a verdict on taste; reorder them freely, it is one array.
 | Lungomare | 126 | italo | machine | Synth italo |
 | Permanente | 116 | sequencer | folk | Accordion |
 | Testaccio | 112 | funk | folk | Accordion |
-| Balera | 112 | balera | folk | Accordion |
+| Cinecittà | 122 | italo | machine | Synth italo |
 | Campagna | 92 | folk | folk | Guitar |
-| Tarantella | 132 · 6/8 | tarantella | folk | Accordion |
-| Pizzica | 160 · 6/8 | tarantella | folk | Mandolin |
+| Tarantella | 120 · 6/8 | tarantella | folk | Accordion |
+| Pizzica | 132 · 6/8 | tarantella | folk | Mandolin |
 
 Half of Nonni is the dancefloor and half is the tradition, which was the point
 of the rebuild. **Nottata** is the italo-disco one and the reason the brass bank
