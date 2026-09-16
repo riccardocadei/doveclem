@@ -910,11 +910,27 @@ function mush(ov, pct, depth) {
     : true;
 }
 
+// enough of index.html's to name a note in a failure message
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const noteName = m => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+
 const COMMON = [
   ['does not clip',                              (st, mx) => mx.peak < 0],
   ['crest at least 10 dB',                    (st, mx) => mx.crest >= 10],
   ['the four bars are not one bar',   (st, mx) => mx.novita > 0.07],
   ['no mush over 70% and -8 dB',            (st, mx, ov) => mush(ov, 70, -8)],
+  /* "Weird basses", reported by ear and then found in the arithmetic: the
+     sampled bank tops out at A2, so an octave shape rooted on A folded its
+     octave straight back onto the root and two grooves played one note, twice
+     a bar, for four bars. Nothing in the table could see it — a drone clips
+     nothing, has a fine crest and is perfectly on the beat. This asks the app
+     for the line it will actually play, folding included. */
+  ['the bass is not one note', st => {
+    const n = st.bassLine || [];
+    if (n.length < 2) return true;                 // nothing written, nothing to judge
+    const k = new Set(n);
+    return k.size > 1 || 'the bass plays ' + noteName(n[0]) + ' and nothing else';
+  }],
 ];
 
 const RUBRICS = {
@@ -991,6 +1007,7 @@ async function runRubric() {
     try {
       res = await w.dev.render(g.i, 8);
       st = await w.dev.state();
+      st.bassLine = w.dev.bass();
     } catch (e) {
       rows.push({ groove: g.pack + '/' + g.name, genre: g.genre,
                   esito: 'ERROR: ' + (e && e.message || e) });

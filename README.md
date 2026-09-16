@@ -30,7 +30,12 @@ any voice works, so the app is not named after one person.
 Everything is client-side: no build step, no dependencies, no runtime network
 calls. The drums, bass and chords are generated with the Web Audio API; the
 voices are decoded once into memory and triggered by a look-ahead scheduler, so
-timing does not drift the way `setInterval` playback does.
+timing does not drift the way `setInterval` playback does. A 25 ms timer
+schedules every hit up to a quarter of a second ahead against the audio clock;
+that quarter second is how long the main thread may stall before you hear a
+hole, and it used to be 0.14, which a phone can lose to a single garbage
+collection. The cost is that muting a track or moving a step takes effect up to
+that long afterwards — two sixteenths at 120.
 
 ```
 index.html                 the whole app (markup, styles, audio engine)
@@ -894,10 +899,21 @@ played through polite equipment. An accordion band has a bass player and an
 italo record has a synthesiser, and picking the accordion should not have to
 mean picking both.
 
-The bank is one octave, E1 to D#2, because that is what was sampled. Rather
-than stretch a bass string half an octave past its top note, anything above it
-folds down an octave — which is also what a bassist does, since the register
-above the fourth fret of the G string is not where a bass line lives.
+The bank is one octave, E1 to D#2, because that is what was sampled, and it
+plays up to A2 — which is exactly where the bank's own SFZ stretches its top
+sample, so it is the author's limit rather than a guess. It used to stop two
+semitones short of that, and the two semitones mattered: an octave figure
+rooted on A wants A2 precisely, so every such groove folded its octave back
+onto the root and played **one note, twice a bar, for four bars**. A drone
+where the lane says octave, on two of the eight nonni patterns.
+
+Above A2 a note still folds down an octave, which is what a bassist does — the
+register above the fourth fret of the G string is not where a bass line lives.
+But be aware of what that costs: it moves one note and leaves the others, so an
+interval whose top lands out of range simply disappears, and disappears only in
+the bars where the chord sits high. `score.html` checks the worst case ("the
+bass is not one note") because nothing else could see it: a drone clips
+nothing, has a fine crest and is perfectly on the beat.
 
 All of them are levelled against each other by measurement rather than by ear,
 so changing instrument changes the sound and not the volume. The accordion's

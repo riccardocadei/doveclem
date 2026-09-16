@@ -1119,9 +1119,10 @@ const filtHz = () => 200 * Math.pow(100, filtV);
 
 const clips = () => PACKS[packIx].clips;
 const scale = () => MODES[PROGS[progIx].mode || 'min'];
-// The chord under the bar the scheduler is currently filling.
-function chordAt() {
-  const ch = PROGS[progIx].ch, c = ch[bar % ch.length];
+// The chord under the bar the scheduler is currently filling, or under any bar
+// you name — which is how the bass line can be read off without being played.
+function chordAt(b) {
+  const ch = PROGS[progIx].ch, c = ch[(b === undefined ? bar : b) % ch.length];
   return { root: key + c.d, maj: !c.m };
 }
 // A shape's minor third has to become a major one over a major chord.
@@ -1820,6 +1821,32 @@ function arpOne(t, i, m, peak) {
   o.start(t); o.stop(t + 0.17);
 }
 
+/* Which note the bass plays at a step, split out of VOICES.bass so score.html
+   can read a groove's line off without playing it — and so it asks the real
+   function rather than a copy that drifts.
+
+   The arpeggio degree used to come from a counter of how many times the bass
+   had fired since Play, which made the line a function of the *number of hits*
+   rather than of where you are in the bar: any pattern that was not a uniform
+   division drifted against the giro and never came back. Counting the written
+   hits before this step makes it a function of the step, and then it is the
+   same line every time the giro comes round — which is what a bass line is.
+
+   On the sampled settings the note then goes through bassFold, and that is
+   worth knowing before writing an interval: the bank tops out at A2, so a
+   figure whose top note lands above it has that note pulled down an octave
+   while the rest stay where they are. The interval you wrote disappears, and
+   only sometimes — whichever bars the chord sits high in. There is a rubric
+   check for the worst of it ("the bass is not one note"), because it is
+   silent otherwise. */
+function bassNote(i, s, b) {
+  const iv = bassIv || SHAPES[shapeOf.bass].iv;
+  let k = 0;
+  for (let q = 0; q < (s || 0); q++) if (pattern[i][q]) k++;
+  const c = chordAt(b);
+  return c.root + qual(iv[k % iv.length], c.maj);
+}
+
 const VOICES = {
   kick(t, i) {
     if (pump && duck) [duck, duckV].forEach(d => {
@@ -1876,18 +1903,7 @@ const VOICES = {
     });
   },
   bass(t, i, s) {
-    const iv = bassIv || SHAPES[shapeOf.bass].iv;
-    /* The arpeggio degree used to come from a counter of how many times the
-       bass had fired since Play, which made the line a function of the *number
-       of hits* rather than of where you are in the bar: any pattern that was
-       not a uniform division drifted against the giro and never came back.
-       Counting the written hits before this step makes it a function of the
-       step, and then it is the same line every time the giro comes round —
-       which is what a bass line is. */
-    let k = 0;
-    for (let q = 0; q < (s || 0); q++) if (pattern[i][q]) k++;
-    const c = chordAt();
-    const m = c.root + qual(iv[k % iv.length], c.maj), f = freq(m);
+    const m = bassNote(i, s), f = freq(m);
     /* The acoustic settings get the recorded bass, and it falls through to
        what was here before if the bank has not arrived — the accordion's
        synthesised button, the guitar's own low notes, the mandolin's pluck. */
@@ -2287,7 +2303,22 @@ function fire(i, t, s, vel) {
 let bpm = 120, swing = 0, playing = false;
 let cursor = 0, nextTime = 0, timer = 0, raf = 0;
 const queue = [];
-const AHEAD = 0.14, TICK = 25;
+/* How far ahead hits are scheduled, and how often the scheduler looks.
+   Everything in this app happens on the main thread, so the real question this
+   number answers is: how long may the main thread stall before you hear a hole?
+   At 0.14 the answer was 140 ms, and 140 ms is not a lot — a garbage collection,
+   a style recalculation or a tab coming back into focus can eat that, and
+   measuring a dense groove for half a minute in Chrome already caught one tick
+   arriving late. A phone stalls harder and more often, which is what "it lags a
+   bit" is.
+
+   The cost of looking further ahead is edit latency: a hit already scheduled
+   cannot be unscheduled, so muting a track or moving a step takes effect up to
+   AHEAD later. A quarter of a second is two sixteenths at 120 — audible if you
+   listen for it, and cheap against a dropout. Tapping a chip to audition it is
+   not affected: that calls fire() directly. TICK stays small, so the work per
+   wake-up stays small; it is the horizon that moved, not the batch size. */
+const AHEAD = 0.25, TICK = 25;
 
 function scheduler() {
   while (nextTime < ctx.currentTime + AHEAD) {
@@ -2426,6 +2457,7 @@ function buildMixer() {
   mixEls.forEach(el => { el.innerHTML = ''; });
   trkEls = [];
   dotsByBeat = Array.from({ length: STEPS / 4 }, () => []);
+  forgetCue();   // the dots and chips these lit no longer exist
   TRACKS.forEach((trk, i) => {
     const box = document.createElement('div');
     box.className = 'trk' + (trk.kind === 'voice' ? ' voice' : trk.kind === 'note' ? ' note' : trk.kind === 'tone' ? ' tone' : '');
@@ -2487,6 +2519,7 @@ function buildMixer() {
 
 function buildSteps() {
   stepsEl.innerHTML = ''; rulerEl.innerHTML = ''; cellEls = [];
+  forgetCue();   // the cells these lit no longer exist
   for (let s = 0; s < barLen; s++) {
     if (s && s % mtr.gap === 0) {
       const g = document.createElement('span'); g.className = 'gap'; stepsEl.appendChild(g);
@@ -2510,6 +2543,7 @@ function buildSteps() {
 function buildRoll() {
   rollEl.innerHTML = ''; rollEls = [];
   rollCols = Array.from({ length: barLen }, () => []);
+  forgetCue();   // the cells these lit no longer exist
   for (let d = DEGS - 1; d >= 0; d--) {
     const row = document.createElement('div');
     row.className = 'rrow';
@@ -2540,20 +2574,42 @@ function labelRoll() {
   }
 }
 
-let lastCue = -1, litEls = [];
+let lastBeat = -1, lastCol = -1, lastBarBtn = -1, litEls = [];
+// static markup, so this is queried once rather than eight times a second
+const barBtns = [].slice.call(barsEl.querySelectorAll('button'));
+/* Paint only what changed. This used to clear every roll cell, every lane cell
+   and re-query the bar buttons on every step — about 150 attribute writes and
+   the style invalidation that follows them, several times a second, on the same
+   thread that schedules the audio. The mixer dots were already doing it the
+   right way (`wasBeat`); the lane and the roll were not. Half of that work was
+   also going into a hidden subtree, since the lane and the roll are never both
+   on screen. */
 function paintCue(s) {
   const beat = s >= 0 ? Math.floor(s / dotSpan()) : -1;
   // the lane only lights up when the playhead is on the bar you are looking at
   const col = (s >= 0 && Math.floor(s / barLen) === page) ? s % barLen : -1;
-  const wasBeat = lastCue >= 0 ? Math.floor(lastCue / dotSpan()) : -1;
-  if (wasBeat >= 0 && dotsByBeat[wasBeat]) dotsByBeat[wasBeat].forEach(u => { u.dataset.cue = '0'; });
-  rollCols.forEach(c => c.forEach(b => { b.dataset.cue = '0'; }));
-  if (beat >= 0 && dotsByBeat[beat]) dotsByBeat[beat].forEach(u => { u.dataset.cue = '1'; });
-  if (col >= 0 && rollCols[col]) rollCols[col].forEach(b => { b.dataset.cue = '1'; });
-  lastCue = s;
-  cellEls.forEach((c, i) => { c.dataset.cue = i === col ? '1' : '0'; });
-  barsEl.querySelectorAll('button').forEach(b =>
-    b.dataset.live = (s >= 0 && Number(b.dataset.b) === Math.floor(s / barLen)) ? '1' : '0');
+  const barBtn = s >= 0 ? Math.floor(s / barLen) : -1;
+
+  if (beat !== lastBeat) {
+    if (lastBeat >= 0 && dotsByBeat[lastBeat]) dotsByBeat[lastBeat].forEach(u => { u.dataset.cue = '0'; });
+    if (beat >= 0 && dotsByBeat[beat]) dotsByBeat[beat].forEach(u => { u.dataset.cue = '1'; });
+    lastBeat = beat;
+  }
+  if (col !== lastCol) {
+    if (lastCol >= 0) {
+      if (cellEls[lastCol]) cellEls[lastCol].dataset.cue = '0';
+      if (rollCols[lastCol]) rollCols[lastCol].forEach(b => { b.dataset.cue = '0'; });
+    }
+    if (col >= 0) {
+      if (cellEls[col]) cellEls[col].dataset.cue = '1';
+      if (rollCols[col]) rollCols[col].forEach(b => { b.dataset.cue = '1'; });
+    }
+    lastCol = col;
+  }
+  if (barBtn !== lastBarBtn) {
+    barBtns.forEach(b => { b.dataset.live = Number(b.dataset.b) === barBtn ? '1' : '0'; });
+    lastBarBtn = barBtn;
+  }
 
   litEls.forEach(el => { el.dataset.hit = '0'; });
   litEls = [];
@@ -2564,6 +2620,10 @@ function paintCue(s) {
     }
   });
 }
+/* The lane and the roll are rebuilt on a metre change, so what was lit is gone
+   with them — say so, or paintCue skips the repaint because the index has not
+   changed and the new cells never light. */
+function forgetCue() { lastBeat = lastCol = lastBarBtn = -1; litEls = []; }
 // Four bars will not fit as one dot per step, so the mixer reads a beat at a
 // time; a single short bar does fit, and shows every step.
 const dotSpan = () => (patLen <= 16 ? 1 : 4);
@@ -3017,7 +3077,15 @@ const TIMBRES = [
    BASS_TOP folds down an octave — which is also what a bassist does, since the
    octave above the fourth fret of the G string is not where a bass line lives. */
 const BASS_NOTES = [28, 30, 32, 34, 36, 38, 39];
-const BASS_TOP = 43;
+/* 45, which is where the bank's own SFZ maps its top sample: FreePats stretch
+   D#2 up to A2 and so do we. 43 was a guess two semitones under that, and it
+   cost more than it saved — an octave shape rooted on A wants exactly 45, so
+   every such groove folded its octave back onto the root and played one note
+   twice a bar. A drone where the lane says octave. */
+const BASS_TOP = 45;
+// Down an octave until it is in range. See the warning on bassNote: this can
+// only move a note, so it silently flattens an interval it cannot reach.
+const bassFold = m => { let n = m; while (n > BASS_TOP) n -= 12; return n; };
 const BASS_TIMBRES = ['fisa', 'chit', 'mando'];
 // filled in by the single-file build; null here, where there is an origin
 const BASS_B64 = null;
@@ -3132,9 +3200,7 @@ function sampled(t, i, midi, peak, hold, spread, bank, sus) {
    register, so dropping it back costs the figure nothing and saves it being
    played by a sample stretched half an octave past where it was recorded. */
 function sampledBass(t, i, m, peak, hold) {
-  let n = m;
-  while (n > BASS_TOP) n -= 12;
-  return sampled(t, i, [n], peak, hold, 0, bassSmp);
+  return sampled(t, i, [bassFold(m)], peak, hold, 0, bassSmp);
 }
 
 function setTimbre(id) {
@@ -3696,9 +3762,17 @@ const GROOVES = [
     air:0.2, verb:1.1,
     bpm:132, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
+    /* Root on the first beat, fifth on the second, and each one arrives an
+       eighth early. Two notes a bar was the oom of an oom-pah with no oom-pah
+       around it — a bar and a half of silence under a tambourine that never
+       stops. Root and fifth rather than root and octave because that is what
+       the left hand of this music does, and because the octave of the V chord
+       is above the bank: the figure would keep flipping register on bar three
+       and nowhere else. */
+    bassIv:[0,0,7,7],
     steps:{ kick:[0,6], clap:[4,10],
             ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
-            bass:[0,6], stab:[3,9],
+            bass:[0,4,6,10], stab:[3,9],
             lead:[[0,4],[2,3],[4,2],[6,4],[8,3],[10,2],
                   [12,0],[14,2],[16,3],[18,2],[20,0],
                   [24,4],[26,6],[28,4],[30,2],[32,4],[34,6],
@@ -3722,9 +3796,21 @@ const GROOVES = [
     air:0.3, verb:1.1,
     bpm:160, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:0,stab:3,chank:3},
+    /* Twice the notes, alternating root and fifth every eighth — where the
+       tarantella sits on its root and answers on the second beat, the pizzica
+       rocks between the two, which is the difference between the two dances.
+       One note twice a bar left the fastest groove here with the thinnest
+       bottom.
+
+       Four eighths and not six. Six was tried and measured: under a tambourine
+       already playing all twelve steps it cost a decibel of crest and took
+       bar-to-bar novelty from 0.26 to 0.17, because a bass on every eighth of
+       every bar is four bars that are more alike. Four costs 0.45 dB and 0.06
+       and doubles the line, which is the trade that was worth making. */
+    bassIv:[0,7,0,7],
     steps:{ kick:[0,6], snare:[4,10], clap:[3,9],
             ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
-            bass:[0,6], chank:[3,9],
+            bass:[0,4,6,10], chank:[3,9],
             lead:[[0,4],[3,2],[6,4],[9,5],
                   [12,4],[15,2],[18,0],[21,2],
                   [24,4],[27,6],[30,4],[33,6],
@@ -4591,6 +4677,20 @@ window.dev = {
   get timbre() { return timbreForce; },
   // the rubric needs to read the state after a load
   state: () => snapshot(),
+  /* The bass line as it will actually sound, folding included, so a check can
+     ask whether it moves. A groove whose octave shape folds back onto the root
+     plays one note all the way through and nothing said so. */
+  bass: () => {
+    const i = TRACKS.findIndex(t => t.id === 'bass');
+    const samp = BASS_TIMBRES.indexOf(timbre) >= 0;
+    const out = [];
+    for (let q = 0; q < patLen; q++) {
+      if (!pattern[i][q]) continue;
+      const m = bassNote(i, q, Math.floor(q / barLen));
+      out.push(samp ? bassFold(m) : m);
+    }
+    return out;
+  },
   slots: () => KITS.reduce((o, k) => (k.slots && (o[k.id] = Object.assign({}, k.slots)), o), {}),
   setSlot: (kitId, slot, g) => { const K = KITS.find(k => k.id === kitId); if (K && K.slots) K.slots[slot] = g; },
 };
