@@ -8,6 +8,13 @@ The archives are tens of megabytes and the app needs a couple of hundred
 kilobytes of them, so this is a build tool and not a dependency: it runs once,
 writes m4a into app/audio/, and the result is what ships.
 
+Bitrate: 160k, not the 96k this started at. Ninety-six is plenty for a phone
+recording of somebody talking, which is what the voice packs are and why
+trim-clips.py stays there; it is not plenty for a plucked nylon string or for a
+tambourine playing every step of a tarantella, where what it smears is exactly
+the transient that makes the instrument recognisable. It costs about half a
+megabyte across every bank here.
+
 Three things come out of it.
 
   bass   a fingered Yamaha RBX electric bass, seven notes E1 to D#2. The bank
@@ -47,7 +54,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 AUDIO = os.path.join(ROOT, 'app', 'audio')
 CACHE = os.path.join(tempfile.gettempdir(), 'doveclem-freepats')
-BITRATE = '96k'
+BITRATE = '160k'   # see the note under "Bitrate" in the docstring
 SR = 48000
 
 SRC = {
@@ -65,6 +72,15 @@ SRC = {
     'organ': ('https://freepats.zenvoid.org/Organ/DrawbarOrganEmulation/'
               'DrawbarOrganEmulation-SFZ-20190712.tar.xz',
               'DrawbarOrganEmulation-SFZ-20190712'),
+    # The guitar and the accordion were cut by hand before this script existed,
+    # which meant they were the two banks it could not re-encode. They are here
+    # now so every sampled instrument comes from one place at one bitrate.
+    'chit':  ('https://github.com/freepats/spanish-classical-guitar/releases/'
+              'download/v1.0.0/SpanishClassicalGuitar-20190618.zip',
+              'SpanishClassicalGuitar-20190618'),
+    'fisa':  ('https://github.com/freepats/button-accordion-HN/releases/'
+              'download/2024-03-29/ButtonAccordionHN-SFZ%2BFLAC-20240329.7z',
+              'Button Accordion HN SFZ+FLAC-20240329'),
 }
 
 # midi -> file in the bass bank. Every two semitones: the bank is chromatic, but
@@ -78,6 +94,11 @@ BRASS = {42:'F#2', 48:'C3', 54:'F#3', 60:'C4', 66:'F#4', 72:'C5', 78:'F#5'}
 # notes of a chord swirling at three different speeds is not a chord.
 ORGAN = {48:'C3', 52:'E3', 56:'G#3', 60:'C4', 64:'E4', 68:'G#4',
          72:'C5', 76:'E5', 80:'G#5', 84:'C6'}
+# Eleven notes, A1 to B5: the only bank that reaches low enough to play the bass.
+CHIT = {33:'A1', 38:'D2', 43:'G2', 48:'C3', 52:'E3', 57:'A3',
+        62:'D4', 67:'G4', 72:'C5', 77:'F5', 83:'B5'}
+# The bank's own eight, so nothing is stretched more than two semitones.
+FISA = {59:'B3', 62:'D4', 66:'F#4', 69:'A4', 72:'C5', 76:'E5', 79:'G5', 83:'B5'}
 
 # slot -> (folder, the pool the SFZ round-robins over, peak dBFS and length of
 # the single file being replaced). TAKES of the pool are chosen by measurement,
@@ -110,23 +131,33 @@ def fetch():
         out = os.path.join(CACHE, folder)
         if os.path.isdir(out):
             continue
-        ext = '.tar.xz' if url.endswith('.tar.xz') else '.7z'
+        ext = ('.tar.xz' if url.endswith('.tar.xz')
+               else '.zip' if url.endswith('.zip') else '.7z')
         arc = os.path.join(CACHE, key + ext)
         if not os.path.exists(arc):
             print('fetching %s ...' % key)
             urllib.request.urlretrieve(url, arc)
         if ext == '.tar.xz':
             sh(['tar', 'xJf', arc, '-C', CACHE])
+        elif ext == '.zip':
+            # this one has no top folder of its own, so give it the one we expect
+            sh(['unzip', '-q', '-o', arc, '-d', out])
         else:
             sh(['7zz', 'x', '-y', '-o' + CACHE, arc])
 
 def find(folder, *parts):
-    """The archives disagree about extension: some takes are .wav, some .flac."""
-    base = os.path.join(CACHE, SRC[folder][1], 'samples', *parts)
-    for ext in ('.flac', '.wav'):
-        if os.path.exists(base + ext):
-            return base + ext
-    raise SystemExit('missing sample: ' + base)
+    """The archives disagree about extension and about layout: some keep their
+    samples in a `samples/` folder, the accordion keeps them at the top and
+    prefixes every filename with the instrument's name."""
+    root = os.path.join(CACHE, SRC[folder][1])
+    stems = [os.path.join(root, 'samples', *parts), os.path.join(root, *parts)]
+    if folder == 'fisa':
+        stems.append(os.path.join(root, 'Button Accordion HN ' + parts[-1]))
+    for base in stems:
+        for ext in ('.flac', '.wav'):
+            if os.path.exists(base + ext):
+                return base + ext
+    raise SystemExit('missing sample: ' + stems[0])
 
 def pcm(path):
     raw = sh(['ffmpeg', '-v', 'error', '-i', path, '-ac', '1', '-ar', str(SR),
@@ -209,7 +240,9 @@ def main(dry):
     for name, table, folder, sub, hold in (
             ('bass',  BASS,  'bass',  ('finger',), 1.30),
             ('brass', BRASS, 'brass', (),          1.80),
-            ('organo', ORGAN, 'organ', (),         2.20)):
+            ('organo', ORGAN, 'organ', (),         2.20),
+            ('chit',   CHIT,  'chit',  (),         1.80),
+            ('fisa',   FISA,  'fisa',  (),         1.50)):
         for midi, stem in sorted(table.items()):
             src = find(folder, *(sub + (stem,)))
             a = pcm(src)

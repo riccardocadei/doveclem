@@ -28,6 +28,11 @@ the reason it sounds the way it does. The opening screen is a plain map of the
 world, in ink on paper. The packs are the point: it started with Clementina, but
 any voice works, so the app is not named after one person.
 
+Every sample is 160 kbps AAC except the voice memos, which stay at 96 — plenty
+for somebody talking, and where most of the bytes are. The instruments and the
+drum kit were at 96 too, and what that smeared was exactly the transient that
+makes a plucked string or a tambourine recognisable.
+
 Everything is client-side: no build step, no dependencies, no runtime network
 calls. The drums, bass and chords are generated with the Web Audio API; the
 voices are decoded once into memory and triggered by a look-ahead scheduler, so
@@ -616,6 +621,21 @@ over the phone. `score.html` and `tuning.html` are not behind the door — they 
 development pages, they are `noindex` too, and gating them would add nothing
 while the clips remain directly fetchable from the public repository.
 
+## Saving a recording
+
+The Record button captures the bus in real time. What Save hands you depends on
+whether you trimmed it, and the button says which before you press it:
+
+- **Handles untouched** — you get the file the recorder itself made (m4a on
+  Safari, webm on Chrome). Two minutes is about two megabytes.
+- **Handles moved** — you get WAV, because cutting an m4a at an arbitrary point
+  needs a demuxer this app does not have and will not grow. Two minutes of
+  stereo 16-bit is **twenty-odd megabytes**, and that is simply what WAV is.
+
+It used to decode the compressed take and write WAV from it every time, throwing
+away a perfectly good file a tenth the size in order to produce a bigger one.
+Twelve seconds measures 0.18 MB against 2.2.
+
 ## Putting it on a phone
 
 It is a PWA, so there is no store and no install file — the page becomes the app.
@@ -683,6 +703,7 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
 | Metre | 4/4, 3/4 or 6/8. **The tempo is counted in the beat the metre has**: quarters in the first two, dotted quarters in 6/8, because that is the beat you feel in a 6/8 dance and nobody counts a tarantella in quarter notes. It used to divide by four whatever the metre, so a 6/8 groove marked 132 was moving at 88 of its own beats — the number on screen and the speed of the dance were different things |
+| Room tone | Not a control — a bed of filtered noise under the music, set per groove, so the gaps between hits are not digitally empty. It starts with Play and stops with Stop. It used to start at boot and loop for as long as the app was open, which is a narrow band of noise under a silent machine: quiet, constant, and exactly what the ear hears as a tone |
 | Filter | One lowpass across the record, 200 Hz to wide open. The echo returns through it too. **The voices do not go through it** — nor through the riser, which is the same filter moving. A synth reads as filtered; a recorded sentence reads as broken, and nothing in a spoken phrase asked for a lowpass. Their echo and reverb still return through it, so the room is allowed to sweep while the words are not |
 | 4/4 · 3/4 · 6/8 | The metre, beside the tempo. A bar is sixteen steps in common time and twelve in the other two — but a waltz is three beats of four and 6/8 is two beats of three, which is the whole difference between them |
 | 1 bar · 4 bars | How many bars go round |

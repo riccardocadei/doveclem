@@ -1149,24 +1149,33 @@ const qual = (semi, maj) => (maj && semi % 12 === 3) ? semi + 1 : semi;
 const freq = m => 440 * Math.pow(2, (m - 69) / 12);
 const noteName = m => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 
+/* Which library the rows below were built for. A voice lane is written against
+   one particular recording, so carrying it across to another person's clips by
+   position gives you a rhythm somebody else's sentence does not fit — the drums
+   and the instruments are the same parts either way and do carry across, which
+   is the documented behaviour and the useful half. */
+let builtPack = -1;
 function buildTracks() {
+  const samePack = builtPack === packIx;
+  builtPack = packIx;
   const prevPat = pattern, prevNotes = notes, prevVol = vol, prevMute = mute, prevSend = send;
   TRACKS = SYNTHS.map(s => ({ ...s, kind: s.note ? 'note' : s.tone ? 'tone' : 'synth' }))
     .concat(clips().map((c, i) => ({
       id: 'v' + i, name: c.label, short: c.short, kind: 'voice', ci: i,
       echo: 0.18, pan: (i % 2 ? 0.18 : -0.18), verb: 0.22
     })));
+  const keeps = t => t.kind !== 'voice' || samePack;
   pattern = TRACKS.map((t, i) => {
     const old = prevPat[i];
-    return old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(0);
+    return keeps(t) && old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(0);
   });
   notes = TRACKS.map((t, i) => {
     const old = prevNotes[i];
-    return old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(0);
+    return keeps(t) && old && old.length === STEPS ? old.slice() : new Array(STEPS).fill(0);
   });
-  vol  = TRACKS.map((t, i) => (prevVol[i] !== undefined ? prevVol[i] : 1));
-  mute = TRACKS.map((t, i) => (prevMute[i] !== undefined ? prevMute[i] : false));
-  send = TRACKS.map((t, i) => (prevSend[i] !== undefined ? prevSend[i] : t.echo));
+  vol  = TRACKS.map((t, i) => (keeps(t) && prevVol[i] !== undefined ? prevVol[i] : 1));
+  mute = TRACKS.map((t, i) => (keeps(t) && prevMute[i] !== undefined ? prevMute[i] : false));
+  send = TRACKS.map((t, i) => (keeps(t) && prevSend[i] !== undefined ? prevSend[i] : t.echo));
   vparams = clips().map(() => ({ rate:1, start:0, chop:0, rev:false, over:true, chorus:false }));
   clipInfo = clips().map(() => null);
 }
@@ -1234,9 +1243,16 @@ function buildChain() {
   shaper.curve = curve; shaper.oversample = '2x';
   drive = shaper;
 
+  /* Catching peaks rather than levelling everything. At -10 and 3:1 this was
+     working on the body of the mix the whole time, which is what "glue" means
+     but also what takes the life out of a kit; -7 and 2:1 leaves the middle
+     alone and only leans on what sticks out. The slower attack lets a transient
+     through before it closes, which is the other half of why a compressed kit
+     sounds flat. score.html reads crest directly, so this is checkable rather
+     than a matter of taste. */
   const glue = ctx.createDynamicsCompressor();
-  glue.threshold.value = -10; glue.knee.value = 12;
-  glue.ratio.value = 3; glue.attack.value = 0.004; glue.release.value = 0.2;
+  glue.threshold.value = -7; glue.knee.value = 10;
+  glue.ratio.value = 2; glue.attack.value = 0.006; glue.release.value = 0.25;
   glue.connect(ctx.destination);
   bus = glue;
 
@@ -1245,7 +1261,12 @@ function buildChain() {
   filt = ctx.createBiquadFilter();
   filt.type = 'lowpass'; filt.Q.value = 0.9; filt.frequency.value = filtHz();
   filt.connect(drive); drive.connect(bus);
-  master = ctx.createGain(); master.gain.value = 0.85; master.connect(filt);
+  /* 0.71, not 0.85. A compressor that levels less lets more through, so
+     softening the glue put four grooves over 0 dBFS — the gain it was doing for
+     free has to be given back as headroom, or "more dynamics" just means
+     "clips". Half a decibel of margin on top of the worst one, because the
+     measurement itself moves about that much between seeds. */
+  master = ctx.createGain(); master.gain.value = 0.71; master.connect(filt);
 
   /* A room, made rather than recorded: noise decaying over a second and a half,
      darkened, different in each ear so it opens up instead of sitting in the
@@ -1258,7 +1279,11 @@ function buildChain() {
      the walls. It costs nothing at play time — it is all in the buffer. */
   verb = ctx.createConvolver();
   const vsr = ctx.sampleRate;
-  const n = Math.floor(vsr * 1.7), ir = ctx.createBuffer(2, n, vsr);
+  /* 1.1 seconds, not 1.7. A stereo convolution runs on every audio quantum
+     whether or not a note is playing, which makes it the largest continuous
+     cost in the chain and the first thing to shorten when a phone struggles —
+     a third less of it for a tail that is shorter rather than different. */
+  const n = Math.floor(vsr * 1.1), ir = ctx.createBuffer(2, n, vsr);
   const TAIL = 0.085;
   // seconds, level, and which ear gets it first
   /* Half what the first attempt used, and for a physical reason rather than a
@@ -1378,6 +1403,17 @@ function setMute(i, on) {
 
 /* Solo is one track at a time and lives beside mute rather than replacing it:
    the mute buttons keep whatever you set while you listen to something alone. */
+/* Every channel gain stays connected to the master, so dropping the array on a
+   library switch left them in the graph for the life of the page — silent,
+   because nothing feeds them any more, but never collected. Disconnect first. */
+function dropChans() {
+  chan.forEach(c => {
+    if (!c) return;
+    [c.out, c.snd, c.rvb, c.pan].forEach(n => { if (n) { try { n.disconnect(); } catch (e) {} } });
+  });
+  chan = [];
+}
+
 let solo = -1;
 function reChan(i) {
   if (!ctx || !chan[i]) return;
@@ -1489,7 +1525,6 @@ async function boot() {
   if (!window.gateOpen) return;
   if (booted) {
     if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
-    startAir();          // hush() stopped it; it is a no-op if it is still going
     return;
   }
   booted = true;
@@ -1500,7 +1535,6 @@ async function boot() {
   let bad = [];
   try { bad = await loadPack(); } catch (e) { say('Could not load the voices: ' + msg(e)); }
   tag.textContent = playing ? 'Running' : 'Stopped';
-  startAir();
   loadKit(kit);
   loadSamples();
   paintPanel();
@@ -2414,6 +2448,14 @@ function scheduler() {
   }
 }
 function start() {
+  clockWall = 0;                       // a fresh reading, not the one from before Stop
+  /* The room tone starts with the music and stops with it. It used to start at
+     boot and loop for as long as the app was open, which is a band of noise
+     between 90 and 1500 Hz sitting under a silent machine — quiet, constant,
+     and exactly the kind of thing the ear locks onto and hears as a tone. It is
+     there to stop the gaps *between hits* being digitally empty; when nothing
+     is playing there are no gaps to fill. */
+  startAir();
   playing = true; cursor = 0; bar = 0; loops = 0;
   nextTime = ctx.currentTime + 0.06;
   queue.length = 0;
@@ -2426,6 +2468,7 @@ function start() {
 }
 function stop() {
   playing = false;
+  stopAir();
   clearInterval(timer); cancelAnimationFrame(raf);
   queue.length = 0;
   voiceLive.forEach(list => (list || []).forEach(v => {
@@ -2445,7 +2488,31 @@ function stop() {
   paintCue(-1);
 }
 let shownStep = -1;
+/* iOS takes the audio away on any interruption — a call, Siri, another app,
+   sometimes the ringer — and nothing here noticed: the transport kept running
+   and the playhead kept crawling over silence, which is what "it bugs after a
+   few minutes" looks like from the outside. This watches the audio clock rather
+   than ctx.state, because Safari reports an interruption as 'interrupted',
+   which is not in the specification and not what other browsers say. A clock
+   that has not moved while half a second of wall time has is a stopped clock,
+   whatever the reason.
+
+   It stops rather than resuming behind your back: iOS wants a fresh gesture
+   before it will give the audio back, so offering the tap is honest and trying
+   silently is what fails silently. */
+let clockT = 0, clockWall = 0;
+function stalled() {
+  const wall = performance.now() / 1000, t = ctx.currentTime;
+  if (!clockWall) { clockWall = wall; clockT = t; return false; }
+  if (t - clockT > 0.05) { clockWall = wall; clockT = t; return false; }
+  return wall - clockWall > 0.6;
+}
 function follow() {
+  if (stalled()) {
+    stop();
+    say('The phone took the sound away — a call, Siri or another app. Press Play.');
+    return;
+  }
   const now = ctx.currentTime;
   while (queue.length > 1 && queue[1].t <= now) queue.shift();
   if (queue.length && queue[0].t <= now && queue[0].s !== shownStep) {
@@ -2534,10 +2601,14 @@ const laneOf = trk => trk.kind === 'voice' ? 2 : (trk.kind === 'synth' ? 0 : 1);
 function buildMixer() {
   mixEls.forEach(el => { el.innerHTML = ''; });
   trkEls = [];
-  // the span can change with the metre, so the chips are built for the one in
-  // force and setLen rebuilds them when it moves
+  /* One dot per beat *of the loop*, not of the 64 steps a pattern can hold. Off
+     STEPS, a one-bar pattern — where the span drops to one dot per step — gave
+     every chip sixty-four dots for sixteen steps of music: under two pixels
+     each on a phone, which is not a preview, it is a smear. It also leaves 6/8
+     with twenty-four dots and no dimmed tail, because 48 steps at one dot per
+     eighth is exactly twenty-four. setLen rebuilds when either number moves. */
   mixSpan = dotSpan();
-  mixDots = Math.ceil(STEPS / mixSpan);
+  mixDots = Math.ceil(patLen / mixSpan);
   dotsByBeat = Array.from({ length: mixDots }, () => []);
   forgetCue();   // the dots and chips these lit no longer exist
   TRACKS.forEach((trk, i) => {
@@ -2771,7 +2842,7 @@ function setLen(meter, n) {
   // stepDur and the mixer's dot both depend on the metre: the echo has to be
   // retimed and the chips rebuilt when the span moves, or they keep the old one
   setBpm(bpm);
-  if (dotSpan() !== mixSpan) buildMixer();
+  if (dotSpan() !== mixSpan || Math.ceil(patLen / dotSpan()) !== mixDots) buildMixer();
   meterEl.querySelectorAll('button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.m === mtr.id)));
   barsSeg.querySelectorAll('button').forEach(b =>
@@ -3418,7 +3489,7 @@ async function setPack(ix) {
   if (sel >= TRACKS.length) sel = 0;
   select(sel);
   if (ctx) {
-    chan = [];
+    dropChans();
     ready = false;
     tag.textContent = 'Loading';
     const bad = await loadPack();
@@ -4110,6 +4181,11 @@ renderGrooves();
    uncompressed, so it opens anywhere, and short enough not to matter. */
 let recorder = null, recDest = null, recChunks = [], recBuf = null;
 let recIn = 0, recOut = 1, recT0 = 0, recTick = 0;
+let recTake = null, recMime = '';
+// whole take, within a hair either end — the handles snap nowhere, so "did not
+// move them" has to mean "did not move them much"
+const recWhole = () => recIn < 0.002 && recOut > 0.998;
+const recExt = () => (/mp4|m4a|aac/.test(recMime) ? 'm4a' : /ogg/.test(recMime) ? 'ogg' : 'webm');
 const recBtn = $('recBtn'), recLabel = $('recLabel'), recPanel = $('recPanel');
 const recScope = $('recScope'), recWave = $('recWave'), recRegion = $('recRegion');
 const rStart = $('rStart'), rEnd = $('rEnd');
@@ -4151,6 +4227,14 @@ function paintRec() {
   const d = recBuf.duration;
   recText.textContent = (recIn * d).toFixed(2) + ' \u2013 ' + (recOut * d).toFixed(2) + ' s';
   recLen.textContent = ((recOut - recIn) * d).toFixed(2) + ' s';
+  /* What Save will hand you, and how big, before you press it. A trim costs
+     about ten times the bytes and the reason is not obvious from the outside. */
+  if (recWhole() && recTake) {
+    recSaveBtn.textContent = 'Save ' + recExt() + ' · ' + (recTake.size / 1048576).toFixed(1) + ' MB';
+  } else {
+    const bytes = 44 + Math.floor((recOut - recIn) * recBuf.length) * recBuf.numberOfChannels * 2;
+    recSaveBtn.textContent = 'Save wav · ' + (bytes / 1048576).toFixed(1) + ' MB';
+  }
 }
 
 async function recStart() {
@@ -4162,11 +4246,28 @@ async function recStart() {
   recChunks = [];
   try { recorder = new MediaRecorder(recDest.stream); }
   catch (e) { bus.disconnect(recDest); recDest = null; say('Could not start recording: ' + msg(e)); return; }
-  recorder.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+  recMime = recorder.mimeType || '';   // a first guess; the chunks correct it
+  /* From the data, not from recorder.mimeType: that is empty until the recorder
+     has actually started in some browsers, and it is read here before it has.
+     The chunk always knows what it is. */
+  recorder.ondataavailable = e => {
+    if (!e.data || !e.data.size) return;
+    if (e.data.type) recMime = e.data.type;
+    recChunks.push(e.data);
+  };
   recorder.onstop = async () => {
     if (recDest) { try { bus.disconnect(recDest); } catch (e) {} recDest = null; }
     try {
-      recBuf = await decode(await new Blob(recChunks).arrayBuffer());
+      /* Keep the compressed take, not just the decoded samples. MediaRecorder
+         has already produced a perfectly good file — m4a on Safari, webm on
+         Chrome — a tenth the size of the WAV this used to write from it, and it
+         was being thrown away. It can only be saved whole, because cutting an
+         m4a at an arbitrary point needs a demuxer; so it is what you get when
+         you have not moved the handles, and the WAV is what you get when you
+         have. paintRec() says which. */
+      recTake = new Blob(recChunks, { type: recMime || 'audio/mp4' });
+      recMime = recTake.type || recMime;
+      recBuf = await decode(await recTake.arrayBuffer());
       recIn = 0; recOut = 1;
       recPanel.hidden = false;
       recHint.textContent = recBuf.duration.toFixed(1) + ' s captured';
@@ -4252,7 +4353,7 @@ recPlayBtn.addEventListener('click', () => {
 });
 recDropBtn.addEventListener('click', () => {
   recPreviewStop();
-  recBuf = null; recChunks = [];
+  recBuf = null; recChunks = []; recTake = null;
   recPanel.hidden = true;
   recHint.textContent = 'nothing recorded yet';
   say('Recording discarded.');
@@ -4260,10 +4361,14 @@ recDropBtn.addEventListener('click', () => {
 
 recSaveBtn.addEventListener('click', async () => {
   if (!recBuf) return;
-  const blob = wavBlob(recBuf, recIn, recOut);
+  /* The whole take goes out as the recorder made it — a couple of megabytes
+     instead of twenty-odd, and one encode rather than two. Trim it and you get
+     WAV, because that is the only way to cut it exactly. */
+  const whole = recWhole() && recTake;
+  const blob = whole ? recTake : wavBlob(recBuf, recIn, recOut);
   const secs = ((recOut - recIn) * recBuf.duration).toFixed(1);
-  const name = 'doveclem-' + secs + 's.wav';
-  const file = new File([blob], name, { type: 'audio/wav' });
+  const name = 'doveclem-' + secs + 's.' + (whole ? recExt() : 'wav');
+  const file = new File([blob], name, { type: blob.type || 'audio/wav' });
   // On a phone, sharing is what actually gets a file somewhere you can find it
   // again; a download link tends to land in a viewer you cannot save from.
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -4712,7 +4817,13 @@ async function renderOffline(gi, bars, only) {
   }
 
   const m = METERS.find(x => x.id === (g.meter || '4/4')) || METERS[0];
-  const total = bars * m.len, sd = 60 / g.bpm / 4;
+  /* The metre's own pulse, the same divisor stepDur() uses. Hard-coding four
+     here was measuring every 6/8 groove at two-thirds of its tempo — and worse,
+     the hits were laid out on that grid while the voice holds and the echo read
+     stepDur() and got the right one, so the render was not even internally
+     consistent. renderOffline and the scheduler have to agree; this is the
+     second number that has to move with the metre. */
+  const total = bars * m.len, sd = 60 / g.bpm / m.pulse;
   const sr = 44100;
   // 2.2 s of tail, because the reverb and the echo are part of the sound
   ctx = new OAC(2, Math.ceil(sr * (total * sd + 2.2)), sr);
