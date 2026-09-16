@@ -250,6 +250,9 @@
     display:flex; align-items:center; justify-content:space-between;
     gap:.6rem; padding:.35rem .15rem 0;
   }
+  /* Two pickers over one rack: which instrument the tune is on, and whether the
+     bass is a real one. Side by side they truncate on a phone. */
+  .sect.sub { padding-top:.2rem; }
   .sect-t {
     font-family:var(--mono); font-size:.5625rem; font-weight:600;
     letter-spacing:.15em; text-transform:uppercase; color:var(--ink-3);
@@ -783,6 +786,10 @@
     <span class="sect-t">Instruments</span>
     <select class="packsel" id="timbre" aria-label="Instrument"></select>
   </div>
+  <div class="sect sub">
+    <span class="sect-t">Bass</span>
+    <select class="packsel" id="bassKind" aria-label="Bass"></select>
+  </div>
   <section class="mixer" id="mixTone"></section>
 
   <div class="sect">
@@ -955,9 +962,13 @@
       <li><b>Key</b> sets the root. <b>Giro</b> moves the bass and the chord stab
           through the four bars, and decides whether the scale is minor, major, or the
           tarantella's.</li>
-      <li><b>Instruments</b> plays the bass, stab and lead as italo saws, accordion reeds,
-          a mandolin, a Rhodes or drawbars. <b>Drums</b> is the synthesised machine or a
-          real cajon, tambourine, shaker and hand claps.</li>
+      <li><b>Instruments</b> plays the stab, guitar, arpeggio and lead as italo saws,
+          accordion reeds, a guitar, a mandolin, a Rhodes, drawbars or brass.
+          <b>Bass</b> is asked separately, because what the tune is on and whether the
+          bass is a real one are two questions: <b>Electric</b> is a recorded bass,
+          <b>Accordion</b> is the box's own left hand, <b>Synthesised</b> is the saw pair.
+          <b>Drums</b> is the synthesised machine or a real cajon, tambourine, shaker
+          and hand claps.</li>
       <li><b>Filter</b> is one lowpass across everything, including the echo.</li>
       <li><b>Waveform</b>: drag the two handles to set where a clip starts and ends.
           Press anywhere in the strip and the nearer handle comes to you.</li>
@@ -1128,9 +1139,9 @@ const RISE_LOW = 700;
 /* The bass intervals, for when a groove wants its own instead of one of the
    four shapes. In italo the bass line is the piece. */
 let bassIv = null;
-/* Whether the accordion plays its own bass. Set per groove by loadGroove and
-   defaulted from the genre, so a new tarantella gets it without asking. */
-let boxBass = false;
+/* Which bass is playing. Set per groove by loadGroove, and its own picker in
+   the Instruments section — see BASSES. */
+let bassId = 'electric';
 let pump = false, filtV = 1;
 const PUMP = 0.55;                     // how far the kick pushes everything down
 let verbAmt = 1;                       // per base: how much room there is
@@ -1201,7 +1212,7 @@ let organic = 1;
 /* A kit forced from outside, so the same groove can be rendered with the
    synthesised kit and with the recorded one and the two levelled against each
    other. Empty in the app. */
-let kitForce = '', timbreForce = '', boxForce = '', noAutoKit = false;
+let kitForce = '', timbreForce = '', bassForce = '', noAutoKit = false;
 
 function b64ToBuf(b64) {
   const bin = atob(b64), u8 = new Uint8Array(bin.length);
@@ -1814,12 +1825,13 @@ function button(t, i, f) {
   lp.type = 'lowpass'; lp.frequency.value = 760; lp.Q.value = 0.6;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
-  /* 0.20 and not 0.15, measured rather than judged: this replaces the recorded
-     electric bass on the traditional grooves, and score.html rendered
-     Tarantella's bass both ways on the same bar — the box came out 2.8 dB
-     under. Two instruments swapping places must not change the volume. */
-  g.gain.linearRampToValueAtTime(0.20, t + 0.012);
-  g.gain.setValueAtTime(0.20, t + hold);
+  /* Measured rather than judged: this replaces the recorded electric bass on
+     the traditional grooves, and score.html renders Tarantella's bass both ways
+     on the same bar. Two instruments swapping places must not change the
+     volume, so when the electric came down 3.1 dB to meet the saw it replaces
+     on the italo grooves, this came down with it. */
+  g.gain.linearRampToValueAtTime(0.14, t + 0.012);
+  g.gain.setValueAtTime(0.14, t + hold);
   g.gain.exponentialRampToValueAtTime(0.0001, t + hold + 0.1);
   lp.connect(g); tap(g, i);
   const off = t + hold + 0.12;
@@ -1892,13 +1904,12 @@ function arpOne(t, i, m, peak) {
    hits before this step makes it a function of the step, and then it is the
    same line every time the giro comes round — which is what a bass line is.
 
-   On the sampled settings the note then goes through bassFold, and that is
-   worth knowing before writing an interval: the bank tops out at A2, so a
-   figure whose top note lands above it has that note pulled down an octave
-   while the rest stay where they are. The interval you wrote disappears, and
-   only sometimes — whichever bars the chord sits high in. There is a rubric
-   check for the worst of it ("the bass is not one note"), because it is
-   silent otherwise. */
+   On the recorded bass the note then goes through bassFold, which moves the
+   whole bar's figure down an octave together when its top would pass A2 — so
+   an interval you write survives wherever the chord sits. It used to move the
+   one offending note and leave the rest, which turned root-octave into
+   root-root in exactly the high bars; the rubric's "the bass is not one note"
+   is still there, because that class of fault is silent otherwise. */
 function bassNote(i, s, b) {
   const iv = bassIv || SHAPES[shapeOf.bass].iv;
   let k = 0;
@@ -1972,15 +1983,31 @@ const VOICES = {
        yourself interaction invites — and a recorded bass is still at full
        plateau when the next note lands. `mush()` would not catch it either: it
        only inspects stab, lead, arp and chank. */
-    /* Before the recorded bass, and only on the accordion: in a tarantella or a
-       stornello the bass *is* the box's left hand, and a fingered electric bass
-       under it is the anachronism you can hear. A balera band has a bass player
-       and keeps one; so does the sequencer and the funk. `boxBass` is the
-       groove's call, defaulting from its genre — and it is a global a groove
-       sets, so it is in snapshot() and restore() like the rest. */
-    if (boxBass && timbre === 'fisa') return button(t, i, f);
-    if (BASS_TIMBRES.indexOf(timbre) >= 0 &&
-        sampledBass(t, i, m, 0.50, playFor(i, s, Math.max(0.14, stepDur() * 1.6)))) return;
+    /* The bass has its own picker now, and that is the whole point of the
+       split: which instrument the tune is on and whether the bass is a real one
+       are two questions. They used to have one answer — the recorded bass came
+       with the three acoustic settings and nothing else — so choosing an italo
+       lead also chose a synthesised bass, on ten of the sixteen grooves.
+
+       `box` is the accordion's own left hand, which a tarantella wants and a
+       balera does not; it no longer checks the timbre, because a picker that
+       silently does nothing on six settings out of seven is not a picker. */
+    if (bassId === 'box') return button(t, i, f);
+    /* 0.35, not 0.50, and the 3.1 dB is measured rather than judged. The
+       recorded bass used to reach three settings out of seven and was never
+       compared with the saw pair it now replaces on the other four; put on
+       every groove at its old level it was 3.1 dB hotter in RMS than the saw,
+       which is a lot for the loudest thing in the bottom of a mix. It cost
+       1.7 dB of crest and *halved* bar-to-bar novelty on every italo groove —
+       Liana 0.27 to 0.13, Cristallo 0.24 to 0.12 — because a bass running
+       eighths at that level is most of what a bar sounds like, and it plays
+       the same figure in all four. score.html renders Cometa's bass both ways
+       on the same bar; one number, one same-groove reference. */
+    if (bassId === 'electric' &&
+        sampledBass(t, i, bassFold(m), 0.35,
+                    playFor(i, s, Math.max(0.14, stepDur() * 1.6)))) return;
+    /* Everything below is the synthesised bass: the Synth setting asks for it,
+       and a bank still in flight falls through to it rather than to silence. */
     if (timbre === 'fisa')   return button(t, i, f);
     if (timbre === 'chit')   return sampled(t, i, [m], 0.34, Math.max(0.12, stepDur()));
     if (timbre === 'mando')  return pluck(t, i, [m], 0.34, 0, 1400);
@@ -2290,6 +2317,7 @@ function leanOf(i) {
   return ((LEAN[id] || 0) / 1000 + wob) * human;
 }
 
+const VMAX = 9;
 function fireVoice(vi, t, i) {
   const p = vparams[vi];
   const buf = p.rev ? revOf(vi) : buffers[vi];
@@ -2316,6 +2344,22 @@ function fireVoice(vi, t, i) {
      hollow voice, and the two extra copies are pushed to opposite sides, which
      is what actually makes a doubled voice sound like more than one. */
   const spread = p.chorus ? [[1, 0, 0], [0.996, 0.014, -0.4], [1.004, 0.029, 0.4]] : [[1, 0, 0]];
+  /* Overlap has a ceiling. It is on by default — retriggering is what people do
+     with a voice pad — and nothing ever took a copy back off the stack: a seven
+     second clip written on sixteenths is forty-odd buffer sources alive at once,
+     three of them per hit with Chorus on, every one of them through the echo,
+     the reverb and the shaper. That is what "the sounds overlap and then stop"
+     is: the phone runs out of audio thread and the render glitches, and it is
+     not a stuck note. VMAX is three hits of a chorus or eight plain ones, and
+     the oldest is faded rather than cut, so stealing one does not click. */
+  while (live.length + spread.length > VMAX) {
+    const v = live.shift();
+    try {
+      v.g.gain.cancelScheduledValues(t);
+      v.g.gain.setTargetAtTime(0, t, 0.02);
+      v.s.stop(t + 0.12);
+    } catch (e) {}
+  }
   // what levelOf measured at load, so a quiet memo arrives at the same level
   // as a loud one instead of as a track somebody forgot to turn up
   const lvl = (clipInfo[vi] && clipInfo[vi].gain) || 1;
@@ -2399,6 +2443,25 @@ const queue = [];
    wake-up stays small; it is the horizon that moved, not the batch size. */
 const AHEAD = 0.25, TICK = 25;
 
+/* One track's error must not stop the machine. It used to: a throw inside a
+   voice function unwound out of scheduler(), so nextTime never advanced past
+   that step, the next tick hit the same step and threw again, and the app sat
+   there with the playhead crawling and no sound coming out — "it stopped for no
+   reason". VOICES.stab did precisely this the day it began calling playFor
+   without an `s` in its signature, and nothing said so.
+
+   Loud but partial, the same shape as loadPack: the track is named once, the
+   error goes to the console, and the other ten keep playing. Once per track,
+   because a step that throws throws every turn and a message a bar is noise. */
+const oopsSeen = {};
+function oops(where, e) {
+  if (!oopsSeen[where]) {
+    oopsSeen[where] = 1;
+    say('The ' + where + ' track hit an error and is being skipped. Everything else keeps playing.');
+  }
+  if (window.console) console.error('[doveclem] ' + where, e);
+}
+
 function scheduler() {
   /* Never play a backlog. A backgrounded tab has its timers throttled to about
      once a second while the audio clock keeps running, so by the time this wakes
@@ -2436,7 +2499,7 @@ function scheduler() {
     const useFill = !!fillPat && inLast && (loops % FILL_EVERY === FILL_EVERY - 1);
     for (let i = 0; i < TRACKS.length; i++) {
       const v = (useFill && fillHas[i]) ? fillPat[i][cursor % barLen] : pattern[i][cursor];
-      if (v) fire(i, t + leanOf(i), cursor, v);
+      if (v) { try { fire(i, t + leanOf(i), cursor, v); } catch (e) { oops(TRACKS[i].id, e); } }
     }
     queue.push({ s: cursor, t: t, f: useFill });
     nextTime += stepDur();
@@ -2508,20 +2571,27 @@ function stalled() {
   return wall - clockWall > 0.6;
 }
 function follow() {
+  /* The next frame is booked first, so a throw out of paintCue leaves the
+     playhead stuck for one frame instead of for good — it used to break the
+     chain, and then the lane froze while the audio carried on, which reads as
+     the app having stopped. stop() cancels this one by id, so an interruption
+     still ends the loop. */
+  raf = requestAnimationFrame(follow);
   if (stalled()) {
     stop();
     say('The phone took the sound away — a call, Siri or another app. Press Play.');
     return;
   }
-  const now = ctx.currentTime;
-  while (queue.length > 1 && queue[1].t <= now) queue.shift();
-  if (queue.length && queue[0].t <= now && queue[0].s !== shownStep) {
-    shownStep = queue[0].s;
-    paintCue(shownStep);
-    tag.textContent = 'Running ' + String(shownStep + 1).padStart(2, '0') +
-                      (queue[0].f ? ' · fill' : '');
-  }
-  raf = requestAnimationFrame(follow);
+  try {
+    const now = ctx.currentTime;
+    while (queue.length > 1 && queue[1].t <= now) queue.shift();
+    if (queue.length && queue[0].t <= now && queue[0].s !== shownStep) {
+      shownStep = queue[0].s;
+      paintCue(shownStep);
+      tag.textContent = 'Running ' + String(shownStep + 1).padStart(2, '0') +
+                        (queue[0].f ? ' · fill' : '');
+    }
+  } catch (e) { oops('playhead', e); }
 }
 
 /* ---------------- DOM ---------------- */
@@ -2546,7 +2616,7 @@ const progBtn = $('progBtn'), progNow = $('progNow'), progPop = $('progPop');
 const plist = $('plist'), pchords = $('pchords'), barsEl = $('bars');
 const meterEl = $('meter'), barsSeg = $('barsSeg');
 const filtI = $('filter'), filtOut = $('filterOut');
-const tbrSel = $('timbre'), kitSel = $('kit');
+const tbrSel = $('timbre'), kitSel = $('kit'), bassSel = $('bassKind');
 const veilPack = $('veilPack'), veilGo = $('veilGo'), veilDoor = $('veilDoor');
 const gateIn = $('gateIn'), gateNote = $('gateNote');
 const markName = $('markName'), packNow = $('packNow');
@@ -3251,10 +3321,47 @@ const BASS_NOTES = [28, 30, 32, 34, 36, 38, 39];
    every such groove folded its octave back onto the root and played one note
    twice a bar. A drone where the lane says octave. */
 const BASS_TOP = 45;
-// Down an octave until it is in range. See the warning on bassNote: this can
-// only move a note, so it silently flattens an interval it cannot reach.
-const bassFold = m => { let n = m; while (n > BASS_TOP) n -= 12; return n; };
-const BASS_TIMBRES = ['fisa', 'chit', 'mando'];
+/* Fold the *figure*, not the note, and this is not a refinement — it is the
+   difference between an octave and a drone. The old version pulled any single
+   note above BASS_TOP down an octave on its own, so a line written as root,
+   octave came out as root, root in exactly the bars where the chord sits high:
+   the lane said octave and the bass played one note twice. It was survivable
+   while the recorded bass reached three settings out of seven; putting it on
+   every groove made it Fantasia's bars two and four, identical, which is what
+   score.html's rubric caught.
+
+   What a bassist does instead is play the whole figure further down the neck.
+   So the shift is computed once from the bar's highest note and applied to all
+   of them, and every interval survives intact. A figure spans at most an
+   octave here and the playable window is E1 to A2, so a shifted figure always
+   fits inside it. `b` is the bar, or the scheduler's current one. */
+function bassShift(b) {
+  const iv = bassIv || SHAPES[shapeOf.bass].iv, c = chordAt(b);
+  let top = -Infinity;
+  for (let k = 0; k < iv.length; k++) {
+    const n = c.root + qual(iv[k], c.maj);
+    if (n > top) top = n;
+  }
+  let sh = 0;
+  while (top + sh > BASS_TOP) sh -= 12;
+  return sh;
+}
+const bassFold = (m, b) => m + bassShift(b);
+/* Which bass, asked separately from which instrument. It used to be answered
+   by the instrument picker — the recorded electric on fisa, chit and mando, a
+   saw pair on the other four — which meant an italo groove could not have a
+   real bass without also giving up its lead. `electric` is now the default
+   everywhere and `synth` is a choice rather than a consequence.
+
+   `box` is the accordion's left hand: a stradella bass is a real instrument
+   doing a job an electric bass cannot do in a tarantella, and it is modelled
+   because the sampled accordion's lowest recording is B3, two octaves above
+   where this plays. */
+const BASSES = [
+  { id:'electric', name:'Electric' },
+  { id:'box',      name:'Accordion' },
+  { id:'synth',    name:'Synthesised' },
+];
 // filled in by the single-file build; null here, where there is an origin
 const BASS_B64 = null;
 let bassSmp = {};
@@ -3270,9 +3377,20 @@ let smp = {};
 const smpCache = {};
 /* One bank, one fetch, cached by id. `b64` is the single-file build's inlined
    copy, since an artifact has no origin to fetch from. */
-async function loadBank(id, notes, b64, label) {
-  if (smpCache[id]) return smpCache[id];
-  if (!ctx) return null;
+/* `bankJobs` is not tidiness: setTimbre and setBass both call loadSamples, and
+   loadGroove calls both, so the bass bank had two fetches in flight with
+   neither able to see the other's cache entry yet. */
+const bankJobs = {};
+function loadBank(id, notes, b64, label) {
+  if (smpCache[id]) return Promise.resolve(smpCache[id]);
+  if (!ctx) return Promise.resolve(null);
+  if (bankJobs[id]) return bankJobs[id];
+  const job = fetchBank(id, notes, b64, label);
+  bankJobs[id] = job;
+  job.then(() => { delete bankJobs[id]; }, () => { delete bankJobs[id]; });
+  return job;
+}
+async function fetchBank(id, notes, b64, label) {
   const bank = {};
   const out = await Promise.allSettled(notes.map(async n => {
     const ab = b64 ? b64ToBuf(b64[n])
@@ -3295,7 +3413,7 @@ async function loadSamples() {
   const t = TIMBRES.find(x => x.id === timbre) || TIMBRES[0];
   const mine = timbre;
   const jobs = [];
-  if (BASS_TIMBRES.indexOf(t.id) >= 0 && !Object.keys(bassSmp).length)
+  if (bassId === 'electric' && !Object.keys(bassSmp).length)
     jobs.push(loadBank('bass', BASS_NOTES, BASS_B64, 'bass').then(b => { if (b) bassSmp = b; }));
   if (t.notes && !smpCache[t.id]) {
     smp = {};
@@ -3327,16 +3445,29 @@ async function loadSamples() {
    organ recording, so a moving start is a moving rotor, which is what the
    instrument does on its own. A plucked bank must never do that: its start is
    the plectrum. */
-function sampled(t, i, midi, peak, hold, spread, bank, sus) {
+function sampled(t, i, midi, peak, hold, spread, bank, sus, rr) {
   const b = bank || smp;
   const keys = Object.keys(b);
   if (!keys.length) return false;
   const rel = ((TIMBRES.find(x => x.id === timbre) || {}).rel) || 0.09;
   midi.forEach((m, k) => {
     const t0 = t + k * (spread || 0);
-    let best = +keys[0];
-    for (let q = 1; q < keys.length; q++)
-      if (Math.abs(+keys[q] - m) < Math.abs(best - m)) best = +keys[q];
+    /* Round robin, out of a bank that has one take a note. The kit solved this
+       with three recordings a slot; a pitched bank has none to spare, so the
+       spare recording is the *neighbouring* key repitched the rest of the way.
+       Two different strings, two different takes, arriving at the same pitch —
+       genuinely a different waveform, which is what the drums needed and what
+       a bass running eighths needs more than anything else here: sixteen notes
+       a bar out of a seven-note bank was the same recording sixteen times, and
+       score.html read it as the four bars being one bar.
+
+       Only where the caller asks for it (`rr` — the bass alone), and never the
+       same choice twice running for that note: the electric bass is stretched
+       six semitones at the top already, so another two is inside what it does
+       anyway, and an accordion chord does not want its notes wandering between
+       keycentres. It answers to `organic` like the kit's round robin does, so
+       score.html's before/after still compares the bass against itself. */
+    const best = pickKey(keys, m, rr && organic);
     const src = ctx.createBufferSource();
     src.buffer = b[best];
     src.playbackRate.value = Math.pow(2, (m - best) / 12);
@@ -3364,12 +3495,33 @@ function sampled(t, i, midi, peak, hold, spread, bank, sus) {
   return true;
 }
 
+/* Nearest key, or one of the two nearest when the bank wants round robin.
+   `rrLast` remembers what this note played last time, so the alternation is
+   per note rather than global — a line that walks between two notes would
+   otherwise flip in lockstep and be as regular as no round robin at all. */
+const rrLast = {};
+function pickKey(keys, m, rr) {
+  let best = +keys[0], next = null;
+  for (let q = 1; q < keys.length; q++)
+    if (Math.abs(+keys[q] - m) < Math.abs(best - m)) best = +keys[q];
+  if (!rr || keys.length < 2) return best;
+  for (let q = 0; q < keys.length; q++) {
+    const k = +keys[q];
+    if (k === best) continue;
+    if (next === null || Math.abs(k - m) < Math.abs(next - m)) next = k;
+  }
+  if (next === null) return best;
+  const pick = rrLast[m] === best ? next : best;
+  rrLast[m] = pick;
+  return pick;
+}
+
 /* The recorded bass, folded into the bank's octave first. A bass line that
    leaps to the octave above is written that way for the movement, not for the
    register, so dropping it back costs the figure nothing and saves it being
    played by a sample stretched half an octave past where it was recorded. */
 function sampledBass(t, i, m, peak, hold) {
-  return sampled(t, i, [bassFold(m)], peak, hold, 0, bassSmp);
+  return sampled(t, i, [m], peak, hold, 0, bassSmp, false, true);
 }
 
 function setTimbre(id) {
@@ -3378,6 +3530,18 @@ function setTimbre(id) {
   loadSamples();
 }
 tbrSel.addEventListener('change', () => setTimbre(tbrSel.value));
+
+BASSES.forEach(b => {
+  const o = document.createElement('option');
+  o.value = b.id; o.textContent = b.name;
+  bassSel.appendChild(o);
+});
+function setBass(id) {
+  bassId = (BASSES.find(x => x.id === id) || BASSES[0]).id;
+  bassSel.value = bassId;
+  loadSamples();
+}
+bassSel.addEventListener('change', () => setBass(bassSel.value));
 
 KITS.forEach(k => {
   const o = document.createElement('option');
@@ -3934,8 +4098,11 @@ const GROOVES = [
      instead of four times, the tambourine rolls all twelve steps with the
      accent on the two beats, and it runs at 132 over four bars so the giro
      moves under the melody rather than beside it. */
+  /* The one groove whose bass is not the recorded electric: in a tarantella
+     the bass *is* the box's left hand, and a fingered bass under it is the
+     anachronism you can hear. */
   { name:'Tarantella', pack:'nonni', genre:'tarantella', timbre:'fisa', kit:'folk',
-    air:0.2, verb:1.1,
+    bass:'box', air:0.2, verb:1.1,
     bpm:120, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     /* Root on the first beat, fifth on the second, and each one arrives an
@@ -4125,10 +4292,11 @@ function loadGroove(gi) {
     });
   }
   bassIv = g.bassIv || null;
-  // the accordion's own left hand where the box is the band; a groove may say
-  boxBass = boxForce ? boxForce === 'on'
-          : g.boxBass !== undefined ? !!g.boxBass
-          : (g.genre === 'tarantella' || g.genre === 'folk');
+  /* The recorded bass unless the groove asks for something else. It used to
+     default off the genre and then be thrown away again on any timbre but the
+     accordion, which is why only one groove ever heard it; a groove that wants
+     the box now says so. */
+  setBass(bassForce || g.bass || 'electric');
   /* Defaults per voice, then the groove's own on top. A groove written before
      the strings existed names neither, and SHAPES[undefined] throws. */
   shapeOf = { bass:1, pad:3, stab:3, chank:3, arp:2, ...g.shape };
@@ -4667,7 +4835,7 @@ function snapshot() {
     // these four were being dropped: a saved pattern came back without its
     // fill, on the shape's intervals instead of its own, dead on the grid,
     // and in whatever room the last groove had left behind
-    human: human, bassIv: bassIv, verb: verbAmt, rise: rise, boxBass: boxBass,
+    human: human, bassIv: bassIv, verb: verbAmt, rise: rise, bass: bassId,
     fill: fillPat ? TRACKS.reduce((o, trk, i) => {
       if (!fillHas[i]) return o;
       const l = [];
@@ -4716,7 +4884,8 @@ async function restore(o) {
   bassIv = o.bassIv || null;
   human = o.human === undefined ? 1 : o.human;
   rise = !!o.rise;
-  boxBass = !!o.boxBass;
+  // `boxBass` is what snapshots written before the Bass picker called it
+  setBass(o.bass || (o.boxBass ? 'box' : 'electric'));
   verbAmt = o.verb === undefined ? 1 : o.verb;
   fillPat = null; fillHas = null;
   if (o.fill) {
@@ -4905,9 +5074,9 @@ window.dev = {
   get kit() { return kitForce; },
   set timbre(v) { timbreForce = v || ''; },
   get timbre() { return timbreForce; },
-  // '' groove's own · 'on' the box's left hand · 'off' the recorded bass
-  set boxBass(v) { boxForce = v || ''; },
-  get boxBass() { return boxForce; },
+  // '' the groove's own, or any id in BASSES
+  set bassKind(v) { bassForce = v || ''; },
+  get bassKind() { return bassForce; },
   // the rubric needs to read the state after a load
   state: () => snapshot(),
   /* The bass line as it will actually sound, folding included, so a check can
@@ -4915,12 +5084,13 @@ window.dev = {
      plays one note all the way through and nothing said so. */
   bass: () => {
     const i = TRACKS.findIndex(t => t.id === 'bass');
-    const samp = BASS_TIMBRES.indexOf(timbre) >= 0;
+    const samp = bassId === 'electric';
     const out = [];
     for (let q = 0; q < patLen; q++) {
       if (!pattern[i][q]) continue;
-      const m = bassNote(i, q, Math.floor(q / barLen));
-      out.push(samp ? bassFold(m) : m);
+      const b = Math.floor(q / barLen);
+      const m = bassNote(i, q, b);
+      out.push(samp ? bassFold(m, b) : m);
     }
     return out;
   },

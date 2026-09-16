@@ -684,8 +684,11 @@ app does on launch (`navigator.audioSession`); on older iOS the switch still win
 ## Playing it
 
 The tracks live in three racks, each under the picker that decides what it is
-played on: **Drums** for the five drums, **Instruments** for the bass, stab and
-lead, **Voices** for the current pack's clips. It used to be one box called Mixer
+played on: **Drums** for the five drums, **Instruments** for the tune, **Voices**
+for the current pack's clips. The instrument rack has two pickers over it,
+because what the tune is played on and whether the bass is a real one are two
+questions — they used to have one answer, and the answer to the second was "no"
+on ten grooves out of sixteen. It used to be one box called Mixer
 with a header inside reading "Machine", which named neither the thing nor what
 the picker two inches away would do to it.
 
@@ -708,7 +711,8 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | 4/4 · 3/4 · 6/8 | The metre, beside the tempo. A bar is sixteen steps in common time and twelve in the other two — but a waltz is three beats of four and 6/8 is two beats of three, which is the whole difference between them |
 | 1 bar · 4 bars | How many bars go round |
 | Drums | The synthesised **Machine**, or **Tambourine** — a real cajón, tambourine, shaker and hand claps, three takes of each. It sits in the header of the rack it governs |
-| Instruments | Bass, stab and lead: Synth italo, Accordion, Guitar, Mandolin, Rhodes, Organ, Brass |
+| Instruments | The stab, rhythm guitar, arpeggio and lead: Synth italo, Accordion, Guitar, Mandolin, Rhodes, Organ, Brass |
+| Bass | Asked on its own, over the same rack. **Electric** is a recorded fingered bass and is the default everywhere; **Accordion** is the box's own left hand, which is what a tarantella wants and what a balera does not; **Synthesised** is the saw pair, which is now a choice rather than a consequence of picking an italo lead |
 | Bar 1–4 | Which bar the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
 | Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root. The giro also picks the Lead's scale |
@@ -716,6 +720,7 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Pattern (Lead) | Eight rows of the giro's scale — tap a row to write that note, tap it again to erase |
 | Volume | Per-track level |
 | Echo | How much of that track feeds the delay. There is no master echo switch — it is per instrument |
+| Repeat | Whether firing a voice again cuts the one already playing or lets it stack. Stacking has a ceiling of nine — a long clip on sixteenths used to pile up without limit until the phone ran out of audio thread, which is what "the sounds overlap and then stop" was |
 | More | Opens the rest of the panel — Speed and playback direction |
 | Arp / Chord | Bass walks the intervals one per hit; Stab plays them together |
 | Speed | Playback rate, 0.4×–2.2× — changes pitch along with tempo |

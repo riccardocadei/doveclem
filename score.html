@@ -563,6 +563,33 @@ async function runPitched() {
       }
     }
   }
+  /* The bass, which had no column here at all — and it is the voice the fault
+     was actually reported on. "I bassi sembrano fake" is a similarity question
+     and there was nowhere to read the answer: a pitched bank holds one take a
+     note, so a bass running eighths played one recording sixteen times a bar
+     and would have read near 1.000 with nothing to read it in. Three sounds,
+     one groove, same notes — Fantasia, because it is the densest bass lane
+     here at eight hits a bar and it is the groove the mix table failed. */
+  w.dev.timbre = '';
+  const gb = gs.find(x => x.name === 'Fantasia');
+  for (const kind of ['electric', 'synth', 'box']) {
+    if (!gb) break;
+    w.dev.bassKind = kind;
+    for (const org of [0, 1]) {
+      w.dev.organic = org;
+      log((org ? 'after' : 'before') + ' \u2014 Fantasia / bass ' + kind);
+      seed(w, SEED);
+      let res;
+      try { res = await w.dev.render(gb.i, 2, 'bass'); }
+      catch (e) { rows.push({ groove: 'Fantasia', timbro: 'bass ' + kind, voce: 'bass',
+                              stato: 'ERROR: ' + (e && e.message || e) }); continue; }
+      const st = trackStats(res, 'bass');
+      if (st) rows.push(Object.assign({ groove: 'Fantasia', timbro: 'bass ' + kind,
+                                        voce: 'bass', stato: org ? 'after' : 'before' }, st));
+    }
+  }
+  w.dev.bassKind = '';
+
   w.dev.organic = 1; w.dev.timbre = '';
   log('done: ' + rows.length + ' per-instrument measurements.');
   show(table(rows, [
@@ -687,7 +714,13 @@ async function runLevels() {
   /* Same bar, same notes, one thing changed: the bass that plays it. This is
      how the accordion's 4.8 dB was found and it is the only comparison worth
      making between two different instruments. */
-  const boxes = [['Tarantella', 'on'], ['Tarantella', 'off']];
+  /* Three bass sounds, and every pair of rows here is the same bar with one
+     thing changed. Tarantella is the box against the record; Cometa is the
+     record against the saw it replaced on every italo groove when the bass got
+     its own picker — the number that says whether ten grooves just got louder
+     in the bottom or only got more real. */
+  const basses = [['Tarantella', 'box'], ['Tarantella', 'electric'],
+                  ['Cometa', 'electric'], ['Cometa', 'synth']];
   const forced = [['Testaccio', 'chit', ['chank', 'stab']],
                   ['Notte', 'organo', ['stab', 'lead']],
                   ['Notte', 'chit',   ['stab', 'lead']],
@@ -749,17 +782,18 @@ async function runLevels() {
     }
   }
   // the forced loop above leaves a timbre set, and this one needs the groove's
-  // own — the box bass only exists on the accordion
+  // own: the two bass sounds are levelled against each other, not against a
+  // different instrument playing the tune over them
   w.dev.timbre = '';
-  for (const [name, mode] of boxes) {
+  for (const [name, mode] of basses) {
     const g = gs.find(x => x.name === name);
     if (!g) continue;
-    w.dev.boxBass = mode;
-    log('levels \u2014 ' + name + ' bass ' + (mode === 'on' ? 'on the box' : 'on the record'));
+    w.dev.bassKind = mode;
+    log('levels \u2014 ' + name + ' bass: ' + mode);
     seed(w, SEED);
     let res;
     try { res = await w.dev.render(g.i, 2, 'bass'); }
-    catch (e) { rows.push({ groove: name + ' \u00b7 box ' + mode, voce: 'bass',
+    catch (e) { rows.push({ groove: name + ' \u00b7 bass ' + mode, voce: 'bass',
                             colpi: 'ERROR: ' + (e && e.message || e) }); continue; }
     const hits = res.hits.filter(h => h.id === 'bass');
     if (!hits.length) continue;
@@ -773,10 +807,10 @@ async function runLevels() {
         if (av > pk) pk = av; sq += v * v; n++;
       }
     });
-    rows.push({ groove: name + ' \u00b7 box ' + mode, voce: 'bass', colpi: hits.length,
+    rows.push({ groove: name + ' \u00b7 bass ' + mode, voce: 'bass', colpi: hits.length,
                 picco: r2(dB(pk)), rms: r2(dB(Math.sqrt(sq / Math.max(1, n)))) });
   }
-  w.dev.boxBass = '';
+  w.dev.bassKind = '';
   w.dev.timbre = '';
 
   // each voice's offset against the stab (or the arpeggio where there is none)
