@@ -523,8 +523,8 @@
   .notes b { color:var(--ink-2); font-weight:500; }
 
   /* The opening page is the door and the library chooser at once: whose voice
-     it is, then that library's word the first time on this phone, then the tap
-     that starts the audio — which is the gesture iOS needs and must not be
+     it is, then that library's password the first time on this phone, then the
+     tap that starts the audio — which is the gesture iOS needs and must not be
      spent anywhere else. */
   .veil {
     position:fixed; inset:0; z-index:20; width:100%;
@@ -602,34 +602,40 @@
 /* The door, deliberately outside the main script: it holds the words, and the
    engine has no business with them. It exports three primitives; the opening
    page in the main script does the asking, because that page also has to name
-   the libraries and PACKS lives down there.
+   the libraries and PACKS lives down there. One password per library, and the
+   word for the thing on screen is "password" — nobody outside this file calls
+   it a word.
 
    Say plainly what this is. The repository is public and every clip has a
    direct URL, so this stops somebody who opens the link without knowing the
-   word and stops nobody who opens the console. It is a door, not a lock. The
+   password and stops nobody who opens the console. It is a door, not a lock. The
    `noindex` meta in the head does the other and larger half of the job,
    because the realistic way a stranger arrives here is a search engine rather
    than a guess.
 
    knock() is not cryptography and must not read as cryptography. Comparing a
-   number instead of the word itself buys exactly one thing — the word is not
+   number instead of the password itself buys exactly one thing — it is not
    sitting in the page for "view source" to find — and that is the one thing
    worth buying. SubtleCrypto would look more serious and would stop working
    the moment you test from the phone over http on the LAN, which is precisely
    where this app has to be tested. */
 (function () {
-  /* One word per library, because the two libraries are two different people's
-     voices and get handed to two different sets of people. README has the
-     one-liner that computes these. */
-  var WORDS = { clem:'h93cow.ykf7xi',          // knock('clem')
-                nonni:'1s193lh.1ikp4v3' };     // knock('cicoria')
-  /* A word that opens whichever library is on screen *and* turns on author
+  /* One password per library, because the two libraries are two different
+     people's voices and get handed to two different sets of people. README has
+     the one-liner that computes these. */
+  var PASSWORDS = { clem:'h93cow.ykf7xi',      // knock('clem')
+                    nonni:'1s193lh.1ikp4v3' }; // knock('cicoria')
+  /* A password that opens whichever library is on screen *and* turns on author
      mode. It has to exist because `?autore=1` is unreachable from the
      installed app: the manifest has start_url "./" and display standalone, so
      the home-screen icon opens the page with no parameters and there is no
      address bar to add one to. The door, on the other hand, is always there. */
   var AUTORE = '13d6ps0.dtf4b0';               // knock('riccardo')
-  var KEY = 'doveclem.gate.';
+  /* Bumping this prefix is how everybody is asked again — the stored value no
+     longer answers to the name it is looked up under, so every device starts
+     from the door once more and remembers from then on. It is the same lever
+     as changing a password, without changing the password. */
+  var KEY = 'doveclem.pass.';
   function knock(w) {
     var a = 0x811c9dc5, b = 5381;
     for (var i = 0; i < w.length; i++) {
@@ -645,16 +651,21 @@
   // crashes shut is worse than one that asks again.
   function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function put(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  // The door used to be one word for the whole app, and that word was Nonni's.
-  // Anybody already through it keeps their key rather than being asked again.
-  if (get('doveclem.gate') === WORDS.nonni) put(KEY + 'nonni', WORDS.nonni);
-  window.doorOpen = function (id) { return !!WORDS[id] && get(KEY + id) === WORDS[id]; };
+  /* Every key from before the libraries had their own doors, cleared rather
+     than left lying in storage under a name nothing reads any more. Author mode
+     is not one of these and is deliberately left alone. */
+  try {
+    localStorage.removeItem('doveclem.gate');
+    localStorage.removeItem('doveclem.gate.clem');
+    localStorage.removeItem('doveclem.gate.nonni');
+  } catch (e) {}
+  window.doorOpen = function (id) { return !!PASSWORDS[id] && get(KEY + id) === PASSWORDS[id]; };
   // '' wrong · 'ok' right · 'autore' right, and the Verdict panel with it
   window.doorTry = function (id, word) {
-    if (!WORDS[id]) return '';
+    if (!PASSWORDS[id]) return '';
     var k = knock(String(word).trim().toLowerCase());
-    if (k !== WORDS[id] && k !== AUTORE) return '';
-    put(KEY + id, WORDS[id]);
+    if (k !== PASSWORDS[id] && k !== AUTORE) return '';
+    put(KEY + id, PASSWORDS[id]);
     if (k !== AUTORE) return 'ok';
     put('doveclem.autore', '1');
     return 'autore';
@@ -676,7 +687,7 @@
     <select class="veil-sel" id="veilPack" aria-label="Library"></select><em>.</em>
   </p>
   <form class="veil-door" id="veilDoor" hidden>
-    <label class="gate-lab" for="gateIn">Word</label>
+    <label class="gate-lab" for="gateIn">Password</label>
     <input class="gate-in" id="gateIn" type="password" autocomplete="current-password"
            autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
     <button class="gate-go" type="submit">Enter</button>
@@ -1452,7 +1463,7 @@ async function loadPack() {
 const msg = e => (e && e.message) ? e.message : String(e);
 
 async function boot() {
-  /* Nothing loads before the word. Without this the capture-phase listeners
+  /* Nothing loads before the password. Without this the capture-phase listeners
      would open the audio context and fetch the whole pack while the door was
      still shut, which defeats the door and spends somebody's data. */
   if (!window.gateOpen) return;
@@ -3224,10 +3235,19 @@ PROGS.forEach((g, i) => {
 /* The library is chosen on the way in rather than from a picker in the mixer,
    so this is called by the opening page and by nothing else. The drum pattern
    survives the switch on purpose — only the voices are the other person. */
-async function setPack(ix) {
-  packIx = ix;
+/* The title, the Voices header, and what the opening page reopens on. It has
+   three callers and the one that was missing is why the app kept reopening on
+   Clem: picking a library on the way in does not go through setPack — there is
+   nothing to rebuild on the first entry of a session — so the choice was only
+   ever stored when you *switched* after booting. */
+function namePack() {
   markName.textContent = packNow.textContent = PACKS[packIx].name;
   try { localStorage.setItem(PACK_KEY, PACKS[packIx].id); } catch (e) {}
+}
+
+async function setPack(ix) {
+  packIx = ix;
+  namePack();
   buildTracks();
   buildMixer();
   renderGrooves();
@@ -4576,9 +4596,9 @@ window.dev = {
 };
 
 /* ---- the opening page ---- */
-/* One page does three things in order: which library, its word the first time
-   on this phone, and the tap that starts the audio. The word lives in the door
-   script above; this only asks. */
+/* One page does three things in order: which library, its password the first
+   time on this phone, and the tap that starts the audio. The passwords live in
+   the door script above; this only asks. */
 function paintVeil() {
   const id = PACKS[Number(veilPack.value)].id;
   const open = window.doorOpen(id);
@@ -4594,14 +4614,32 @@ function paintVeil() {
 /* Leaving the veil is the one gesture iOS gives us, so everything that needs
    user activation happens inside it and nothing is awaited in front of the
    audio context. */
+// the first groove this library has, since grooves are per library and the
+// strip only ever shows its own
+const firstGroove = () =>
+  Math.max(0, GROOVES.findIndex(g => !g.pack || g.pack === PACKS[packIx].id));
+function landOn(gi) {
+  loadGroove(gi);
+  select(NS);   // the first voice, the interesting part
+}
+
 function enterApp() {
   const ix = Number(veilPack.value);
+  const first = !booted, change = ix !== packIx;
   window.gateOpen = true;
   veil.hidden = true;
-  if (!booted) { packIx = ix; markName.textContent = packNow.textContent = PACKS[ix].name; }
+  /* setPack, not a rename. Everything under the veil — the tracks, the mixer
+     chips, the groove strip — was built on the way down the file from the
+     library this session opened with, and picking a different one here used to
+     change the title and nothing else: "Dov'è Nonni" over Clem's voices, with
+     boot() then decoding Nonni's clips into Clem's track list. On the first
+     entry there is no audio context yet, so setPack rebuilds and leaves the
+     decoding to boot(); after it, setPack reloads the clips itself. */
+  if (change) setPack(ix); else namePack();
   boot();
-  // after the first time, coming back in on a different library swaps the voices
-  if (booted && ix !== packIx) setPack(ix);
+  // Nothing of yours exists yet on the way in, so land on a groove this library
+  // actually has rather than on the one the other library's strip was showing.
+  if (first && change) landOn(firstGroove());
 }
 
 function goHome() {
@@ -4643,11 +4681,8 @@ buildKbd();
 buildMixer();
 setLen('4/4', 4);
 select(0);
-// the first groove this library has, since they are per library and the strip
-// only ever shows its own
-loadGroove(Math.max(0, GROOVES.findIndex(g => !g.pack || g.pack === PACKS[packIx].id)));
-select(NS);   // land on the first voice, the interesting part
-markName.textContent = packNow.textContent = PACKS[packIx].name;
+landOn(firstGroove());
+namePack();
 veilPack.value = String(packIx);
 paintVeil();
 

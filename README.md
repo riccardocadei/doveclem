@@ -18,9 +18,9 @@ says **Dov’è ⟨Clem⟩** with the name as a dropdown, and whichever you choo
 the title the app then wears. **Clem** is the italo-disco one it started as.
 **Nonni** is Roman: accordion reeds instead of saws, major and harmonic-minor
 scales, and grooves built on the stornello and the tarantella rather than on a
-four-on-the-floor. Each library has its own word on the door, asked once per
-phone. Tapping the title in the top-left takes you back to the opening page to
-change library.
+four-on-the-floor. Each library has its own password, asked once per phone.
+Tapping the title in the top-left takes you back to the opening page to change
+library, and the app reopens on whichever one you played last.
 
 The name is an homage to *Dov’è Liana?*, the record the sound comes from — and
 the reason it sounds the way it does. The opening screen is a plain map of the
@@ -383,8 +383,9 @@ still keeps your drum pattern and reloads only the voices, so a groove you like
 carries across to different people's recordings. The last library you played is
 remembered, so the usual way in is one tap.
 
-A new pack also needs a word: add it to `WORDS` in the door script at the top of
-`index.html`, keyed by the pack's `id`. A pack with no word cannot be opened.
+A new pack also needs a password: add it to `PASSWORDS` in the door script at
+the top of `index.html`, keyed by the pack's `id`. A pack with no password
+cannot be opened, which is the right failure.
 
 ### Grooves for a pack
 
@@ -442,8 +443,8 @@ the thresholds are there to say "go and listen to this one".
 of the app — it is a working tool, so it does not appear to whoever opens the
 link. Two ways to turn it on, and neither needs a URL:
 
-- **Type `riccardo` at the door** instead of that library's own word. It opens
-  whichever library is on screen *and* turns on author mode.
+- **Type `riccardo` at the door** instead of that library's own password. It
+  opens whichever library is on screen *and* turns on author mode.
 - **Press and hold the logo** for a second, on a phone that is already unlocked.
   It toggles, and says which way it went.
 
@@ -552,14 +553,14 @@ python3 -m http.server 8000
 
 ## Keeping it to the family
 
-There is a word on the door — **one per library**, asked the first time you pick
-that library on a phone and remembered from then on. Clem's is `clem`, Nonni's is
-`cicoria`. Unlocking one says nothing about the other.
+There is a password on the door — **one per library**, asked the first time you
+pick that library on a phone and remembered from then on. Clem's is `clem`,
+Nonni's is `cicoria`. Unlocking one says nothing about the other.
 
 **Be clear about what this is.** It is a door, not a lock. The repository is
 public, so every clip also has a direct URL on `raw.githubusercontent.com` that
 no password in a page can intercept, and anyone who opens the console can delete
-the overlay. It stops somebody who is sent the link without the word. It stops
+the overlay. It stops somebody who is sent the link without the password. It stops
 nobody who looks.
 
 The larger half of the job is the `noindex, nofollow` meta on every page,
@@ -574,11 +575,11 @@ mean Cloudflare Pages with Cloudflare Access in front, which is free and would
 put the audio behind the same login as the page. That is a different job from
 this one.
 
-**Changing the word.** The page holds a number, not the word, which keeps it out
-of "view source" — the one thing this is actually meant to survive. It is not
+**Changing a password.** The page holds a number, not the password, which keeps
+it out of "view source" — the one thing this is actually meant to survive. It is not
 cryptography and does not pretend to be: `Math.imul`-based, so it keeps working
 when you test from the phone over plain http on the LAN, which `crypto.subtle`
-would not. Paste this into any browser console with your word in the quotes,
+would not. Paste this into any browser console with the password in the quotes,
 lower case and no spaces:
 
 ```js
@@ -586,13 +587,19 @@ lower case and no spaces:
 a=Math.imul(a^c,16777619)>>>0;b=(Math.imul(b,33)+c)>>>0}return a.toString(36)+'.'+b.toString(36)})('cicoria')
 ```
 
-Put the result in `WORDS` in `index.html`, under the `id` of the pack it opens.
+Put the result in `PASSWORDS` in `index.html`, under the `id` of the pack it
+opens.
 
-Changing it also logs everyone out, which is what you want: the stored value no
-longer matches, so the door asks again.
+**Asking everybody again** without changing any password: bump the `KEY` prefix
+in the same script (`doveclem.pass.` → `doveclem.pass2.`). The stored value stops
+answering to the name it is looked up under, so every device goes back to the
+door once and remembers from then on.
 
-The word is compared lower case and trimmed, so it survives being read out over
-the phone. `score.html` and `tuning.html` are not behind the door — they are
+Changing one also logs out everybody who had it, which is what you want: the
+stored value no longer matches, so the door asks again.
+
+Passwords are compared lower case and trimmed, so they survive being read out
+over the phone. `score.html` and `tuning.html` are not behind the door — they are
 development pages, they are `noindex` too, and gating them would add nothing
 while the clips remain directly fetchable from the public repository.
 
