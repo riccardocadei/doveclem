@@ -19,6 +19,14 @@ Three things come out of it.
          italo-disco stab, and it is the one sound this app could not fake:
          an FM brass patch is six operators, not two oscillators and a filter.
 
+  organ  setBfree's Hammond emulation, ten notes every major third from C3 to
+         C6. Five sine drawbars is what an organ is on paper and it is not what
+         one sounds like: the tonewheels leak into each other, the drawbars are
+         not pure, and the Leslie moves. The samples carry all three, and the
+         slow swell in them is a real rotor rather than the one LFO the
+         synthesised version had. Two and a bit seconds is the longest hold
+         `playFor` will ever ask for.
+
   folk   three takes per drum slot instead of one. This is the fix for the
          thing score.html has been reporting since the folk kit landed —
          normalised correlation put the recorded kit at 0.4 to 1.0 hit to hit
@@ -52,6 +60,11 @@ SRC = {
     'world': ('https://github.com/freepats/world-percussion/releases/download/'
               '2020-09-05/WorldPercussion-SFZ+FLAC-20200905.7z',
               'WorldPercussion SFZ+FLAC-20200905'),
+    # This one is not on GitHub and is a tar.xz rather than a 7z; fetch() reads
+    # the extension off the URL rather than assuming.
+    'organ': ('https://freepats.zenvoid.org/Organ/DrawbarOrganEmulation/'
+              'DrawbarOrganEmulation-SFZ-20190712.tar.xz',
+              'DrawbarOrganEmulation-SFZ-20190712'),
 }
 
 # midi -> file in the bass bank. Every two semitones: the bank is chromatic, but
@@ -59,6 +72,12 @@ SRC = {
 BASS = {28:'E', 30:'F#', 32:'G#', 34:'A#', 36:'C', 38:'D', 39:'D#'}
 # midi -> file. The bank's own keycentres, which is where it is not stretched.
 BRASS = {42:'F#2', 48:'C3', 54:'F#3', 60:'C4', 66:'F#4', 72:'C5', 78:'F#5'}
+# Every major third, which is what was recorded, so nothing stretches more than
+# two semitones. That matters more here than on the other banks: the Leslie is
+# inside the recording, so a rate change is also a rotor-speed change, and three
+# notes of a chord swirling at three different speeds is not a chord.
+ORGAN = {48:'C3', 52:'E3', 56:'G#3', 60:'C4', 64:'E4', 68:'G#4',
+         72:'C5', 76:'E5', 80:'G#5', 84:'C6'}
 
 # slot -> (folder, the pool the SFZ round-robins over, peak dBFS and length of
 # the single file being replaced). TAKES of the pool are chosen by measurement,
@@ -91,11 +110,15 @@ def fetch():
         out = os.path.join(CACHE, folder)
         if os.path.isdir(out):
             continue
-        arc = os.path.join(CACHE, key + '.7z')
+        ext = '.tar.xz' if url.endswith('.tar.xz') else '.7z'
+        arc = os.path.join(CACHE, key + ext)
         if not os.path.exists(arc):
             print('fetching %s ...' % key)
             urllib.request.urlretrieve(url, arc)
-        sh(['7zz', 'x', '-y', '-o' + CACHE, arc])
+        if ext == '.tar.xz':
+            sh(['tar', 'xJf', arc, '-C', CACHE])
+        else:
+            sh(['7zz', 'x', '-y', '-o' + CACHE, arc])
 
 def find(folder, *parts):
     """The archives disagree about extension: some takes are .wav, some .flac."""
@@ -182,10 +205,11 @@ def main(dry):
     fetch()
     rows = []
 
-    # ---- the two pitched banks ----
+    # ---- the pitched banks ----
     for name, table, folder, sub, hold in (
             ('bass',  BASS,  'bass',  ('finger',), 1.30),
-            ('brass', BRASS, 'brass', (),          1.80)):
+            ('brass', BRASS, 'brass', (),          1.80),
+            ('organo', ORGAN, 'organ', (),         2.20)):
         for midi, stem in sorted(table.items()):
             src = find(folder, *(sub + (stem,)))
             a = pcm(src)

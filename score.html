@@ -45,6 +45,7 @@ differ only by what actually changed in the code.</p>
 <div class="bar">
   <button id="mix">Measure every groove</button>
   <button id="voices">Before / after, hit by hit</button>
+  <button id="pitched">Instrument, hit by hit</button>
   <button id="kits">Match the two kits</button>
   <button id="levels">Levels of the new voices</button>
   <button id="overlap">Notes landing on each other</button>
@@ -521,7 +522,63 @@ async function runVoices() {
   return rows;
 }
 
-/* Two measurements lived here — the drum bus makeup gain and how hard the bus
+/* The same question as the table above, asked of the instruments instead of the
+   drums — and the reason it exists is that nothing was asking it. "The mandolin
+   and the organ sound fake" turned out to have a mechanical cause on both: the
+   mandolin cached one Karplus-Strong buffer per note, so a tremolo was one
+   waveform four times a beat, and every sampled bank started each hit at sample
+   zero, so two guitar notes of the same pitch were the same recording twice.
+   Both would have read 1.000 here and there was no here to read it in. The kit
+   had this column and got fixed; the instruments did not and did not.
+
+   Forced by timbre rather than taken from the groove, because five instruments
+   do not share five grooves and comparing across grooves is how the kit
+   measurement was wrong the first time. */
+async function runPitched() {
+  const w = await ready();
+  const gs = w.dev.grooves();
+  const want = [['Pizzica',   'mando'],  ['Campagna', 'chit'],
+                ['Notte',     'organo'], ['Testaccio', 'fisa'],
+                ['Cometa',    'brass']];
+  const ids = ['stab', 'lead'];
+  const rows = [];
+  for (const [name, tb] of want) {
+    const g = gs.find(x => x.name === name);
+    if (!g) { rows.push({ groove: name, timbro: tb, voce: '\u2014 not found \u2014' }); continue; }
+    for (const org of [0, 1]) {
+      w.dev.organic = org;
+      w.dev.timbre = tb;
+      for (const id of ids) {
+        if ((g.lanes || []).indexOf(id) < 0) continue;
+        log((org ? 'after' : 'before') + ' \u2014 ' + name + ' / ' + tb + ' / ' + id);
+        seed(w, SEED);
+        let res;
+        // never a silent continue: a crash that vanishes reads as no data
+        try { res = await w.dev.render(g.i, 2, id); }
+        catch (e) { rows.push({ groove: name, timbro: tb, voce: id,
+                                stato: 'ERROR: ' + (e && e.message || e) }); continue; }
+        const st = trackStats(res, id);
+        if (st) rows.push(Object.assign({ groove: name, timbro: tb, voce: id,
+                                          stato: org ? 'after' : 'before' }, st));
+      }
+    }
+  }
+  w.dev.organic = 1; w.dev.timbre = '';
+  log('done: ' + rows.length + ' per-instrument measurements.');
+  show(table(rows, [
+    ['groove', r => r.groove], ['instrument', r => r.timbro],
+    ['voice', r => r.voce], ['state', r => r.stato],
+    ['hits', r => r.colpi], ['group', r => r.gruppo],
+    ['mean peak dBFS', r => r.piccoMedio],
+    ['peak spread %', r => r.variazionePicco, 'variazionePicco'],
+    ['similarity', r => r.somiglianza, 'somiglianza'],
+  ], 'Instrument, hit by hit',
+     'Same measure as the kit table: the correlation between two consecutive notes of the same velocity. A sampled instrument cannot reach the kit\'s figures \u2014 two notes off one recording are one recording \u2014 but <b>1.000 means nothing at all varies</b>, which is a bug rather than a property of samples. The synthesised strings have no such excuse.'),
+    rows);
+  return rows;
+}
+
+/* Two measurements lived here \u2014 the drum bus makeup gain and how hard the bus
    squeezed — and they did their job: they failed the bus. From -14 to -32 dB
    and from 3:1 to 6:1 the mix crest moved by one dB, and on the synthesised kit
    it moved up. The compressor came out of index.html and the measurements came
@@ -617,7 +674,17 @@ async function runLevels() {
   /* The rhythm guitar has two paths — the samples on the Guitar setting and
      the synthetic stand-in everywhere else — and only one of them was being
      measured. Testaccio runs on the accordion, so the second pass forces it. */
-  const forced = [['Testaccio', 'chit', ['chank', 'stab']]];
+  /* The organ is a recorded Hammond now and the mandolin is a rebuilt string,
+     and neither can be levelled against a different groove. Same trick as the
+     accordion's 4.8 dB: one groove, one bar, rendered twice with only the
+     instrument changed, so the two peaks are directly comparable. Guitar is
+     the reference on both because it is a real recording that has been in
+     scale for a while. */
+  const forced = [['Testaccio', 'chit', ['chank', 'stab']],
+                  ['Notte', 'organo', ['stab', 'lead']],
+                  ['Notte', 'chit',   ['stab', 'lead']],
+                  ['Pizzica', 'mando', ['stab', 'lead']],
+                  ['Pizzica', 'chit',  ['stab', 'lead']]];
   const rows = [];
   for (const [name, ids] of want) {
     /* By name and by pack: Balera exists on both packs and `find` would take
@@ -1001,8 +1068,9 @@ document.getElementById('levels').addEventListener('click', e => { e.target.disa
 document.getElementById('kits').addEventListener('click', e => { e.target.disabled = true; runKits(); });
 document.getElementById('mix').addEventListener('click', e => { e.target.disabled = true; runMix(); });
 document.getElementById('voices').addEventListener('click', e => { e.target.disabled = true; runVoices(); });
+document.getElementById('pitched').addEventListener('click', e => { e.target.disabled = true; runPitched(); });
 
-/* Headless: ?auto=mix|voices|kits|levels|overlap|rubric|all. The title becomes
+/* Headless: ?auto=mix|voices|pitched|kits|levels|overlap|rubric|all. The title becomes
    SCORE_DONE when it has finished, so a run with no screen knows when to read
    the result. */
 (async () => {
@@ -1011,11 +1079,12 @@ document.getElementById('voices').addEventListener('click', e => { e.target.disa
   try {
     if (q === 'mix') await runMix();
     else if (q === 'voices') await runVoices();
+    else if (q === 'pitched') await runPitched();
     else if (q === 'kits') await runKits();
     else if (q === 'levels') await runLevels();
     else if (q === 'overlap') await runOverlap();
     else if (q === 'rubric') await runRubric();
-    else if (q === 'all') { await runVoices(); await runKits(); await runMix(); }
+    else if (q === 'all') { await runVoices(); await runPitched(); await runKits(); await runMix(); }
     document.title = 'SCORE_DONE';
   } catch (e) {
     document.getElementById('json').textContent = 'ERROR: ' + (e && e.stack || e);

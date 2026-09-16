@@ -13,9 +13,14 @@ so a pattern is somewhere to start building rather than a finished loop that
 arrives at full height. Bring the chips up one at a time and you have an
 arrangement; that is the whole interaction.
 
-Two packs ship with it. **Clem** is the italo-disco one it started as. **Nonni**
-is Roman: accordion reeds instead of saws, major and harmonic-minor scales, and
-grooves built on the stornello and the tarantella rather than on a four-on-the-floor.
+Two libraries ship with it, and you pick one on the way in — the opening page
+says **Dov’è ⟨Clem⟩** with the name as a dropdown, and whichever you choose is
+the title the app then wears. **Clem** is the italo-disco one it started as.
+**Nonni** is Roman: accordion reeds instead of saws, major and harmonic-minor
+scales, and grooves built on the stornello and the tarantella rather than on a
+four-on-the-floor. Each library has its own word on the door, asked once per
+phone. Tapping the title in the top-left takes you back to the opening page to
+change library.
 
 The name is an homage to *Dov’è Liana?*, the record the sound comes from — and
 the reason it sounds the way it does. The opening screen is a plain map of the
@@ -321,6 +326,23 @@ tail gate sits twelve decibels lower and pads two and a half times as far. The
 first version used one threshold for both and clipped the ends off two clips;
 the heads are where nearly all the dead air was anyway.
 
+### Levels, which are not trimmed
+
+Trimming does not touch how loud a clip is, and a voice memo is as loud as
+whatever the phone was doing that day: four of Nonni's arrived 16 to 19 dB under
+the rest of the library, which on a mixer chip reads as a broken track rather
+than a quiet one. So every clip is measured as it is decoded and brought to the
+same place — no build step, no gain written down beside a filename, and a pack
+you add tomorrow gets it for free.
+
+Plain RMS would be measuring the gaps: the dead air is room tone, not silence,
+and a long pause would drag a loud clip down. It frames the clip at 20 ms, keeps
+only the frames within 20 dB of the loudest, and treats that as the speech. A
+ceiling stops it turning room tone into hiss and a peak clamp stops it clipping;
+two clips want more than either and land within 1.1 dB. The clips that were
+already right move by under a decibel, so their balance against the drums is
+unchanged.
+
 It reads from `records/` and writes to `app/audio/`, so `records/` stays the
 archive and the whole thing is reversible. Run `python3 app/tools/trim-clips.py
 --dry-run` first: it prints what it would remove without touching anything.
@@ -355,8 +377,14 @@ Then bump `CACHE` in `sw.js` (`doveclem-v10` → `doveclem-v11`) so installed co
 the new `index.html`. The audio itself needs no `sw.js` change: new files are
 cached the first time they play.
 
-Switching packs from the picker keeps your drum pattern and reloads the voices,
-so a groove you like carries across to different people's recordings.
+There is no pack picker inside the machine any more — the library is chosen on
+the opening page, and the title in the top-left takes you back there. Switching
+still keeps your drum pattern and reloads only the voices, so a groove you like
+carries across to different people's recordings. The last library you played is
+remembered, so the usual way in is one tap.
+
+A new pack also needs a word: add it to `WORDS` in the door script at the top of
+`index.html`, keyed by the pack's `id`. A pack with no word cannot be opened.
 
 ### Grooves for a pack
 
@@ -414,8 +442,8 @@ the thresholds are there to say "go and listen to this one".
 of the app — it is a working tool, so it does not appear to whoever opens the
 link. Two ways to turn it on, and neither needs a URL:
 
-- **Type `riccardo` at the door** instead of `cicoria`. It unlocks *and* turns on
-  author mode.
+- **Type `riccardo` at the door** instead of that library's own word. It opens
+  whichever library is on screen *and* turns on author mode.
 - **Press and hold the logo** for a second, on a phone that is already unlocked.
   It toggles, and says which way it went.
 
@@ -524,7 +552,9 @@ python3 -m http.server 8000
 
 ## Keeping it to the family
 
-There is a word on the door. Type it once and the phone remembers it.
+There is a word on the door — **one per library**, asked the first time you pick
+that library on a phone and remembered from then on. Clem's is `clem`, Nonni's is
+`cicoria`. Unlocking one says nothing about the other.
 
 **Be clear about what this is.** It is a door, not a lock. The repository is
 public, so every clip also has a direct URL on `raw.githubusercontent.com` that
@@ -549,13 +579,14 @@ of "view source" — the one thing this is actually meant to survive. It is not
 cryptography and does not pretend to be: `Math.imul`-based, so it keeps working
 when you test from the phone over plain http on the LAN, which `crypto.subtle`
 would not. Paste this into any browser console with your word in the quotes,
-lower case and no spaces, and put the result in `GATE` at the top of
-`index.html`:
+lower case and no spaces:
 
 ```js
 (w=>{let a=0x811c9dc5,b=5381;for(let i=0;i<w.length;i++){const c=w.charCodeAt(i);
 a=Math.imul(a^c,16777619)>>>0;b=(Math.imul(b,33)+c)>>>0}return a.toString(36)+'.'+b.toString(36)})('cicoria')
 ```
+
+Put the result in `WORDS` in `index.html`, under the `id` of the pack it opens.
 
 Changing it also logs everyone out, which is what you want: the stored value no
 longer matches, so the door asks again.
@@ -607,7 +638,7 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | --- | --- |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
-| Filter | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
+| Filter | One lowpass across the record, 200 Hz to wide open. The echo returns through it too. **The voices do not go through it** — nor through the riser, which is the same filter moving. A synth reads as filtered; a recorded sentence reads as broken, and nothing in a spoken phrase asked for a lowpass. Their echo and reverb still return through it, so the room is allowed to sweep while the words are not |
 | 4/4 · 3/4 · 6/8 | The metre, beside the tempo. A bar is sixteen steps in common time and twelve in the other two — but a waltz is three beats of four and 6/8 is two beats of three, which is the whole difference between them |
 | 1 bar · 4 bars | How many bars go round |
 | Drums | The synthesised **Machine**, or **Tambourine** — a real cajón, tambourine, shaker and hand claps, three takes of each. It sits in the header of the rack it governs |
@@ -841,9 +872,10 @@ moves the Stab and the Bass with it:
 | Synth italo | Three sawtooths for the lead — two detuned, one an octave under — and two a note for the stab, through one filter that opens bright and shuts inside a tenth of a second. The stab is the filter *moving*; a chord under a filter sitting open is a chord, not a stab |
 | Accordion | A recorded Hohner button accordion — eight notes, the rest repitched between them, never more than two semitones. The synthesised reeds remain as the fallback if the notes do not load |
 | Guitar | A recorded Spanish classical guitar — eleven notes from A1 to B5. Chords are strummed: the notes of one arrive as a hand crosses the strings |
-| Mandolin | Karplus-Strong, the one instrument here still modelled: a burst of noise going round a loop one period long, losing its top on every pass. No CC0 mandolin exists to record from |
+| | *Every sampled note now keeps its own attack.* The envelope used to fade in over 18 ms, which on a recording multiplies the plectrum, the reed opening or the key going down by a ramp — the difference between a guitar and a sampler playing a guitar. It is 3 ms now, and pitch, level and attack vary a little per note, because the same note twice used to be the same recording twice. |
+| Mandolin | Karplus-Strong, the one instrument here still modelled — a burst of noise going round a loop one period long, losing a little of its top on every pass — because no CC0 mandolin exists to record from. Three buffers a note rather than one, so a tremolo is four different strokes instead of one waveform four times, and the two strings of a course take different ones. A plectrum click on top: a string that fades in is not a plucked string |
 | Rhodes | A struck tine — a sine body under a bright partial that dies at once |
-| Organ | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
+| Organ | A recorded [setBfree Hammond](https://freepats.zenvoid.org/Organ/electric-organ.html) (FreePats, CC0) — ten notes every major third from C3 to C6. Five sine drawbars is what an organ is on paper and not what one sounds like: the tonewheels leak into each other and the Leslie is a rotating speaker in a room, which one tremolo gain cannot be. Because the rotor is inside the recording, each note starts at a different point in it. The synthesised drawbars stay for the bass, which sits two octaves below the bank |
 | Brass | [Synth Brass 2](https://freepats.zenvoid.org/Synthesizer/synth-brass.html) from FreePats, CC0: a DX7 BRASS 7 patch recorded through Dexed. This is the italo-disco stab and it is the one sound here that could not be faked — FM brass is six operators beating against each other, and two sawtooths through a lowpass sound like two sawtooths through a lowpass |
 
 **The bass is not one of them.** On the accordion, guitar and mandolin settings
