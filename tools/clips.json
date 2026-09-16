@@ -10,5 +10,9 @@
  ["records/nonni/A Gia’ sta zitto, non è vero quello che dici.m4a","app/audio/nonni/04-a-gia-sta-zitto.m4a"],
  ["records/nonni/Vuoi un po’ di cicoria con peperoncino.m4a",     "app/audio/nonni/05-cicoria-peperoncino.m4a"],
  ["records/nonni/E una mozzarellina de bufala.m4a",               "app/audio/nonni/06-mozzarellina-de-bufala.m4a"],
- ["records/nonni/Quanto mi piace Antonio Tanca.m4a",              "app/audio/nonni/07-antonio-tanca.m4a"]
+ ["records/nonni/Quanto mi piace Antonio Tanca.m4a",              "app/audio/nonni/07-antonio-tanca.m4a"],
+  ["records/nonni/Che ha detto.m4a",                                "app/audio/nonni/08-che-ha-detto.m4a"],
+ ["records/nonni/Prendo lo zibibbo.m4a",                           "app/audio/nonni/09-prendo-lo-zibibbo.m4a"],
+ ["records/nonni/Zibibbo o Amaro.m4a",                             "app/audio/nonni/10-zibibbo-o-amaro.m4a"],
+ ["records/nonni/L’acqua.m4a",                                     "app/audio/nonni/11-l-acqua.m4a"]
 ]

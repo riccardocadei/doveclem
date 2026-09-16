@@ -410,8 +410,8 @@
      music is while you edit somewhere else */
   .bars button[data-live="1"] { box-shadow:inset 0 0 0 1px var(--accent); }
   .minis { display:flex; gap:.5rem; }
-  /* Il giudizio: chip che vanno a capo, non una griglia fissa come le grooves,
-     perché le etichette hanno lunghezze diverse. */
+  /* The verdict: chips that wrap, rather than the fixed grid the grooves use,
+     because the labels are all different lengths. */
   .tags { display:flex; flex-wrap:wrap; gap:.4rem; }
   .tags .chip { padding:.45rem .6rem; text-transform:none; letter-spacing:.03em; font-size:.6875rem; }
   #noteCats .chip { font-weight:600; }
@@ -550,8 +550,8 @@
   .gate-note { margin:.1rem 0 0; font-size:.78rem; line-height:1.45; color:var(--ink-2); }
   .gate-note[data-bad="1"] { color:var(--accent); }
 
-  /* Il logo prende una pressione lunga (modo autore), quindi niente selezione
-     del testo né menu contestuale sopra. */
+  /* The wordmark takes a long press (author mode), so no text selection and no
+     context menu on top of it. */
   .wordmark { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 
   .veil {
@@ -586,13 +586,13 @@
 <div class="gate" id="gate">
   <form class="gate-box" id="gateForm">
     <p class="gate-word">Dov’è Clem<em>.</em></p>
-    <label class="gate-lab" for="gateIn">Parola</label>
+    <label class="gate-lab" for="gateIn">Word</label>
     <input class="gate-in" id="gateIn" type="password" required
            autocomplete="current-password" autocapitalize="off"
            autocorrect="off" spellcheck="false" enterkeyhint="go">
-    <button class="gate-go" type="submit">Entra</button>
+    <button class="gate-go" type="submit">Enter</button>
     <p class="gate-note" id="gateNote" aria-live="polite">
-      Chiedila a chi ti ha mandato il link. Te la ricorda questo telefono.
+      Ask whoever sent you the link. This phone remembers it for you.
     </p>
   </form>
 </div>
@@ -616,11 +616,11 @@
    where this app has to be tested. */
 (function () {
   var GATE = '1s193lh.1ikp4v3';        // knock('cicoria'); README says how to change it
-  /* Una seconda parola che apre *e* accende il modo autore. Serve perché
-     `?autore=1` è irraggiungibile dall'app installata: il manifest ha
-     start_url "./" e display standalone, quindi l'icona sulla home apre la
-     pagina senza parametri e non c'è barra degli indirizzi in cui aggiungerne
-     uno. La porta invece c'è sempre. */
+  /* A second word that opens the door *and* turns on author mode. It has to
+     exist because `?autore=1` is unreachable from the installed app: the
+     manifest has start_url "./" and display standalone, so the home-screen
+     icon opens the page with no parameters and there is no address bar to add
+     one to. The door, on the other hand, is always there. */
   var GATE_AUTORE = '13d6ps0.dtf4b0';  // knock('riccardo')
   var KEY = 'doveclem.gate';
   function knock(w) {
@@ -645,7 +645,7 @@
     var k = knock(el.value.trim().toLowerCase());
     if (k === GATE_AUTORE) {
       try { localStorage.setItem(KEY, GATE); localStorage.setItem('doveclem.autore', '1'); } catch (e2) {}
-      // il pannello è già nel documento a questo punto: si scopre da qui
+      // the panel is already in the document by now: uncover it from here
       var h = document.getElementById('noteHead'), bx = document.getElementById('noteBox');
       if (h) h.hidden = false;
       if (bx) bx.hidden = false;
@@ -658,7 +658,7 @@
     }
     el.value = ''; el.focus();
     note.dataset.bad = '1';
-    note.textContent = 'Non è quella. Riprova.';
+    note.textContent = 'Not that one. Try again.';
   });
 })();
 </script>
@@ -709,9 +709,9 @@
     </div>
 
     <div class="knob filt">
-      <label for="filter">Filtro</label>
+      <label for="filter">Filter</label>
       <input type="range" id="filter" min="0" max="1" step="0.01" value="1">
-      <output id="filterOut">aperto</output>
+      <output id="filterOut">open</output>
     </div>
 
     <div class="pop" id="keyPop" hidden>
@@ -729,20 +729,20 @@
   </section>
 
   <div class="sect">
-    <span class="sect-t">Batteria</span>
-    <select class="packsel" id="kit" aria-label="Batteria"></select>
+    <span class="sect-t">Drums</span>
+    <select class="packsel" id="kit" aria-label="Drums"></select>
   </div>
   <section class="mixer" id="mixDrums"></section>
 
   <div class="sect">
-    <span class="sect-t">Strumenti</span>
-    <select class="packsel" id="timbre" aria-label="Strumento"></select>
+    <span class="sect-t">Instruments</span>
+    <select class="packsel" id="timbre" aria-label="Instrument"></select>
   </div>
   <section class="mixer" id="mixTone"></section>
 
   <div class="sect">
-    <span class="sect-t">Voci</span>
-    <select class="packsel" id="pack" aria-label="Pacchetto voci"></select>
+    <span class="sect-t">Voices</span>
+    <select class="packsel" id="pack" aria-label="Voice pack"></select>
   </div>
   <section class="mixer" id="mixVoice"></section>
 
@@ -849,7 +849,7 @@
 
   <!-- Nascosto a chiunque non abbia acceso il modo autore su questo telefono. -->
   <div class="sect" id="noteHead" hidden>
-    <span class="sect-t">Giudizio</span>
+    <span class="sect-t">Verdict</span>
     <span class="sect-x" id="noteWho">&mdash;</span>
   </div>
   <section class="panel-box" id="noteBox" hidden>
@@ -858,14 +858,14 @@
     <div class="tags" id="noteTracks" hidden style="margin-top:.45rem"></div>
     <textarea id="noteText" rows="2" placeholder="quello che le etichette non dicono"></textarea>
     <span class="minis" style="margin-top:.6rem">
-      <button class="mini" id="noteCopy" type="button">Copia tutto</button>
-      <button class="mini" id="noteClear" type="button">Svuota</button>
+      <button class="mini" id="noteCopy" type="button">Copy all</button>
+      <button class="mini" id="noteClear" type="button">Clear</button>
     </span>
     <p class="sect-x" id="noteOut" style="margin:.5rem 0 0"></p>
   </section>
 
   <div class="sect">
-    <span class="sect-t">Registra</span>
+    <span class="sect-t">Record</span>
     <span class="sect-x" id="recHint">nothing recorded yet</span>
   </div>
   <section class="panel-box">
@@ -894,7 +894,7 @@
     <summary>Details</summary>
     <ul>
       <li>Three racks of tracks, each under the picker that decides what it is played
-          on: <b>Batteria</b>, <b>Strumenti</b>, <b>Voci</b>. The dots are the pattern &mdash;
+          on: <b>Drums</b>, <b>Instruments</b>, <b>Voices</b>. The dots are the pattern &mdash;
           a dot per beat over four bars, or a dot per step in a short one. The bar down
           the right edge mutes; tap a chip to select it and hear it.</li>
       <li>The <b>metre</b> sits beside the tempo, because it belongs to the music rather
@@ -910,10 +910,10 @@
       <li><b>Key</b> sets the root. <b>Giro</b> moves the bass and the chord stab
           through the four bars, and decides whether the scale is minor, major, or the
           tarantella's.</li>
-      <li><b>Strumenti</b> plays the bass, stab and lead as italo saws, accordion reeds,
-          a mandolin, a Rhodes or drawbars. <b>Batteria</b> is the synthesised machine or a
+      <li><b>Instruments</b> plays the bass, stab and lead as italo saws, accordion reeds,
+          a mandolin, a Rhodes or drawbars. <b>Drums</b> is the synthesised machine or a
           real cajon, tambourine, shaker and hand claps.</li>
-      <li><b>Filtro</b> is one lowpass across everything, including the echo.</li>
+      <li><b>Filter</b> is one lowpass across everything, including the echo.</li>
       <li><b>Waveform</b>: drag the two handles to set where a clip starts and ends.
           Press anywhere in the strip and the nearer handle comes to you.</li>
       <li><b>Chop</b> snaps that end to 1, 2, 4, 8 steps or Full. It is a length in
@@ -939,9 +939,28 @@
 <script>
 'use strict';
 const PACKS = [
-  {"id": "clem", "name": "Clem", "clips": [{"label": "Mi chiamo Clementina", "short": "Clementina", "url": "audio/clem/01-mi-chiamo-clementina.m4a"}, {"label": "Marco 1", "short": "Marco 1", "url": "audio/clem/02-marco-1.m4a"}, {"label": "Marco 2", "short": "Marco 2", "url": "audio/clem/03-marco-2.m4a"}, {"label": "Suona un po\u2019 sbagliato", "short": "Sbagliato", "url": "audio/clem/04-suona-un-po-sbagliato.m4a"}, {"label": "Theory", "short": "Theory", "url": "audio/clem/05-theory.m4a"}]},
-  {"id": "nonni", "name": "Nonni", "clips": [{"label": "Ho un disturbo", "short": "Disturbo", "url": "audio/nonni/01-ho-un-disturbo.m4a"}, {"label": "Che devo fa, uuuu", "short": "Uuu", "url": "audio/nonni/02-che-devo-fa.m4a"}, {"label": "Alea iacta est", "short": "Alea", "url": "audio/nonni/03-alea-iacta-est.m4a"}, {"label": "A Gi\u00e0, sta zitto", "short": "Sta zitto", "url": "audio/nonni/04-a-gia-sta-zitto.m4a"}, {"label": "Cicoria col peperoncino", "short": "Cicoria", "url": "audio/nonni/05-cicoria-peperoncino.m4a"}, {"label": "Mozzarellina de bufala", "short": "Mozzarella", "url": "audio/nonni/06-mozzarellina-de-bufala.m4a"}, {"label": "Quanto mi piace Antonio Tanca", "short": "Antonio", "url": "audio/nonni/07-antonio-tanca.m4a"}]}
+  { id:'clem', name:'Clem', clips:[
+    { label:'Mi chiamo Clementina',  short:'Clementina', url:'audio/clem/01-mi-chiamo-clementina.m4a' },
+    { label:'Marco 1',               short:'Marco 1',    url:'audio/clem/02-marco-1.m4a' },
+    { label:'Marco 2',               short:'Marco 2',    url:'audio/clem/03-marco-2.m4a' },
+    { label:'Suona un po\u2019 sbagliato', short:'Sbagliato', url:'audio/clem/04-suona-un-po-sbagliato.m4a' },
+    { label:'Theory',                short:'Theory',     url:'audio/clem/05-theory.m4a' },
+  ] },
+  { id:'nonni', name:'Nonni', clips:[
+    { label:'Ho un disturbo',        short:'Disturbo',   url:'audio/nonni/01-ho-un-disturbo.m4a' },
+    { label:'Che devo fa, uuuu',     short:'Uuu',        url:'audio/nonni/02-che-devo-fa.m4a' },
+    { label:'Alea iacta est',        short:'Alea',       url:'audio/nonni/03-alea-iacta-est.m4a' },
+    { label:'A gi\u00e0, sta zitto',  short:'Sta zitto',  url:'audio/nonni/04-a-gia-sta-zitto.m4a' },
+    { label:'Cicoria col peperoncino', short:'Cicoria',  url:'audio/nonni/05-cicoria-peperoncino.m4a' },
+    { label:'Mozzarellina de bufala', short:'Mozzarella', url:'audio/nonni/06-mozzarellina-de-bufala.m4a' },
+    { label:'Quanto mi piace Antonio Tanca', short:'Antonio', url:'audio/nonni/07-antonio-tanca.m4a' },
+    { label:'Che ha detto',          short:'Ha detto',   url:'audio/nonni/08-che-ha-detto.m4a' },
+    { label:'Prendo lo zibibbo',     short:'Zibibbo',    url:'audio/nonni/09-prendo-lo-zibibbo.m4a' },
+    { label:'Zibibbo o amaro',       short:'Amaro',      url:'audio/nonni/10-zibibbo-o-amaro.m4a' },
+    { label:'L\u2019acqua',           short:'Acqua',      url:'audio/nonni/11-l-acqua.m4a' },
+  ] },
 ];
+
 /* Four bars of sixteen. The giro was already four bars long while the pattern
    was one, so everything repeated underneath a harmony that moved — the single
    biggest reason a groove read as a loop rather than a piece. The lane shows
@@ -1032,23 +1051,28 @@ let timbre = 'italo';
 /* A step holds its velocity rather than a flag: 0 off, 1 normal, and the two
    below. Identical hits are most of what makes a machine sound like one. */
 const VELS = [1, 1.4, 0.5];
-/* Una battuta ripetuta quattro volte sono quattro battute identiche, e
-   score.html lo dice in cifre: undici grooves su sedici sotto 0.07 di novità
-   fra battute, che per un analizzatore di spettro è una battuta suonata quattro
-   volte. `vary` rompe la ripetizione al caricamento — non in riproduzione — così
-   la modifica finisce nella corsia dove la vedi e la puoi cambiare. Il fill non
-   può stare lì: succede ogni *secondo* giro, e quattro battute non lo tengono. */
+/* Which tracks a pattern arrives with the sound on. A groove can name its own
+   with `on:`, but none of them do — the kick and the bass are the floor under
+   every one of these genres, and an arrangement you build by hand needs a
+   floor to build on. */
+const START_ON = ['kick', 'bass'];
+/* One bar played four times is four identical bars, and score.html says so in
+   figures: eleven grooves out of sixteen under 0.07 of bar-to-bar novelty,
+   which to a spectrum analyser is one bar played four times. `vary` breaks the
+   repetition at load — not during playback — so the change lands in the lane
+   where you can see it and edit it. The fill cannot live there: it happens
+   every *second* turn, and four bars do not hold it. */
 let fillPat = null, fillHas = null, loops = 0;
 const FILL_EVERY = 2;                  // un fill ogni otto battute
-/* La salita. Sul giro pari il filtro sta aperto; sul giro dispari si chiude per
-   quattro battute e si riapre di scatto in cima — e il fill cade proprio in
-   fondo alla chiusura, che è come la disco ha sempre risolto la tensione.
-   Vale per groove, come lo swing, e non fa niente se hai toccato la manopola:
-   quella è tua. */
+/* The riser. On the even turn the filter sits open; on the odd one it closes
+   over four bars and snaps back at the top — and the fill falls right at the
+   bottom of the close, which is how disco has always resolved tension. It is
+   per groove, like the swing, and it does nothing if you have touched the
+   knob: that one is yours. */
 let rise = false;
 const RISE_LOW = 700;
-/* Gli intervalli del basso, quando una groove ne vuole di suoi invece di una
-   delle quattro forme. Nell'italo la linea di basso è il pezzo. */
+/* The bass intervals, for when a groove wants its own instead of one of the
+   four shapes. In italo the bass line is the piece. */
 let bassIv = null;
 let pump = false, filtV = 1;
 const PUMP = 0.55;                     // how far the kick pushes everything down
@@ -1085,7 +1109,7 @@ function buildTracks() {
   vol  = TRACKS.map((t, i) => (prevVol[i] !== undefined ? prevVol[i] : 1));
   mute = TRACKS.map((t, i) => (prevMute[i] !== undefined ? prevMute[i] : false));
   send = TRACKS.map((t, i) => (prevSend[i] !== undefined ? prevSend[i] : t.echo));
-  vparams = clips().map(() => ({ rate:1, start:0, chop:0, rev:false, over:false, chorus:false }));
+  vparams = clips().map(() => ({ rate:1, start:0, chop:0, rev:false, over:true, chorus:false }));
   clipInfo = clips().map(() => null);
 }
 
@@ -1106,8 +1130,9 @@ let organic = 1;
 /* The drum bus, as two numbers rather than two literals buried in buildChain,
    so score.html can render the same groove with it in and out and read the
    makeup gain off the difference instead of somebody picking one. */
-/* Un kit imposto dall'esterno, per misurare la stessa groove con il kit
-   sintetico e con quello registrato e livellare i due. Vuoto nell'app. */
+/* A kit forced from outside, so the same groove can be rendered with the
+   synthesised kit and with the recorded one and the two levelled against each
+   other. Empty in the app. */
 let kitForce = '', timbreForce = '', noAutoKit = false;
 
 function b64ToBuf(b64) {
@@ -1177,13 +1202,13 @@ function buildChain() {
   const n = Math.floor(vsr * 1.7), ir = ctx.createBuffer(2, n, vsr);
   const TAIL = 0.085;
   // seconds, level, and which ear gets it first
-  /* Mezzi valori rispetto al primo tentativo, e per una ragione fisica, non
-     per una misura: in una stanza la prima riflessione arriva 6-12 dB sotto il
-     suono diretto, cioè fra 0.25 e 0.5, e a 0.80 questi erano muri di marmo a
-     un metro. Per la cronaca, il primo motivo che avevo scritto qui era falso —
-     avevo dato la colpa a queste di un picco a −0.05 dBFS su clem/Chop, e poi
-     quattro semi diversi hanno mostrato che quel picco oscilla di 0.64 dB da
-     solo. Confrontare picchi sotto quella soglia non significa niente. */
+  /* Half what the first attempt used, and for a physical reason rather than a
+     measured one: in a room the first reflection arrives 6-12 dB under the
+     direct sound, which is between 0.25 and 0.5, and at 0.80 these were marble
+     walls a metre away. For the record, the first reason written here was
+     false — it blamed these for a -0.05 dBFS peak on clem/Chop, and then four
+     different seeds showed that peak moves 0.64 dB on its own. Comparing peaks
+     under that threshold means nothing. */
   const EARLY = [[0.023, 0.40, 0], [0.031, 0.33, 1], [0.047, 0.27, 1],
                  [0.059, 0.22, 0], [0.071, 0.18, 1]];
   const t0 = Math.floor(vsr * TAIL);
@@ -1207,12 +1232,12 @@ function buildChain() {
   // Drums bypass this; bass, chords, lead and voices go through it.
   duck = ctx.createGain(); duck.gain.value = 1; duck.connect(master);
 
-  /* Qui c'era un compressore solo per la batteria, con un commento convinto sul
-     fatto che "un kit disco respira". score.html lo ha smentito: da −14 dB a
-     −32 dB e da 3:1 a 6:1, il crest del mix si muove di un dB, e sul kit
-     sintetico si muove nella direzione sbagliata — sale, perché comprimendo la
-     batteria il resto passa più forte attraverso la saturazione. Non c'è.
-     Se qualcuno vuole riprovarci, la misura sta in score.html. */
+  /* There was a compressor here for the drums alone, with a confident comment
+     about how "a disco kit breathes". score.html disagreed: from -14 dB to
+     -32 dB and from 3:1 to 6:1, the mix crest moves by one dB, and on the
+     synthesised kit it moves the wrong way — up, because compressing the drums
+     lets everything else through the saturation louder. It is gone. If anyone
+     wants to try again, the measurement is in score.html. */
 
   /* The dotted-eighth echo italo-disco runs everything through, and it bounces
      now: one delay on the left, one on the right, each feeding the other, so
@@ -1266,6 +1291,20 @@ function chanOf(i) {
   chan[i] = { out, snd, rvb, pan };
   return chan[i];
 }
+/* Mute in one place. It used to be written inline in the mute button's handler
+   and again in loadGroove, and the moment a third caller appeared — a tap that
+   has to bring a track in — that was two copies of four lines to keep in step. */
+function setMute(i, on) {
+  mute[i] = !!on;
+  const box = trkEls[i];
+  if (box) {
+    box.dataset.mute = mute[i] ? '1' : '0';
+    const m = box.querySelector('.trk-m');
+    if (m) m.setAttribute('aria-pressed', String(mute[i]));
+  }
+  reChan(i);
+}
+
 /* Solo is one track at a time and lives beside mute rather than replacing it:
    the mute buttons keep whatever you set while you listen to something alone. */
 let solo = -1;
@@ -1706,29 +1745,48 @@ const VOICES = {
   },
   bass(t, i, s) {
     const iv = bassIv || SHAPES[shapeOf.bass].iv;
-    /* Il grado dell'arpeggio veniva da un contatore di quante volte il basso
-       avesse suonato da Play, quindi la linea era funzione del *numero di
-       colpi* e non di dove sei nella battuta: qualunque pattern che non fosse
-       una divisione uniforme andava alla deriva contro il giro e non tornava
-       più. Contare i colpi scritti prima di questo step la rende funzione dello
-       step, e allora è la stessa linea ogni volta che il giro torna — che è
-       quello che una linea di basso è. */
+    /* The arpeggio degree used to come from a counter of how many times the
+       bass had fired since Play, which made the line a function of the *number
+       of hits* rather than of where you are in the bar: any pattern that was
+       not a uniform division drifted against the giro and never came back.
+       Counting the written hits before this step makes it a function of the
+       step, and then it is the same line every time the giro comes round —
+       which is what a bass line is. */
     let k = 0;
     for (let q = 0; q < (s || 0); q++) if (pattern[i][q]) k++;
     const c = chordAt();
     const m = c.root + qual(iv[k % iv.length], c.maj), f = freq(m);
+    /* The acoustic settings get the recorded bass, and it falls through to
+       what was here before if the bank has not arrived — the accordion's
+       synthesised button, the guitar's own low notes, the mandolin's pluck. */
+    /* Through playFor like every other held voice. A fixed 1.6 steps is longer
+       than the gap on a bass line written in sixteenths — which the build-it-
+       yourself interaction invites — and a recorded bass is still at full
+       plateau when the next note lands. `mush()` would not catch it either: it
+       only inspects stab, lead, arp and chank. */
+    if (BASS_TIMBRES.indexOf(timbre) >= 0 &&
+        sampledBass(t, i, m, 0.50, playFor(i, s, Math.max(0.14, stepDur() * 1.6)))) return;
     if (timbre === 'fisa')   return button(t, i, f);
     if (timbre === 'chit')   return sampled(t, i, [m], 0.34, Math.max(0.12, stepDur()));
     if (timbre === 'mando')  return pluck(t, i, [m], 0.42, 0, 1400);
     if (timbre === 'rhodes') return tine(t, i, [m], 0.24);
     if (timbre === 'organo') return drawbars(t, i, [m], 0.26, Math.max(0.1, stepDur()));
-    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 7;
-    lp.frequency.setValueAtTime(2600, t);
-    lp.frequency.exponentialRampToValueAtTime(340, t + 0.16);
-    const g = ctx.createGain(); env(g, t, 0.42, 0.24);
-    o.connect(lp); lp.connect(g); tap(g, i);
-    o.start(t); o.stop(t + 0.26);
+    /* The italo bass. Two saws a whisker apart rather than one, a resonant
+       filter that shuts fast, and a touch of drive — which is the part that
+       was missing. A clean saw through a lowpass is a polite sound, and the
+       records this is after were played through something that was not
+       polite: the odd harmonics the curve adds are most of what makes a
+       bass line cut through a mix instead of sitting under it. */
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 9;
+    lp.frequency.setValueAtTime(jit(2900, 0.06), t);
+    lp.frequency.exponentialRampToValueAtTime(jit(320, 0.05), t + 0.16);
+    const g = ctx.createGain(); env(g, t, 0.30, 0.24);
+    const dr = shaper(2.2); lp.connect(dr); dr.connect(g); tap(g, i);
+    [-5, 5].forEach(cents => {
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.value = f; o.detune.value = cents;
+      o.connect(lp); o.start(t); o.stop(t + 0.26);
+    });
     const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = f / 2;
     const sg = ctx.createGain(); env(sg, t, 0.3, 0.2);
     sub.connect(sg); tap(sg, i);
@@ -1738,21 +1796,58 @@ const VOICES = {
     const c = chordAt(), iv = SHAPES[shapeOf.stab].iv, root = c.root + 24;
     const md = iv.map(x => root + qual(x, c.maj));
     if (timbre === 'fisa') {
-      const hold = playFor(i, s, Math.max(0.24, stepDur() * 3));
-      return sampled(t, i, md, 0.10, hold) || reeds(t, i, md, 0.028, hold);
+      /* Two steps, not three. A bellows chord held three steps into a gap of
+         four fills 87% of it once the release is counted, and score.html read
+         the balera's accordion at 71% of onsets landing on a chord still
+         sounding. Held two it still reads as held — a reed sustains, that is
+         the instrument — and there is a bar line audible between the chords. */
+      const hold = playFor(i, s, Math.max(0.22, stepDur() * 2));
+      /* 0.175, not 0.10. The accordion chord measured 4 to 6 dB under the
+         stab on every other timbre for as long as it has been here, and the
+         reason it was never corrected is that it looked like a five-groove
+         rebalance. It is not: score.html renders Testaccio on both settings,
+         same notes and same pattern, and reads the accordion at -13.6 dBFS
+         against the guitar's -8.78. One number, one reference, measured on the
+         same bar. */
+      return sampled(t, i, md, 0.175, hold) || reeds(t, i, md, 0.049, hold);
     }
     // strummed: the notes of a chord arrive as a hand crosses the strings
     if (timbre === 'chit')   return sampled(t, i, md, 0.13, playFor(i, s, Math.max(0.3, stepDur() * 3)), 0.018);
     if (timbre === 'mando')  return pluck(t, i, md, 0.125, 0.016);
     if (timbre === 'rhodes') return tine(t, i, md, 0.041);
     if (timbre === 'organo') return drawbars(t, i, md, 0.038, playFor(i, s, Math.max(0.22, stepDur() * 3)));
+    /* Shorter than the accordion's, and not by taste. Reeds decay; an FM
+       brass sample holds at full level until its release, so the hold that
+       lets an accordion chord breathe leaves a brass one standing in the
+       doorway when the next one arrives. score.html measures the difference
+       as `coda`. */
+    /* `&&`, not `return`: if the bank has not landed the stab falls through to
+       the saws below instead of playing nothing. Two shipped grooves run on
+       this, so a cold load with no fallback is two silent presets. */
+    if (timbre === 'brass' &&
+        sampled(t, i, md, 0.15, playFor(i, s, Math.max(0.16, stepDur() * 2)), 0.006)) return;
+    /* The italo stab. What was here was one sawtooth a note with a fixed
+       lowpass sitting open at 3.4 kHz, which is a chord and not a stab: the
+       thing that makes the sound is the filter *moving*, a tenth of a second
+       of it, so the chord arrives bright and is gone dull. Two detuned saws a
+       note instead of one give the beating that a string machine has and a
+       single oscillator cannot, and one filter for the whole chord rather
+       than one each is both the right sound — a stab is one voice playing
+       four notes, not four voices — and three fewer nodes a hit. */
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 5;
+    lp.frequency.setValueAtTime(jit(6200, 0.07), t);
+    lp.frequency.exponentialRampToValueAtTime(jit(1150, 0.06), t + 0.13);
+    const g = ctx.createGain(); env(g, t, 0.115, 0.55);
+    lp.connect(g); tap(g, i);
     iv.forEach((semi, k) => {
-      const o = ctx.createOscillator(); o.type = 'sawtooth';
-      o.frequency.value = freq(root + qual(semi, c.maj)) * (k % 2 ? 1.004 : 1);
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3400;
-      const g = ctx.createGain(); env(g, t, 0.13, 0.55);
-      o.connect(lp); lp.connect(g); tap(g, i);
-      o.start(t); o.stop(t + 0.6);
+      const f = freq(root + qual(semi, c.maj));
+      // the hand does not land on four strings at once
+      const t0 = t + k * 0.004;
+      [-6, 6].forEach(cents => {
+        const o = ctx.createOscillator(); o.type = 'sawtooth';
+        o.frequency.value = f; o.detune.value = cents + (k % 2 ? 3 : 0);
+        o.connect(lp); o.start(t0); o.stop(t + 0.6);
+      });
     });
   },
   /* Strings hold the bar's chord and nothing else. Timbre does not touch them,
@@ -1760,9 +1855,9 @@ const VOICES = {
      string synth whether the tune is on an accordion or a saw. */
   pad(t, i, s) {
     const c = chordAt(), iv = SHAPES[shapeOf.pad].iv, root = c.root + 12;
-    /* 0.024 e non 0.055: a 0.055 score.html lo misurava un decibel *sopra* lo
-       stab e 2.6 dB sopra in RMS, cioè un letto più forte della parte che
-       dovrebbe sostenere. Questo lo mette 6 dB sotto il picco dello stab. */
+    /* 0.024 and not 0.055: at 0.055 score.html put this a decibel *above* the
+       stab and 2.6 dB above it in RMS — a bed louder than the part it is meant
+       to hold up. This puts it 6 dB under the stab's peak. */
     padOn(t, i, iv.map(x => root + qual(x, c.maj)), 0.024, holdTo(i, s));
   },
 
@@ -1788,12 +1883,12 @@ const VOICES = {
       const t0 = t + k * 0.005;                    // the hand crossing the strings
       const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq(m);
       const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
-      /* Q 1.6 e non 2.2: a 2.2 il passa-banda buttava via tanta energia che
-         score.html misurava la ritmica 8.4 dB sotto lo stab — un telefono, non
-         una chitarra. E il livello sale di conseguenza. */
+      /* Q 1.6 and not 2.2: at 2.2 the bandpass threw away so much energy that
+         score.html read the rhythm guitar 8.4 dB under the stab — a telephone,
+         not a guitar. And the level goes up to match. */
       bp.frequency.value = jit(1700, 0.05); bp.Q.value = 1.6;
-      /* 0.175 pareggia questo percorso a quello campionato: −9.1 dBFS di picco
-         contro −9.1. Cambiare timbro deve cambiare il suono, non il volume. */
+      /* 0.175 matches this path to the sampled one: -9.1 dBFS peak against
+         -9.1. Changing timbre has to change the sound, not the volume. */
       const g = ctx.createGain(); env(g, t0, 0.175, hold + 0.06);
       o.connect(bp); bp.connect(g); tap(g, i);
       o.start(t0); o.stop(t0 + hold + 0.09);
@@ -1809,8 +1904,9 @@ const VOICES = {
     for (let q = 0; q < (s || 0); q++) if (pattern[i][q]) k++;
     const m = c.root + 24 + qual(iv[k % iv.length], c.maj);
     if (timbre === 'chit' || timbre === 'mando') return pluck(t, i, [m], 0.30, 0, 3600);
-    /* Al picco stava già allo stab, ma 9 dB sotto in RMS perché sono plettrate
-       corte, e in un mix una cosa così sparisce. Due decibel e mezzo in più. */
+    /* At the peak it was already level with the stab, but 9 dB under in RMS
+       because these are short plectrum strokes, and a thing like that
+       disappears in a mix. Two and a half decibels more. */
     arpOne(t, i, m, 0.15);
   },
 
@@ -1832,16 +1928,26 @@ const VOICES = {
     }
     if (timbre === 'rhodes') return tine(t, i, [n], 0.22);
     if (timbre === 'organo') return drawbars(t, i, [n], 0.21, playFor(i, s, Math.max(0.2, stepDur() * 2)));
+    if (timbre === 'brass' &&
+        sampled(t, i, [n], 0.42, playFor(i, s, Math.max(0.15, stepDur() * 1.4)))) return;
+    /* The italo lead: three saws instead of two, the third an octave under at
+       a third of the level. Two detuned saws are a chorus; the octave is what
+       makes it a *lead* — it is the oldest trick in the genre and the reason
+       these melodies sound like they are being announced rather than played.
+       The filter opens a touch further and shuts slower than the stab's, so a
+       held note keeps some top on it instead of going dull inside a beat. */
     const f = freq(n);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4;
-    lp.frequency.setValueAtTime(5200, t);
-    lp.frequency.exponentialRampToValueAtTime(1500, t + 0.34);
-    const g = ctx.createGain(); env(g, t, 0.2, 0.44);
-    lp.connect(g); tap(g, i);
-    [-7, 7].forEach(cents => {
-      const o = ctx.createOscillator(); o.type = 'sawtooth';
-      o.frequency.value = f; o.detune.value = cents;
-      o.connect(lp); o.start(t); o.stop(t + 0.46);
+    lp.frequency.setValueAtTime(jit(6000, 0.05), t);
+    lp.frequency.exponentialRampToValueAtTime(jit(1700, 0.05), t + 0.34);
+    const g = ctx.createGain(); env(g, t, 0.18, 0.44);
+    const dr = shaper(1.6); lp.connect(dr); dr.connect(g); tap(g, i);
+    [[1, -7], [1, 7], [0.5, 0]].forEach(v => {
+      const o = ctx.createOscillator(); o.type = v[0] === 1 ? 'sawtooth' : 'triangle';
+      o.frequency.value = f * v[0]; o.detune.value = v[1];
+      if (v[0] === 1) { o.connect(lp); }
+      else { const og = ctx.createGain(); og.gain.value = 0.34; o.connect(og); og.connect(lp); }
+      o.start(t); o.stop(t + 0.46);
     });
   }
 };
@@ -1869,6 +1975,26 @@ function hatAt(t, i, dec, hz, peak) {
   });
 }
 
+/* A soft clipper. The curve is built once and shared — it is read-only, and a
+   4096-point table per note on sixteenths is how you make a phone stutter —
+   but the node is per note, because a WaveShaper is a point in the graph and
+   one shared between voices would fan every voice into every gain after it. */
+const curves = {};
+function shaper(k) {
+  const key = k.toFixed(2);
+  if (!curves[key]) {
+    const n = 2048, c = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = i * 2 / (n - 1) - 1;
+      c[i] = Math.tanh(k * x) / Math.tanh(k);
+    }
+    curves[key] = c;
+  }
+  const w = ctx.createWaveShaper();
+  w.curve = curves[key]; w.oversample = '2x';
+  return w;
+}
+
 function stepDur() { return 60 / bpm / 4; }
 
 /* How long a held note holds: until this track's next written step. A pad on
@@ -1876,14 +2002,14 @@ function stepDur() { return 60 / bpm / 4; }
    turn. Better than a number per groove, because the answer is already in the
    pattern — and it means moving a pad step changes its length, which is what
    you would expect it to do. */
-/* Quanto tenere una nota che *deve* finire prima della successiva. Un pad tiene
-   fino allo step dopo e va benissimo così; un accordo di fisarmonica o una
-   melodia no. score.html ha misurato il 100% degli attacchi del lead della
-   tarantella che arrivavano con la nota precedente ancora in campo — ed è
-   letteralmente quello che si sentiva quando la groove "faceva cagare". `cap` è
-   il valore che c'era prima, quindi questa può solo accorciare, mai allungare.
-   Il 0.7 è il respiro: una nota che finisce esattamente dove comincia la
-   prossima si attacca comunque, perché il rilascio dura altri 90 ms. */
+/* How long to hold a note that *has* to finish before the next one. A pad
+   holds until the following step and that is exactly right; an accordion chord
+   or a melody is not. score.html measured 100% of the tarantella lead's onsets
+   arriving with the previous note still sounding — which is literally what you
+   heard when that groove "was terrible". `cap` is the hold that was there
+   before, so this can only shorten, never lengthen. The 0.7 is the breath: a
+   note ending exactly where the next begins still collides, because the
+   release runs another 90 ms. */
 function playFor(i, s, cap) {
   return Math.min(cap, Math.max(0.09, holdTo(i, s) * 0.7));
 }
@@ -2001,7 +2127,7 @@ function sing(vi, t, i, buf, p, rate, live, pan) {
 function fire(i, t, s, vel) {
   if (mute[i]) return;
   const trk = TRACKS[i];
-  // il fill non sta nel pattern, quindi porta la sua velocity con sé
+  // the fill is not in the pattern, so it carries its own velocity
   hitVel = (vel !== undefined ? vel : (s == null ? 1 : pattern[i][s])) || 1;
   if (trk.kind === 'voice') fireVoice(trk.ci, t, i);
   else if (kitBuf[trk.id]) hitKit(trk.id, t, i);
@@ -2026,7 +2152,7 @@ function scheduler() {
     if (cursor === 0 && rise && filt && filtV === 1) {
       const dur = patLen * stepDur(), wide = filtHz();
       filt.frequency.cancelScheduledValues(t);
-      if (loops % 2) {                             // il giro che si chiude
+      if (loops % 2) {                             // the turn that closes
         filt.frequency.setValueAtTime(wide, t);
         filt.frequency.exponentialRampToValueAtTime(RISE_LOW, t + dur * 0.97);
       } else {                                     // e quello che riapre
@@ -2034,10 +2160,9 @@ function scheduler() {
         filt.frequency.exponentialRampToValueAtTime(wide, t + 0.06);
       }
     }
-    /* Il fill vale solo sull'ultima battuta del pattern e solo un giro su due.
-       Una corsia che il fill nomina viene *sostituita* in quella battuta, non
-       sommata: un rullio di rullante non deve litigare con il backbeat che
-       sostituisce. */
+    /* The fill applies only on the pattern's last bar and only every other turn.
+       A lane the fill names is *replaced* in that bar, not added to: a snare
+       roll must not argue with the backbeat it is replacing. */
     const inLast = cursor >= patLen - barLen;
     const useFill = !!fillPat && inLast && (loops % FILL_EVERY === FILL_EVERY - 1);
     for (let i = 0; i < TRACKS.length; i++) {
@@ -2182,6 +2307,15 @@ function buildMixer() {
       soloT = setTimeout(() => { soloT = 0; setSolo(i); }, 420);
       await boot();
       select(i);
+      /* A tap on a muted chip brings the track in. Without this the audition
+         goes through fire(), which returns early on a muted track, and through
+         a channel gain pinned at zero — so the chip flashes, selects, and makes
+         no sound at all. Every groove now loads with nine of eleven tracks
+         muted, which would have made that the normal experience of the app
+         rather than an edge case. Bringing a part in one chip at a time is the
+         gesture this whole arrangement is built around; the bar down the right
+         edge still takes it out again. */
+      if (mute[i]) setMute(i, false);
       if (ctx && (ready || trk.kind !== 'voice')) fire(i, ctx.currentTime + 0.005);
       box.dataset.hit = '1';
       setTimeout(() => { box.dataset.hit = '0'; }, 110);
@@ -2195,10 +2329,7 @@ function buildMixer() {
     m.setAttribute('aria-label', 'Mute ' + trk.name);
     m.addEventListener('click', e => {
       e.stopPropagation();
-      mute[i] = !mute[i];
-      box.dataset.mute = mute[i] ? '1' : '0';
-      m.setAttribute('aria-pressed', String(mute[i]));
-      reChan(i);
+      setMute(i, !mute[i]);
     });
 
     box.append(hit, m);
@@ -2577,14 +2708,20 @@ filtI.addEventListener('input', () => setFilt(Number(filtI.value)));
    against the synth drums, since a shaker and a cajon are not recorded at the
    same loudness. */
 const KITS = [
-  { id:'machine', name:'Macchina' },
-  /* ohat è il tamburello, e 0.62 lo teneva al livello del charleston sintetico
-     che sostituisce — corretto come pareggiamento e sbagliato come musica: su
-     Permanente, Campagna, Testaccio e le due tarantelle il tamburello *è* la
-     percussione, non un charleston. 0.90 su richiesta di un orecchio, che qui
-     batte la misura. */
-  { id:'folk', name:'Tamburello', slots:{ kick:0.50, snare:0.88, clap:0.19, hat:0.90, ohat:0.90 } },
+  { id:'machine', name:'Machine' },
+  /* ohat is the tambourine, and 0.62 held it level with the synthesised hat it
+     replaces — right as a match and wrong as music: on the folk and tarantella
+     grooves the tambourine *is* the percussion, not a hi-hat. 0.90 on an ear's
+     say-so, which beats the measurement here. */
+  { id:'folk', name:'Tambourine', slots:{ kick:0.50, snare:0.88, clap:0.19, hat:0.90, ohat:0.90 } },
 ];
+/* Three takes a slot, and this is the one thing that was actually broken about
+   the recorded kit rather than merely different. score.html measured it at 0.4
+   to 1.0 hit-to-hit correlation against the machine kit's 0.13 to 0.32, and
+   no amount of rate jitter was ever going to move that: a normalised
+   correlation ignores gain, and a 1% rate change barely decorrelates a short
+   recording. A second hand does move it, because it is a second waveform. */
+const TAKES = 3;
 let kit = 'machine';
 const kitBuf = {};
 
@@ -2595,24 +2732,59 @@ async function loadKit(id) {
   const K = KITS.find(k => k.id === kit);
   if (!K.slots || !ctx) return;
   const names = Object.keys(K.slots);
-  const out = await Promise.allSettled(names.map(async n => {
+  const mine = kit;
+  const want = [];
+  names.forEach(n => { for (let k = 0; k < TAKES; k++) want.push([n, k]); });
+  const got = {};
+  names.forEach(n => { got[n] = new Array(TAKES).fill(null); });
+  const out = await Promise.allSettled(want.map(async pair => {
+    const file = pair[0] + '-' + (pair[1] + 1);
     // the single-file build inlines the kit, same as it inlines the clips
-    const ab = K.b64 ? b64ToBuf(K.b64[n])
-                     : await (await fetch('audio/kit/' + kit + '/' + n + '.m4a')).arrayBuffer();
-    kitBuf[n] = { buf: await decode(ab), gain: K.slots[n] };
+    const ab = K.b64 ? b64ToBuf(K.b64[file])
+                     : await (await fetch('audio/kit/' + kit + '/' + file + '.m4a')).arrayBuffer();
+    /* By index, not push. Pushing writes them in decode-completion order, which
+       varies run to run — and score.html's whole before/after rests on a fixed
+       seed producing the same performance twice. Which recording is take one
+       has to be the same every time. */
+    got[pair[0]][pair[1]] = await decode(ab);
   }));
+  /* Two loadKit calls can be in flight at once — loadGroove fires one per
+     groove, and switching quickly lands the slower one after the faster. The
+     later call has already emptied kitBuf, so without this the folk buffers
+     come back and play under a picker that says Machine. */
+  if (kit !== mine) return;
+  names.forEach(n => {
+    const bufs = got[n].filter(Boolean);
+    if (bufs.length) kitBuf[n] = { bufs: bufs, gain: K.slots[n], last: 0 };
+  });
   const bad = out.filter(o => o.status === 'rejected');
-  // a slot that fails just keeps its synthesised voice, so this degrades rather
-  // than breaks — but say so
-  if (bad.length) say(bad.length + ' of ' + names.length + ' drum sounds failed to load. The machine covers for them.');
+  /* A slot that loses one take of three still plays, so only a slot that lost
+     all of them is worth a word — otherwise the user gets an alarm about
+     something they cannot hear. A slot that loses everything falls back to its
+     synthesised voice, which is a quieter failure than silence. */
+  const dead = names.filter(n => !kitBuf[n]).length;
+  if (dead) say(dead + ' of ' + names.length + ' drum sounds failed to load. The machine covers for them.');
+  else if (bad.length) say('Some drum takes failed to load; the kit is playing with fewer.');
 }
 
 // A kit voice is a one-shot and nothing else: no envelope, no filter, the
 // recording is the sound. hitVel still reaches it through tap.
 function hitKit(id, t, i) {
   const k = kitBuf[id];
+  /* Round robin, and never the same take twice running. Picking at random from
+     three means one hit in three repeats itself, which is the artefact this is
+     here to remove. It answers to `organic` like the jitter does, so the A/B
+     in score.html still compares the kit against itself rather than against a
+     different feature. */
+  let n = 0;
+  if (organic && k.bufs.length > 1) {
+    // pick from the others, then step over the one just played
+    n = Math.floor(Math.random() * (k.bufs.length - 1));
+    if (n >= k.last) n++;
+  }
+  k.last = n;
   const src = ctx.createBufferSource(), g = ctx.createGain();
-  src.buffer = k.buf; g.gain.value = jit(k.gain, 0.07);
+  src.buffer = k.bufs[n]; g.gain.value = jit(k.gain, 0.07);
   // A recording played twice is the same recording twice. A per cent of rate is
   // inaudible as pitch and enough to stop two hands sounding like one machine.
   src.playbackRate.value = jit(1, 0.012);
@@ -2651,17 +2823,44 @@ const TIMBRES = [
      is B3 and the bass sits two octaves under that — stretching a sample that
      far smears the reed into a drone. reeds() stays as the fallback for when
      the notes have not arrived yet, or at all. */
-  { id:'fisa',   name:'Fisarmonica', notes:[59, 62, 66, 69, 72, 76, 79, 83] },
+  { id:'fisa',   name:'Accordion', notes:[59, 62, 66, 69, 72, 76, 79, 83] },
   /* A recorded Spanish classical guitar, CC0, eleven notes from A1 to B5 —
      the only sampled instrument that reaches low enough to play the bass too,
      so nothing on this setting is synthesised. Three modelled instruments is
      what kept these patterns sounding synthetic; a nylon string somebody
      actually played is not something two oscillators and a filter get to. */
-  { id:'chit',   name:'Chitarra', notes:[33, 38, 43, 48, 52, 57, 62, 67, 72, 77, 83] },
-  { id:'mando',  name:'Mandolino' },
+  { id:'chit',   name:'Guitar', notes:[33, 38, 43, 48, 52, 57, 62, 67, 72, 77, 83] },
+  { id:'mando',  name:'Mandolin' },
   { id:'rhodes', name:'Rhodes' },
-  { id:'organo', name:'Organo' },
+  { id:'organo', name:'Organ' },
+  /* Synth Brass 2 from FreePats, CC0: a DX7 BRASS 7 patch recorded through
+     Dexed. This is the italo-disco stab and it is the one sound in this app
+     that could not be faked — FM brass is six operators beating against each
+     other, and two sawtooths through a lowpass sound like two sawtooths
+     through a lowpass. Seven notes on the bank's own keycentres, so the
+     middle of the range is never stretched. */
+  { id:'brass',  name:'Brass', notes:[42, 48, 54, 60, 66, 72, 78] },
 ];
+
+/* The electric bass is not a timbre, it is *the* bass — a fingered Yamaha RBX
+   from FreePats, CC0. It loads beside whatever instrument is selected rather
+   than as one of them, because the question "what is the tune played on" and
+   the question "is the bass a real one" are not the same question: an accordion
+   band has a bass player, an italo record has a synthesiser, and picking the
+   accordion should not have to mean picking both.
+
+   Which is why the acoustic settings take it and the electronic ones do not.
+
+   The bank is one octave, E1 to D#2, because that is what was sampled. Rather
+   than stretch a bass string seven semitones past its top note, a note above
+   BASS_TOP folds down an octave — which is also what a bassist does, since the
+   octave above the fourth fret of the G string is not where a bass line lives. */
+const BASS_NOTES = [28, 30, 32, 34, 36, 38, 39];
+const BASS_TOP = 43;
+const BASS_TIMBRES = ['fisa', 'chit', 'mando'];
+// filled in by the single-file build; null here, where there is an origin
+const BASS_B64 = null;
+let bassSmp = {};
 TIMBRES.forEach(t => {
   const o = document.createElement('option');
   o.value = t.id; o.textContent = t.name;
@@ -2672,30 +2871,51 @@ TIMBRES.forEach(t => {
    first bar after a switch played nothing. */
 let smp = {};
 const smpCache = {};
-async function loadSamples() {
-  const t = TIMBRES.find(x => x.id === timbre) || TIMBRES[0];
-  if (!t.notes) { smp = {}; return; }
-  if (smpCache[t.id]) { smp = smpCache[t.id]; return; }
-  smp = {};
-  if (!ctx) return;
-  const mine = timbre, bank = {};
-  const out = await Promise.allSettled(t.notes.map(async n => {
-    // the single-file build inlines these, same as the clips and the kit
-    const ab = t.b64 ? b64ToBuf(t.b64[n])
-                     : await (await fetch('audio/instr/' + t.id + '/' + n + '.m4a')).arrayBuffer();
+/* One bank, one fetch, cached by id. `b64` is the single-file build's inlined
+   copy, since an artifact has no origin to fetch from. */
+async function loadBank(id, notes, b64, label) {
+  if (smpCache[id]) return smpCache[id];
+  if (!ctx) return null;
+  const bank = {};
+  const out = await Promise.allSettled(notes.map(async n => {
+    const ab = b64 ? b64ToBuf(b64[n])
+                   : await (await fetch('audio/instr/' + id + '/' + n + '.m4a')).arrayBuffer();
     bank[n] = await decode(ab);
   }));
-  if (Object.keys(bank).length) smpCache[t.id] = bank;
-  // a fast switch must not land the notes in the wrong instrument
-  if (timbre === mine) smp = bank;
+  if (Object.keys(bank).length) smpCache[id] = bank;
   const bad = out.filter(o => o.status === 'rejected');
-  if (bad.length) say(bad.length + ' of ' + t.notes.length + ' ' + t.name +
+  if (bad.length) say(bad.length + ' of ' + notes.length + ' ' + label +
                       ' notes failed to load. The synthesised one covers for them.');
+  return bank;
+}
+
+/* Awaited, not fired and forgotten — including the bass. renderOffline awaits
+   this before it schedules anything, and a bank still in flight at that point
+   means the measurement silently reads the synthesised fallback instead of the
+   recording it was asked about. In the app nothing awaits it and a slow bank
+   just means one more bar of the fallback, which is the right failure. */
+async function loadSamples() {
+  const t = TIMBRES.find(x => x.id === timbre) || TIMBRES[0];
+  const mine = timbre;
+  const jobs = [];
+  if (BASS_TIMBRES.indexOf(t.id) >= 0 && !Object.keys(bassSmp).length)
+    jobs.push(loadBank('bass', BASS_NOTES, BASS_B64, 'bass').then(b => { if (b) bassSmp = b; }));
+  if (t.notes && !smpCache[t.id]) {
+    smp = {};
+    jobs.push(loadBank(t.id, t.notes, t.b64, t.name).then(bank => {
+      // a fast switch must not land the notes in the wrong instrument
+      if (bank && timbre === mine) smp = bank;
+    }));
+  } else {
+    smp = t.notes ? smpCache[t.id] : {};
+  }
+  await Promise.all(jobs);
 }
 
 /* Nearest recording, repitched the rest of the way. */
-function sampled(t, i, midi, peak, hold, spread) {
-  const keys = Object.keys(smp);
+function sampled(t, i, midi, peak, hold, spread, bank) {
+  const b = bank || smp;
+  const keys = Object.keys(b);
   if (!keys.length) return false;
   midi.forEach((m, k) => {
     const t0 = t + k * (spread || 0);
@@ -2703,7 +2923,7 @@ function sampled(t, i, midi, peak, hold, spread) {
     for (let k = 1; k < keys.length; k++)
       if (Math.abs(+keys[k] - m) < Math.abs(best - m)) best = +keys[k];
     const src = ctx.createBufferSource();
-    src.buffer = smp[best];
+    src.buffer = b[best];
     src.playbackRate.value = Math.pow(2, (m - best) / 12);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, t0);
@@ -2714,6 +2934,16 @@ function sampled(t, i, midi, peak, hold, spread) {
     src.start(t0); src.stop(t0 + hold + 0.12);
   });
   return true;
+}
+
+/* The recorded bass, folded into the bank's octave first. A bass line that
+   leaps to the octave above is written that way for the movement, not for the
+   register, so dropping it back costs the figure nothing and saves it being
+   played by a sample stretched half an octave past where it was recorded. */
+function sampledBass(t, i, m, peak, hold) {
+  let n = m;
+  while (n > BASS_TOP) n -= 12;
+  return sampled(t, i, [n], peak, hold, 0, bassSmp);
 }
 
 function setTimbre(id) {
@@ -2944,199 +3174,228 @@ overSeg.addEventListener('click', e => {
    loaded. The rest touch v0 alone, at speed and unchopped, and land on whatever
    is in the machine. `prog` is by name: adding a giro must not renumber these. */
 const GROOVES = [
-  /* Eight per pack, and every one of them plays that pack's clips — a preset
-     that does not care which voices are loaded can only ever touch v0 whole,
-     which is the weakest thing this app can do. Long clips are left to run
-     whole across the four bars rather than being chopped into confetti: that is
-     what a vocal is. */
+  /* Eight a pack, and none of them writes a voice. A pattern here is the band:
+     the drums, the bass, the chords and the tune. The recordings are yours to
+     drop in, which is why the Voci rack sits unmuted and empty while everything
+     above it is written and half of it is switched off.
+
+     Which half is not a per-groove decision — START_ON is the kick and the
+     bass everywhere. A groove arrives as a pulse and a bass line, and you bring
+     the rest up one chip at a time. That is how these records were built and it
+     is the only way a sixteen-step grid ever sounds like an arrangement rather
+     than a loop that starts at full height and stays there.
+
+     Written across four bars wherever the part has four bars in it. A lane that
+     names no step past the first bar is tiled, which is right for a hi-hat and
+     wrong for a melody. */
 
   /* ---- Clem ---- */
-  { name:'Liana', pack:'clem', genre:'italo', bpm:118, swing:0, pump:true, verb:1.1,
-    key:36, prog:'Tramonto', shape:{bass:1,stab:3},
-    steps:{ kick:[0,4,8,12,16,20,24,28,48,52,56,60,58,62], clap:[4,12,20,28,52,60,63],
-            ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
-            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            stab:[3,7,11,15,19,23,27,31,51,55,59],
-            lead:[[16,4],[19,3],[22,2],[28,4],[48,2],[51,4],[54,3],[60,0]],
-            v0:[0], v2:[40] },
-    /* Clementina dura 4.54 s e la battuta a 118 ne dura 2.03: ripetuta, la
-       frase veniva tagliata a metà parola ogni battuta. Parte una volta per
-       giro. Le durate non sono a occhio — sono misurate dai file. */
-    once:['v0'],
-    accent:{ kick:[0,48], clap:[12,28,60] },
-    ghost:{ ohat:[2,10,18,26,34,42,50,58] },
-    voice:{ 0:{rate:1,start:0,chop:0}, 2:{rate:1,start:0,chop:6} } },
 
-  /* Mind Enterprises: la linea di basso *è* il pezzo, la cassa è asciutta, i
-     sedicesimi di charleston respirano per accenti, e sopra c'è aria. Niente
-     arpeggio e niente chitarra qui di proposito — quel disco è fatto di poche
-     cose messe larghe, e riempirlo lo ucciderebbe. `bassIv` di otto gradi si
-     chiude esattamente in una battuta: tonica, ottava, tonica, quinta, tonica,
-     ottava, settima, quinta. */
-  { name:'Fantasia', pack:'clem', genre:'italo', bpm:118, swing:0, rise:true, pump:true, air:0.2, verb:1.05,
+  { name:'Liana', pack:'clem', genre:'italo', bpm:118, swing:0, pump:true, verb:1.1,
+    key:36, prog:'Tramonto', shape:{bass:1,stab:3,pad:3},
+    bassIv:[0,12,0,7,0,12,10,7],
+    steps:{ kick:[0,4,8,12], clap:[4,12],
+            ohat:[2,6,10,14],
+            bass:[0,2,4,6,8,10,12,14],
+            pad:[0], stab:[3,7,11,15],
+            lead:[[16,4],[19,3],[22,2],[28,4],[48,2],[51,4],[54,3],[60,0]] },
+    accent:{ kick:[0], clap:[12], bass:[0,8] },
+    ghost:{ ohat:[2,10], stab:[7,15] },
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ drop:['stab'], add:{ ohat:[7,15] } },
+           3:{ accent:{ clap:[4,12] } } },
+    fill:{ clap:[10,11,12,13,14,15], ohat:[15] } },
+
+  /* The brass one. Synth Brass 2 is a DX7 patch and the DX7 is the instrument
+     italo-disco was actually made on, so the stab here is not an impression of
+     the sound — it is the sound. Which is also why there is so little else:
+     an FM brass chord is wide and loud and does not want a second chord voice
+     anywhere near it. The riser and the four-on-the-floor do the rest. */
+  { name:'Cometa', pack:'clem', genre:'italo', bpm:122, swing:0, rise:true, pump:true,
+    timbre:'brass', air:0.2, verb:1.15,
+    key:36, prog:'Tramonto', shape:{bass:1,stab:3,pad:3},
+    bassIv:[0,0,12,7],
+    steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
+            bass:[0,2,4,6,8,10,12,14],
+            pad:[0], stab:[3,11],
+            lead:[[16,4],[20,5],[23,4],[26,2],
+                  [32,2],[36,4],[39,5],[42,4],
+                  [48,7],[52,5],[55,4],[58,2],[62,0]] },
+    accent:{ kick:[0], clap:[12], stab:[3], bass:[0,8] },
+    ghost:{ ohat:[2,10] },
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ drop:['stab','pad'], add:{ ohat:[7] } },
+           3:{ add:{ clap:[14] }, accent:{ stab:[3,11] } } },
+    fill:{ clap:[10,11,12,13,14,15], ohat:[15] } },
+
+  /* Mind Enterprises: the bass line *is* the piece, the kick is dry, the
+     sixteenth hats breathe by accent, and there is air above it. No arpeggio
+     and no guitar here on purpose — that record is made of few things placed
+     wide, and filling it would kill it. An eight-degree bassIv closes in
+     exactly one bar: root, octave, root, fifth, root, octave, seventh, fifth. */
+  { name:'Fantasia', pack:'clem', genre:'italo', bpm:118, swing:0, rise:true, pump:true,
+    air:0.2, verb:1.05,
     key:33, prog:'Onda', shape:{bass:1,stab:3,pad:3},
     bassIv:[0,12,0,7,0,12,10,7],
     steps:{ kick:[0,4,8,12], clap:[4,12],
             hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
             bass:[0,2,4,6,8,10,12,14],
             pad:[0], stab:[7,15],
-            lead:[[6,4],[22,2],[35,4],[38,5],[54,2],[58,0]],
-            v1:[12,28,44,60], v0:[0] },
-    once:['v0'],
+            lead:[[6,4],[22,2],[35,4],[38,5],[54,2],[58,0]] },
     accent:{ kick:[0], clap:[12], hat:[2,6,10,14] },
     ghost:{ hat:[1,3,5,7,9,11,13,15], stab:[15] },
     vary:{ 1:{ add:{ ohat:[15] } },
            2:{ drop:['stab'], clear:{ hat:[1,3,5,7,9,11,13,15] } } },
-    fill:{ clap:[10,11,12,13,14,15] },
-    voice:{ 1:{rate:1,start:0,chop:2}, 0:{rate:1,start:0,chop:0} } },
+    fill:{ clap:[10,11,12,13,14,15] } },
 
-  /* L'italo con l'arpeggio davanti, che è la cosa che a questa app mancava:
-     sedicesimi plettrati dentro l'eco in ottavo puntato, e la mano destra non
-     cambia mai. L'armonia la porta l'arpeggio, quindi lo stab non c'è. */
-  { name:'Cristallo', pack:'clem', genre:'italo', bpm:124, swing:0, rise:true, pump:true, air:0.15, verb:1.2,
+  /* Italo with the arpeggio in front: plectrum sixteenths inside a dotted-
+     eighth echo, and the right hand never changes. The arpeggio carries the
+     harmony, so there is no stab. */
+  { name:'Cristallo', pack:'clem', genre:'italo', bpm:124, swing:0, rise:true, pump:true,
+    air:0.15, verb:1.2,
     key:36, prog:'Tramonto', shape:{bass:1,pad:3,arp:2},
     bassIv:[0,12],
     steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
             arp:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
             bass:[0,2,4,6,8,10,12,14], pad:[0],
-            lead:[[16,4],[20,2],[28,4],[48,5],[52,4],[60,2]],
-            v2:[8,40], v3:[0] },
-    once:['v3'],
+            lead:[[16,4],[20,2],[28,4],[48,5],[52,4],[60,2]] },
     accent:{ kick:[0], clap:[12], arp:[0,4,8,12] },
     ghost:{ arp:[1,3,5,7,9,11,13,15], ohat:[6,14] },
     vary:{ 1:{ add:{ clap:[14] } },
            2:{ clear:{ arp:[1,3,5,7,9,11,13,15] } } },
-    fill:{ ohat:[10,11,12,13,14,15], clap:[14] },
-    voice:{ 2:{rate:1,start:0,chop:2}, 3:{rate:1,start:0,chop:0} } },
-
-  /* A dance hall, which is what the name says. Swung eighths, a walking bass
-     and the piano on the off-beat; no dramatic break, it just keeps going. */
-  { name:'Balera', pack:'clem', genre:'balera', bpm:126, swing:0.6, timbre:'rhodes', air:0.3, verb:1.2,
-    /* Sala da ballo: la seconda battuta alza un aperto sul finale, la terza
-       assottiglia il charleston a quarti e manda a sedere il clap. */
-    vary:{ 1:{ add:{ ohat:[15] } },
-           2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] } },
-    fill:{ snare:[10,11,12,13,14,15], ohat:[15] },
-    key:33, prog:'Carosone', shape:{bass:1,stab:3},
-    steps:{ kick:[0,8,16,24,32,40,48,56], snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60],
-            hat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
-            lead:[[36,4],[38,3],[40,2],[44,0],[52,4],[55,2],[58,0]],
-            /* Una corsia di voce con un solo step dentro la prima battuta
-               viene ripetuta su tutte quattro, e allora la frase riparte da capo
-               ogni battuta: non è un ritmo, è un balbettio, ed era il motivo per
-               cui questa groove misurava quattro battute identiche. Theory dura
-               4.44 s contro 1.90 di battuta, quindi parte una volta per giro;
-               Marco 1 sta in due battute e le tiene entrambe. */
-            v4:[0], v1:[24,56] },
-    once:['v4'],
-    accent:{ snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60] },
-    ghost:{ hat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], stab:[7,23,39,55] },
-    voice:{ 4:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:0} } },
-
-  { name:'Notte', pack:'clem', genre:'balera', bpm:104, swing:0.55, timbre:'organo', air:0.35, verb:1.2,
-    vary:{ 1:{ add:{ hat:[15] } },
-           2:{ drop:['stab'] } },
-    fill:{ snare:[12,13,14,15], hat:[13,15] },
-    key:34, prog:'Nostalgia', shape:{bass:0,stab:3},
-    steps:{ kick:[0,10,16,26,48,58,42], snare:[4,12,20,28,36,44,52,60],
-            hat:[2,6,14,18,22,30,34,38,46,50,54,62],
-            bass:[0,10,16,26,32,42,48,58,30,62],
-            stab:[4,12,20,28,36,44,52,60],
-            v0:[0], v3:[44] },
-    once:['v0'],
-    accent:{ snare:[4,12,20,28,36,44,52,60] },
-    ghost:{ hat:[2,18,34,50] },
-    voice:{ 0:{rate:1,start:0,chop:0}, 3:{rate:0.9,start:0,chop:4} } },
+    fill:{ ohat:[10,11,12,13,14,15], clap:[14] } },
 
   /* House, and house is mostly the open hat. Kick on every beat, hat lifting
      every off-beat eighth, a clap on two and four and almost nothing else —
      the space is the genre. */
-  { name:'Discoteca', pack:'clem', genre:'house', bpm:124, swing:0, rise:true, pump:true, verb:1.15,
-    /* House: la linea di basso salta l'ottava e poi la quinta invece di
-       alternare due note, e il clap rulla dentro il ritorno. */
+  { name:'Discoteca', pack:'clem', genre:'house', bpm:124, swing:0, rise:true, pump:true,
+    verb:1.15,
+    /* The bass jumps the octave and then the fifth instead of alternating two
+       notes, and the clap rolls inside the return. */
     bassIv:[0,12,0,7],
-    vary:{ 1:{ add:{ ohat:[15] } },
-           2:{ drop:['stab'], add:{ ohat:[7] } } },
-    fill:{ clap:[10,11,12,13,14,15], ohat:[15] },
     key:33, prog:'Onda', shape:{bass:1,stab:3},
-    steps:{ kick:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], clap:[4,12,20,28,36,44,52,60],
-            ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
-            bass:[0,2,8,10,16,18,24,26,32,34,40,42,48,50,56,58],
-            stab:[6,14,22,30,38,46,54,62],
-            v4:[0], v1:[28,60] },
-    once:['v4'],
-    accent:{ kick:[0,16,32,48], clap:[12,28,44,60] },
-    ghost:{ ohat:[6,22,38,54] },
-    voice:{ 4:{rate:1,start:0,chop:0}, 1:{rate:1,start:0,chop:2} } },
+    steps:{ kick:[0,4,8,12], clap:[4,12],
+            ohat:[2,6,10,14],
+            bass:[0,2,8,10],
+            stab:[6,14] },
+    accent:{ kick:[0], clap:[12] },
+    ghost:{ ohat:[6] },
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ drop:['stab'], add:{ ohat:[7] } },
+           3:{ add:{ clap:[14] } } },
+    fill:{ clap:[10,11,12,13,14,15], ohat:[15] } },
 
+  /* Four bars written out rather than one bar played four times. It was the
+     latter, and a four-note tune restarting every bar is a jingle. */
   { name:'Riviera', pack:'clem', genre:'italo', bpm:126, swing:0, pump:true, verb:1.1,
     bassIv:[0,12,0,7],
-    vary:{ 1:{ add:{ clap:[14] } },
-           2:{ clear:{ hat:[10] }, add:{ ohat:[10] } } },
-    fill:{ snare:[12,13,14,15], clap:[14] },
-    key:33, prog:'Onda', shape:{bass:1,stab:3},
+    key:33, prog:'Onda', shape:{bass:1,stab:3,pad:3},
     steps:{ kick:[0,4,8,12], clap:[12], hat:[2,6,10,14], ohat:[6,14],
-            bass:[0,2,4,6,8,10,12,14], stab:[3,11],
-            lead:[[0,7],[4,4],[8,2],[12,4]],
-            v1:[8] },
+            bass:[0,2,4,6,8,10,12,14], pad:[0], stab:[3,11],
+            lead:[[0,7],[4,4],[8,2],[12,4],
+                  [16,5],[20,4],[24,2],[28,0],
+                  [32,7],[36,5],[40,4],[44,2],
+                  [48,4],[52,2],[56,4],[60,7]] },
     accent:{ clap:[12], kick:[0] },
     ghost:{ hat:[2,10] },
-    voice:{ 1:{rate:1.25,start:0,chop:2} } },
+    vary:{ 1:{ add:{ clap:[14] } },
+           2:{ clear:{ hat:[10] }, drop:['stab'] },
+           3:{ add:{ ohat:[10] } } },
+    fill:{ snare:[12,13,14,15], clap:[14] } },
 
-  /* One voice doubled, not detuned into another species. */
-  { name:'Coro', pack:'clem', genre:'voce', bpm:104, swing:0, timbre:'rhodes', kit:'folk', air:0.5, verb:1.3,
-    key:40, prog:'Stornello', shape:{bass:1,stab:3},
-    steps:{ kick:[0,8], ohat:[4,12],
-            bass:[0,4,8,12], stab:[2,6,10,14],
-            v0:[0] },
-    accent:{ kick:[0], stab:[2,10] },
-    ghost:{ stab:[6,14], ohat:[4] },
-    voice:{ 0:{rate:1,start:0,chop:0,over:true,chorus:true} } },
+  /* A dance hall, which is what the name says. Swung eighths, a walking bass
+     and the piano on the off-beat; no dramatic break, it just keeps going. */
+  { name:'Balera', pack:'clem', genre:'balera', bpm:126, swing:0.6, timbre:'rhodes',
+    air:0.3, verb:1.2,
+    key:33, prog:'Carosone', shape:{bass:1,stab:3},
+    steps:{ kick:[0,8], snare:[4,12], clap:[12],
+            hat:[0,2,4,6,8,10,12,14],
+            bass:[0,2,4,6,8,10,12,14],
+            stab:[3,7,11,15],
+            lead:[[36,4],[38,3],[40,2],[44,0],[52,4],[55,2],[58,0]] },
+    accent:{ snare:[4,12], clap:[12] },
+    ghost:{ hat:[0,4,8,12], stab:[7,15] },
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] },
+           3:{ accent:{ bass:[0,8] } } },
+    fill:{ snare:[10,11,12,13,14,15], ohat:[15] } },
 
-  { name:'Chop', pack:'clem', genre:'voce', bpm:96, swing:0, echo:false, key:36, prog:'Fermo', shape:{bass:0,stab:3},
-    vary:{ 1:{ clear:{ v0:[2] } },
-           2:{ add:{ v1:[10] } } },
-    fill:{ snare:[12,14,15], clap:[15] },
-    steps:{ kick:[0,3,8,11], snare:[4,12], hat:[2,6,10,14], clap:[7,15],
-            bass:[0,4,8,12], v0:[0,2], v1:[4,6], v2:[12,14], v3:[8] },
-    accent:{ kick:[0,8], snare:[4,12] },
-    ghost:{ hat:[2,10], clap:[7] },
-    voice:{ 0:{rate:1,start:0.06,chop:2}, 1:{rate:1.25,start:0,chop:2},
-            2:{rate:0.8,start:0.1,chop:2}, 3:{rate:1,start:0.2,chop:4} } },
-
-  { name:'Talk', pack:'clem', genre:'voce', bpm:84, swing:0.55, echo:false, key:33, prog:'Fermo', shape:{bass:0,stab:3},
+  { name:'Notte', pack:'clem', genre:'balera', bpm:104, swing:0.55, timbre:'organo',
+    air:0.35, verb:1.2,
+    key:34, prog:'Nostalgia', shape:{bass:0,stab:3,pad:3},
+    steps:{ kick:[0,10,16,26,42,48,58], snare:[4,12,20,28,36,44,52,60],
+            hat:[2,6,14,18,22,30,34,38,46,50,54,62],
+            bass:[0,10,16,26,30,32,42,48,58,62],
+            pad:[0,16,32,48],
+            stab:[4,12,20,28,36,44,52,60],
+            lead:[[8,4],[13,2],[24,4],[29,5],[40,4],[45,2],[56,0]] },
+    accent:{ snare:[4,12,20,28,36,44,52,60] },
+    ghost:{ hat:[2,18,34,50] },
     vary:{ 1:{ add:{ hat:[15] } },
-           2:{ drop:['hat'] } },
-    fill:{ snare:[12,13,14,15] },
-    steps:{ kick:[0,6,10], snare:[4,12], hat:[2,6,10,14], v0:[0,32], v4:[8,40] },
-    accent:{ snare:[4,12] },
-    ghost:{ hat:[6,14], kick:[6] },
-    voice:{ 0:{rate:1,start:0,chop:0}, 4:{rate:1,start:0,chop:0} } },
+           2:{ drop:['stab'] } },
+    fill:{ snare:[12,13,14,15], hat:[13,15] } },
 
   /* ---- Nonni ---- */
-  { name:'Liana', pack:'nonni', genre:'italo', bpm:118, swing:0, pump:true, kit:'folk', air:0.35, verb:1.1,
-    key:36, prog:'Tramonto', shape:{bass:1,stab:3},
-    steps:{ kick:[0,4,8,12,16,20,24,28,48,52,56,60,58,62], clap:[4,12,20,28,52,60,63],
-            ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
-            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            stab:[3,7,11,15,19,23,27,31,51,55,59],
-            lead:[[16,4],[19,3],[22,2],[28,4],[48,2],[51,4],[54,3],[60,0]],
-            v0:[0,8,32,40], v3:[24] },
-    accent:{ kick:[0,48], clap:[12,28,60] },
-    ghost:{ ohat:[2,10,18,26,34,42,50,58] },
-    voice:{ 0:{rate:1,start:0,chop:2}, 3:{rate:1,start:0,chop:6} } },
 
-  /* Il ponte, ed è la groove per cui esiste l'arpeggio. Battiato del periodo
-     *La voce del padrone*: un sequencer di sedicesimi in maggiore sotto una
-     melodia mediterranea, drum machine e percussione vera nello stesso pezzo.
-     Qui la fisarmonica porta la melodia e il tamburello del kit registrato
-     tiene i contrattempi, mentre sotto va una macchina — ed è esattamente il
-     mezzo fra la tradizione e la rivisitazione. Il pad si ribatte a ogni
-     battuta perché il giro si muove a ogni battuta: tenuto per quattro
-     suonerebbe l'accordo della prima sopra le altre tre. */
-  { name:'Permanente', pack:'nonni', genre:'sequencer', bpm:116, swing:0, timbre:'fisa', kit:'folk', air:0.35, verb:1.15,
+  /* The italo-disco one, and the reason the brass bank is here. Everything is
+     where the genre puts it — kick on the four, clap on two and four, hats on
+     the sixteenths, bass on the eighths — and none of that is what makes it
+     work. The riser is: four bars with the filter closing, the fill at the
+     bottom of it, and the whole thing snapping open at the top. */
+  { name:'Nottata', pack:'nonni', genre:'italo', bpm:120, swing:0, rise:true, pump:true,
+    timbre:'brass', air:0.2, verb:1.15,
+    key:33, prog:'Onda', shape:{bass:1,stab:3,pad:3},
+    bassIv:[0,12,0,7,0,12,10,7],
+    steps:{ kick:[0,4,8,12], clap:[4,12],
+            hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            bass:[0,2,4,6,8,10,12,14],
+            pad:[0], stab:[3,11],
+            /* Spaced, and the spacing is the echo's business rather than the
+               melody's: the delay is a dotted eighth, so a tune in even
+               quarters puts every repeat exactly on the next note — the lead
+               measured 100% of its onsets landing on something already
+               sounding. Leave the back half of the bar empty and the echo has
+               somewhere to go. */
+            lead:[[16,4],[19,5],[22,4],
+                  [48,7],[51,5],[54,4]] },
+    accent:{ kick:[0], clap:[12], hat:[2,6,10,14], stab:[3] },
+    ghost:{ hat:[1,3,5,7,9,11,13,15] },
+    vary:{ 1:{ add:{ ohat:[15] } },
+           2:{ drop:['stab','pad'], clear:{ hat:[1,3,5,7,9,11,13,15] } },
+           3:{ add:{ clap:[14] }, accent:{ stab:[3,11] } } },
+    fill:{ clap:[10,11,12,13,14,15], ohat:[15] } },
+
+  /* The other side of the same night: no brass, no hats, an arpeggio in a
+     dotted-eighth echo and the strings holding underneath. Slower to write
+     and faster to play than it sounds — the bass is on the eighths and the
+     open hat marks every off-beat, so all the movement is in the arpeggio. */
+  { name:'Lungomare', pack:'nonni', genre:'italo', bpm:126, swing:0, rise:true, pump:true,
+    air:0.25, verb:1.25,
+    key:36, prog:'Tramonto', shape:{bass:1,pad:3,arp:2},
+    bassIv:[0,12,0,7],
+    steps:{ kick:[0,4,8,12], clap:[4,12], ohat:[2,6,10,14],
+            arp:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            bass:[0,2,4,6,8,10,12,14], pad:[0],
+            lead:[[16,4],[22,2],[28,4],
+                  [32,5],[38,4],[44,2],
+                  [48,7],[54,5],[60,4]] },
+    accent:{ kick:[0], clap:[12], arp:[0,4,8,12] },
+    ghost:{ arp:[1,3,5,7,9,11,13,15], ohat:[6,14] },
+    vary:{ 1:{ add:{ clap:[14] } },
+           2:{ clear:{ arp:[1,3,5,7,9,11,13,15] }, drop:['pad'] },
+           3:{ accent:{ ohat:[2,10] } } },
+    fill:{ ohat:[10,11,12,13,14,15], clap:[14] } },
+
+  /* The bridge, and the groove the arpeggio exists for. Battiato around *La
+     voce del padrone*: a sixteenth sequencer in major under a Mediterranean
+     melody, a drum machine and a real percussion in the same piece. Here the
+     accordion carries the tune and the recorded tambourine holds the off-beats
+     while a machine runs underneath — which is exactly the middle between the
+     tradition and the rewrite. The pad is struck every bar because the giro
+     moves every bar: held for four it would play bar one's chord over the
+     other three. */
+  { name:'Permanente', pack:'nonni', genre:'sequencer', bpm:116, swing:0, timbre:'fisa',
+    kit:'folk', air:0.35, verb:1.15,
     key:36, prog:'Stornello', shape:{bass:1,pad:3,arp:2},
     bassIv:[0,0,12,7],
     steps:{ kick:[0,4,8,12], ohat:[2,6,10,14],
@@ -3145,165 +3404,98 @@ const GROOVES = [
             lead:[[0,4],[4,2],[6,4],[10,5],[12,4],
                   [16,5],[20,4],[22,2],[26,3],[28,2],
                   [32,6],[36,4],[38,5],[42,6],[44,7],
-                  [48,4],[52,2],[56,0],[60,2]],
-            v2:[0,32], v6:[24] },
+                  [48,4],[52,2],[56,0],[60,2]] },
     accent:{ kick:[0], arp:[0,4,8,12], ohat:[2,10] },
     ghost:{ arp:[1,3,5,7,9,11,13,15], ohat:[6,14] },
     vary:{ 1:{ add:{ ohat:[15] } },
-           2:{ clear:{ arp:[1,3,5,7,9,11,13,15] } } },
-    fill:{ ohat:[10,11,12,13,14,15] },
-    voice:{ 2:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
+           2:{ clear:{ arp:[1,3,5,7,9,11,13,15] } },
+           3:{ add:{ clap:[14] } } },
+    fill:{ ohat:[10,11,12,13,14,15] } },
 
-  /* Cutugno: maggiore, spinta in ottavi, chitarra che gratta e archi dietro a
-     tutto. Gli archi sono la voce che a questa app mancava per suonare piena —
-     e il fatto che la melodia la porti una clip invece del lead è il punto:
-     quella è la parte del cantante. */
-  { name:'Sanremo', pack:'nonni', genre:'pop', bpm:100, swing:0, timbre:'chit', air:0.3, verb:1.2,
-    key:38, prog:'Stornello', shape:{bass:2,stab:3,pad:3},
-    steps:{ kick:[0,8], snare:[4,12], hat:[0,2,4,6,8,10,12,14],
-            bass:[0,2,4,6,8,10,12,14], pad:[0],
-            stab:[0,2,4,6,8,10,12,14],
-            lead:[[12,4],[28,2],[44,6],[46,4],[60,2],[62,0]],
-            v0:[0,32], v4:[16] },
-    accent:{ snare:[4,12], kick:[0], stab:[0,8] },
-    ghost:{ hat:[2,6,10,14], stab:[2,6,10,14] },
-    vary:{ 1:{ add:{ kick:[14] } },
-           2:{ drop:['stab'], add:{ ohat:[4,12] } } },
-    fill:{ snare:[12,13,14,15] },
-    voice:{ 0:{rate:1,start:0,chop:0}, 4:{rate:1,start:0,chop:0} } },
-
-  /* La rivisitazione funk. La fisarmonica tiene la parte romana — gli stab sul
-     levare e la melodia — mentre la chitarra ritmica va sui sedicesimi con il
-     suo ripiego sintetico, che fuori dal timbro Chitarra è un clavinet e per il
-     funk è meglio di una chitarra vera. Il cajón del kit registrato fa il
-     rullante e suona come una conga, che è quello che serviva. */
-  { name:'Testaccio', pack:'nonni', genre:'funk', bpm:112, swing:0, rise:true, timbre:'fisa', kit:'folk',
-    air:0.4, verb:1.15,
+  /* The funk rewrite. The accordion keeps the Roman part — the off-beat stabs
+     and the melody — while the rhythm guitar runs the sixteenths on its
+     synthetic stand-in, which outside the Chitarra timbre is a clavinet and for
+     funk is better than a real guitar. The cajon does the snare and sounds like
+     a conga, which is what was wanted. */
+  { name:'Testaccio', pack:'nonni', genre:'funk', bpm:112, swing:0, rise:true,
+    timbre:'fisa', kit:'folk', air:0.4, verb:1.15,
     key:34, prog:'Osteria', shape:{bass:1,stab:3,pad:3,chank:3},
     bassIv:[0,12,0,7],
     steps:{ kick:[0,4,8,12], snare:[4,12], clap:[7,15], ohat:[2,6,10,14],
             chank:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
             bass:[0,3,6,8,11,14], pad:[0], stab:[3,11],
-            lead:[[16,4],[19,2],[22,4],[26,5],[48,4],[51,6],[54,4],[58,2]],
-            v1:[0,8], v3:[32] },
+            lead:[[16,4],[19,2],[22,4],[26,5],[48,4],[51,6],[54,4],[58,2]] },
     accent:{ kick:[0], snare:[4,12], chank:[2,6,10,14] },
     ghost:{ chank:[1,3,5,7,9,11,13,15], ohat:[6,14], clap:[15] },
     vary:{ 1:{ add:{ clap:[14] } },
-           2:{ drop:['stab'], clear:{ chank:[1,3,5,7,9,11,13,15] } } },
-    fill:{ clap:[10,11,12,13,14,15] },
-    voice:{ 1:{rate:1,start:0,chop:2}, 3:{rate:1,start:0,chop:0} } },
+           2:{ drop:['stab'], clear:{ chank:[1,3,5,7,9,11,13,15] } },
+           3:{ accent:{ bass:[0,8] } } },
+    fill:{ clap:[10,11,12,13,14,15] } },
 
-  /* The same dance hall, but the band is an accordion and it is slower — a
-     Rhodes on this pack sounded like it had come from the wrong decade. */
-  { name:'Balera', pack:'nonni', genre:'balera', bpm:112, swing:0.6, timbre:'fisa', kit:'folk', air:0.55, verb:1.3,
-    vary:{ 1:{ add:{ ohat:[15] } },
-           2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] } },
-    fill:{ snare:[10,11,12,13,14,15], ohat:[15] },
-    key:33, prog:'Carosone', shape:{bass:0,stab:3},
-    steps:{ kick:[0,8,16,24,32,40,48,56], snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60],
-            hat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
-            v2:[0,32], v6:[32] },
-    accent:{ snare:[4,12,20,28,36,44,52,60], clap:[12,28,44,60] },
-    ghost:{ hat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60], stab:[7,23,39,55] },
-    voice:{ 2:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
+  /* The dance hall with an accordion band in it, and the band now has a bass
+     player: on the strung and bellows timbres the bass is a recorded Yamaha
+     RBX rather than a synthesised button, which is most of the difference
+     between this and what it was. The accordion has a tune to play as well —
+     it used to do nothing but comp, which is why it read as a backing track
+     waiting for someone who never turned up. */
+  { name:'Balera', pack:'nonni', genre:'balera', bpm:112, swing:0.6, timbre:'fisa',
+    kit:'folk', air:0.45, verb:1.15,
+    key:33, prog:'Carosone', shape:{bass:1,stab:3},
+    steps:{ kick:[0,8], snare:[4,12], clap:[12],
+            hat:[0,2,4,6,8,10,12,14],
+            bass:[0,2,4,6,8,10,12,14],
+            stab:[3,7,11,15],
+            lead:[[16,4],[20,2],[23,4],[28,5],
+                  [48,4],[52,5],[55,4],[58,2],[62,0]] },
+    accent:{ snare:[4,12], clap:[12], bass:[0,8] },
+    ghost:{ hat:[0,4,8,12], stab:[7,15] },
+    /* Four bars that were nearly one. This measured 0.07 on bar-to-bar
+       novelty, sitting exactly on the line and falling under it from one
+       render to the next — which for a groove where the hat, the bass and the
+       chord all repeat every bar is the measurement being right. Each bar now
+       loses or gains something: the third takes the hat down to quarters and
+       sends the clap away, the fourth answers with the open hat and a chord on
+       the downbeat. */
+    vary:{ 1:{ add:{ ohat:[15] }, clear:{ stab:[7] } },
+           2:{ clear:{ hat:[2,6,10,14] }, drop:['clap'] },
+           3:{ add:{ ohat:[6,14], stab:[0] }, accent:{ snare:[4,12] } } },
+    fill:{ snare:[10,11,12,13,14,15], ohat:[15] } },
 
-  { name:'Notte', pack:'nonni', genre:'balera', bpm:104, swing:0.55, timbre:'organo', air:0.4, verb:1.25,
-    key:34, prog:'Nostalgia', shape:{bass:0,stab:3},
-    steps:{ kick:[0,10,16,26,48,58,42], snare:[4,12,20,28,36,44,52,60],
-            hat:[2,6,14,18,22,30,34,38,46,50,54,62],
-            bass:[0,10,16,26,32,42,48,58,30,62],
-            stab:[4,12,20,28,36,44,52,60],
-            v6:[0,32], v0:[44] },
-    accent:{ snare:[4,12,20,28,36,44,52,60] },
-    ghost:{ hat:[2,18,34,50] },
-    voice:{ 6:{rate:0.9,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
-
-  /* Bucolic: no kit at all except a tambourine on the beat, a mandolin, and the
-     two longest recordings left to run whole. Nearly everything is silence. */
-  /* The first version was not bucolic, it was empty — one note every four beats
-     and nothing on the pulse at all. Country music is gentle, not absent: the
-     tambourine keeps the beat, the mandolin strums the off-beats the way a
-     rhythm guitar does, and a tune runs over the top. Cicoria and Antonio play
-     right through it. */
-  { name:'Campagna', pack:'nonni', genre:'folk', bpm:92, swing:0.55, timbre:'chit', kit:'folk',
-    /* Il tamburello teneva i quarti per quattro battute uguali. Ora la terza
-       ne perde due e l'ultima rulla: è come si suona un tamburello, non come si
-       programma una drum machine. */
-    vary:{ 1:{ add:{ clap:[14] } },
-           2:{ clear:{ ohat:[4,12] }, drop:['stab'] } },
-    fill:{ ohat:[10,11,12,13,14,15] },
-    air:0.4, verb:1.25, echo:false,
-    key:36, prog:'Stornello', shape:{bass:0,stab:3},
-    steps:{ kick:[0,8,16,24,32,40,48,56],
-            ohat:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60],
-            bass:[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60],
-            stab:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62],
+  /* Bucolic, and the first two attempts at it were empty rather than sparse.
+     Country music is gentle, not absent: the tambourine keeps the beat, a
+     guitar strums the off-beats the way a rhythm guitar does, the mandolin
+     runs a tune over the top, and the bass is a real one. The guitar is the
+     new part and it is a real guitar — on the Chitarra timbre the rhythm
+     track plays the recorded nylon string, not the clavinet. */
+  { name:'Campagna', pack:'nonni', genre:'folk', bpm:92, swing:0.55, timbre:'chit',
+    kit:'folk', air:0.4, verb:1.25, echo:false,
+    key:36, prog:'Stornello', shape:{bass:0,stab:3,chank:3},
+    steps:{ kick:[0,8],
+            ohat:[0,4,8,12],
+            bass:[0,4,8,12],
+            chank:[2,6,10,14],
             lead:[[2,2],[6,4],[10,2],[13,0],
                   [18,4],[22,5],[26,4],[29,2],
                   [34,2],[38,0],[42,2],[45,4],
-                  [50,4],[54,2],[58,0],[61,2]],
-            v4:[0,32], v6:[32] },
-    accent:{ ohat:[0,16,32,48], kick:[0,32] },
-    ghost:{ ohat:[4,12,20,28,36,44,52,60], stab:[6,14,22,30,38,46,54,62] },
-    voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:0.95,start:0,chop:0} } },
-  { name:'Stornello', pack:'nonni', genre:'folk', timbre:'chit', kit:'folk', air:0.45, verb:1.2,
-    vary:{ 1:{ add:{ ohat:[14] } },
-           2:{ drop:['stab'], add:{ bass:[12] } } },
-    fill:{ ohat:[12,13,14,15] },
-    bpm:100, swing:0, echo:false,
-    key:36, prog:'Stornello', shape:{bass:0,stab:3},
-    steps:{ kick:[0,8], ohat:[4,12],
-            bass:[0,8], stab:[4,12],
-            lead:[[0,2],[2,4],[5,2],[8,4],[10,5],[13,4]],
-            v0:[0,32], v3:[8,40] },
-    accent:{ bass:[0], stab:[4,12] },
-    ghost:{ ohat:[4] },
-    voice:{ 0:{rate:1,start:0,chop:0}, 3:{rate:1,start:0,chop:8} } },
+                  [50,4],[54,2],[58,0],[61,2]] },
+    accent:{ ohat:[0], kick:[0] },
+    ghost:{ ohat:[4,12], chank:[6,14] },
+    vary:{ 1:{ add:{ clap:[14] } },
+           2:{ clear:{ ohat:[4,12] }, drop:['chank'] },
+           3:{ add:{ ohat:[14] } } },
+    fill:{ ohat:[10,11,12,13,14,15] } },
 
-  /* Written across all four bars so nothing restarts every time round. The one
-     that was here tiled a single bar, so whatever happened at the top of it —
-     including a voice arriving alone — happened again four times a loop, which
-     is not an intro, it is a stutter. Cicoria opens it once; Antonio takes the
-     second half. */
-  { name:'Osteria', pack:'nonni', genre:'balera', timbre:'fisa', kit:'folk', air:0.5, verb:1.35,
-    bpm:126, swing:0.6, echo:false,
-    key:34, prog:'Osteria', shape:{bass:1,stab:3},
-    steps:{ kick:[0,8,16,24,32,40,48,56],
-            clap:[4,12,20,28,36,44,52,60],
-            ohat:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            bass:[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],
-            stab:[3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63],
-            v4:[0,32], v6:[32] },
-    accent:{ clap:[4,12,20,28,36,44,52,60], kick:[0,32], ohat:[0,16,32,48] },
-    ghost:{ ohat:[2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62], stab:[7,23,39,55] },
-    voice:{ 4:{rate:1,start:0,chop:0}, 6:{rate:1,start:0,chop:0} } },
-  /* It had a rhythm section and no tune at all, which is why it read as empty
-     rather than as sparse. The mandolin plays a serenade over it now. */
-  { name:'Trastevere', pack:'nonni', genre:'folk', timbre:'chit', kit:'folk', air:0.45, verb:1.25,
-    vary:{ 1:{ add:{ ohat:[15] } },
-           2:{ drop:['stab'], clear:{ ohat:[6,14] } } },
-    fill:{ snare:[12,13,14,15], ohat:[15] },
-    bpm:88, swing:0.58, echo:false,
-    key:36, prog:'Stornello', shape:{bass:0,stab:3},
-    steps:{ kick:[0,8], snare:[4,12], ohat:[2,6,10,14],
-            bass:[0,8], stab:[4,12],
-            lead:[[0,4],[3,2],[6,4],[10,5],[14,4]],
-            v6:[0,32], v0:[40] },
-    accent:{ snare:[4,12], kick:[0] },
-    ghost:{ ohat:[2,6,10,14] },
-    voice:{ 6:{rate:0.95,start:0,chop:0}, 0:{rate:1,start:0,chop:0} } },
-  /* Rifatta da zero, perché la prima versione non funzionava e la ragione era
-     misurabile. A 96 con una battuta sola era lenta — una tarantella lenta non è
-     una tarantella — e la fisarmonica suonava quattro accordi e sei note per
-     battuta a due step di distanza, cioè 0.31 s, tenuti 0.47 s ciascuno:
-     score.html misurava il 100% degli attacchi del lead sopra la nota
-     precedente. Ora il motore accorcia le note da sé (playFor), la fisarmonica
-     risponde due volte per battuta invece di quattro, il tamburello rulla su
-     tutti i dodici step con l'accento sui due tempi, e gira a 132 su quattro
-     battute così il giro si muove sotto la melodia invece che a fianco. */
-  { name:'Tarantella', pack:'nonni', genre:'tarantella', timbre:'fisa', kit:'folk', air:0.2, verb:1.1,
+  /* Rebuilt from nothing, because the first version did not work and the
+     reason was measurable. At 96 over one bar it was slow — a slow tarantella
+     is not a tarantella — and the accordion played four chords and six notes a
+     bar two steps apart, which is 0.31 s, held 0.47 s each: score.html put
+     100% of the lead's onsets on top of a note still sounding. The engine
+     shortens notes by itself now (playFor), the accordion answers twice a bar
+     instead of four times, the tambourine rolls all twelve steps with the
+     accent on the two beats, and it runs at 132 over four bars so the giro
+     moves under the melody rather than beside it. */
+  { name:'Tarantella', pack:'nonni', genre:'tarantella', timbre:'fisa', kit:'folk',
+    air:0.2, verb:1.1,
     bpm:132, meter:'6/8', bars:4, swing:0, echo:false,
     key:33, prog:'Tarantella', shape:{bass:1,stab:3},
     steps:{ kick:[0,6], clap:[4,10],
@@ -3312,45 +3504,44 @@ const GROOVES = [
             lead:[[0,4],[2,3],[4,2],[6,4],[8,3],[10,2],
                   [12,0],[14,2],[16,3],[18,2],[20,0],
                   [24,4],[26,6],[28,4],[30,2],[32,4],[34,6],
-                  [36,7],[38,4],[40,2],[42,0],[46,0]],
-            v1:[0,24] },
+                  [36,7],[38,4],[40,2],[42,0],[46,0]] },
     accent:{ ohat:[0,6], kick:[0,6], clap:[4,10] },
     ghost:{ ohat:[1,2,3,4,5,7,8,9,10,11] },
     vary:{ 1:{ clear:{ stab:[9] } },
-           2:{ add:{ clap:[7] } } },
-    fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] },
-    voice:{ 1:{rate:1.2,start:0,chop:2} } },
+           2:{ add:{ clap:[7] }, clear:{ ohat:[1,4,7,10] } },
+           3:{ accent:{ bass:[0,6] } } },
+    fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] } },
 
-  /* La pizzica, che è una tarantella con un'altra urgenza: più veloce, e il
-     tamburello non è accompagnamento, è il pezzo. Niente cassa in quattro,
-     niente eco, un basso che sta fermo sul tonico come un bordone, e il
-     mandolino che tremola la melodia — quattro plettrate per nota, che è come
-     un mandolino tiene una nota lunga non avendo sostegno. Lo slap del cajón
-     fa le mani sul tamburo. Stesso giro della tarantella di proposito: cambia
-     il passo, non l'armonia, ed è esattamente la differenza fra le due. */
-  { name:'Pizzica', pack:'nonni', genre:'tarantella', timbre:'mando', kit:'folk', air:0.3, verb:1.1,
+  /* The pizzica, which is a tarantella with a different urgency: faster, and
+     the tambourine is not accompaniment, it is the piece. No four-on-the-floor,
+     no echo, a bass sitting on the tonic like a drone, a guitar driving the
+     off-beats and the mandolin tremoloing the melody — four plectrum strokes a
+     note, which is how a mandolin holds a long note having no sustain. The
+     cajon slap does the hands on the skin. Same giro as the tarantella on
+     purpose: the step changes, not the harmony, and that is exactly the
+     difference between the two. */
+  { name:'Pizzica', pack:'nonni', genre:'tarantella', timbre:'mando', kit:'folk',
+    air:0.3, verb:1.1,
     bpm:160, meter:'6/8', bars:4, swing:0, echo:false,
-    key:33, prog:'Tarantella', shape:{bass:0,stab:3},
+    key:33, prog:'Tarantella', shape:{bass:0,stab:3,chank:3},
     steps:{ kick:[0,6], snare:[4,10], clap:[3,9],
             ohat:[0,1,2,3,4,5,6,7,8,9,10,11],
-            bass:[0,6], stab:[3,9],
+            bass:[0,6], chank:[3,9],
             lead:[[0,4],[3,2],[6,4],[9,5],
                   [12,4],[15,2],[18,0],[21,2],
                   [24,4],[27,6],[30,4],[33,6],
-                  [36,7],[39,4],[42,2],[45,0]],
-            v1:[0,12,24,36], v3:[6] },
+                  [36,7],[39,4],[42,2],[45,0]] },
     accent:{ ohat:[0,6], clap:[3,9], snare:[4,10] },
     ghost:{ ohat:[1,2,4,5,7,8,10,11], kick:[0,6] },
-    /* Con il tamburello su tutti i dodici step a ogni battuta la novità
-       misurava 0.08, appena sopra la soglia: un rullo costante è il suono
-       giusto e quattro battute identiche non lo sono. La terza battuta fa lo
-       stacco — il tamburello si dirada, il mandolino tace, e la voce resta
-       sola — che è una cosa che nella pizzica succede davvero. */
+    /* With the tambourine on all twelve steps every bar novelty measured 0.08,
+       barely over the line: a constant roll is the right sound and four
+       identical bars are not. The third bar makes the break — the tambourine
+       thins, the mandolin stops, and what is left is the pulse — which is a
+       thing that happens in a pizzica for real. */
     vary:{ 1:{ add:{ clap:[7] }, accent:{ ohat:[3,9] } },
-           2:{ drop:['stab', 'clap'], clear:{ ohat:[1,4,7,10] } },
+           2:{ drop:['chank','clap'], clear:{ ohat:[1,4,7,10] } },
            3:{ add:{ clap:[7] } } },
-    fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] },
-    voice:{ 1:{rate:1.1,start:0,chop:2}, 3:{rate:1,start:0,chop:0} } }
+    fill:{ ohat:[6,7,8,9,10,11], clap:[4,10] } }
 ];
 
 function loadGroove(gi) {
@@ -3368,10 +3559,10 @@ function loadGroove(gi) {
      played one bar and then three bars of silence, which is exactly what it
      sounded like. */
   const inFirstBar = list => list.every(v => (v.length ? v[0] : v) < barLen);
-  /* `once` dice "questa corsia non si ripete" a parole. Prima l'unico modo era
-     scrivere uno step oltre la prima battuta, cioè codificare l'intenzione come
-     un numero maggiore di sedici, e una frase che deve partire una volta per
-     giro non ha nessuno step da mettere là in fondo. */
+  /* `once` says "this lane does not repeat" in words. The only way to say it
+     before was to write a step past the first bar — encoding the intention as
+     a number larger than sixteen — and a phrase that has to start once a turn
+     has no step to put down there. */
   const repsFor = k => (g.once && g.once.indexOf(k) >= 0) ? 1
                      : (g.steps[k] && !inFirstBar(g.steps[k])) ? 1 : BARS_MAX;
   TRACKS.forEach((trk, i) => {
@@ -3389,9 +3580,9 @@ function loadGroove(gi) {
     // Accents and ghosts are what stop a pattern reading as a metronome. They
     // are listed separately so the steps arrays stay readable, and they tile
     // with everything else.
-    /* vary gira dopo gli accenti, così una battuta che spegne una corsia
-       spegne anche i suoi accenti. Le battute si contano da zero; gli step
-       dentro `add`, `clear`, `accent` e `ghost` sono relativi alla battuta. */
+    /* vary runs after the accents, so a bar that switches a lane off switches
+       its accents off too. Bars count from zero; the steps inside `add`,
+       `clear`, `accent` and `ghost` are relative to the bar. */
     const applyVary = () => {
       if (!g.vary) return;
       Object.keys(g.vary).forEach(bk => {
@@ -3424,20 +3615,31 @@ function loadGroove(gi) {
       });
     });
     applyVary();
-    mute[i] = false; vol[i] = 1; send[i] = g.echo === false ? 0 : trk.echo;
-    if (trkEls[i]) {
-      trkEls[i].dataset.mute = '0';
-      const m = trkEls[i].querySelector('.trk-m');
-      if (m) m.setAttribute('aria-pressed', 'false');
-    }
-    reChan(i);
+    /* A pattern arrives half off. Everything is written, the kick and the bass
+       are the only things you hear, and the song is what you make of the other
+       chips — which is the difference between a preset and a starting point.
+       Voice tracks are never muted by this: they have no steps, so they are
+       already silent, and a muted one would swallow the tap that auditions it,
+       which reads as the app being broken rather than as the voice being off. */
+    const on = g.on || START_ON;
+    vol[i] = 1; send[i] = g.echo === false ? 0 : trk.echo;
+    setMute(i, trk.kind !== 'voice' && on.indexOf(trk.id) < 0);
   });
+  /* A recording comes back the way it was recorded: whole, at speed, forward,
+     and stacking rather than cutting itself off. A pattern no longer writes
+     voices, so there is nothing left to pre-chop for, and a preset that
+     silently set a clip to 1.25x was a surprise every time you switched to it.
+     Overlap is on because retriggering a voice is the thing people do with
+     one, and a phrase that cuts itself dead the second time you tap it is the
+     less musical of the two answers. */
   vparams.forEach((p, i) => {
-    const o = g.voice[i] || { rate:1, start:0, chop:0 };
-    p.rate = o.rate; p.start = o.start; p.chop = o.chop; p.rev = false;
-    p.over = !!o.over; p.chorus = !!o.chorus;
+    const o = (g.voice || {})[i] || {};
+    p.rate = o.rate === undefined ? 1 : o.rate;
+    p.start = o.start || 0; p.chop = o.chop || 0; p.rev = false;
+    p.over = o.over === undefined ? true : !!o.over;
+    p.chorus = !!o.chorus;
   });
-  /* Il fill vive fuori dal pattern: una corsia per traccia, lunga una battuta. */
+  /* The fill lives outside the pattern: one lane per track, one bar long. */
   fillPat = null; fillHas = null;
   if (g.fill) {
     fillPat = TRACKS.map(() => new Array(barLen).fill(0));
@@ -3671,68 +3873,73 @@ recSaveBtn.addEventListener('click', async () => {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 });
 
-/* ---- giudizio ---- */
-/* Tre tocchi, non un paragrafo. "Fa cagare" è arrivato una volta e ci sono
-   volute due ore per scoprire che voleva dire "le note si sovrappongono a sé
-   stesse"; arrivato come "impastato" avrebbe puntato lì subito. Il punto di
-   questo modulo non è raccogliere opinioni: è che ogni etichetta che si ripete
-   diventa una misura in score.html, ed è esattamente così che `coda` è nata. */
+/* ---- verdict ---- */
+/* Three taps, not a paragraph. "It's terrible" arrived once and it took two
+   hours to work out that it meant "the notes are landing on top of each
+   other"; arriving as "muddy" it would have pointed straight there. The point
+   of this panel is not to collect opinions: it is that a label which keeps
+   coming back becomes a measurement in score.html, and that is exactly how
+   `coda` was born. */
 const NOTE_KEY = 'doveclem.notes.v1';
-/* Cinque etichette erano troppo poche: "avrei critiche di quasi ogni base ma
-   quel vocabolario è limitato". Ora sono ventidue, su due livelli — si tocca
-   una categoria e si aprono le sue voci — così restano due tocchi per arrivare
-   a una critica precisa invece di un muro di ventidue chip.
+/* Five labels were too few: "I would have something to say about nearly
+   every one of these and the vocabulary will not let me". There are
+   twenty-two now, on two levels — tap a category and its labels open — so it
+   is still two taps to a precise complaint rather than a wall of
+   twenty-two chips.
 
-   I cinque identificatori originali sopravvivono con lo stesso significato
-   (`forte`, `noia`, `impasto`, `melodia`, `ok`), perché ci sono già dei giudizi
-   scritti e buttarli via sarebbe stupido.
+   The five original ids survive with the same meaning (`forte`, `noia`,
+   `impasto`, `melodia`, `ok`), because judgements written against them
+   already exist and throwing those away would be stupid.
 
-   E c'è il campo libero, che non è un ripiego: è la valvola che tiene onesto il
-   vocabolario. Un testo libero che si ripete diventa un'etichetta, un'etichetta
-   che si ripete diventa una misura in score.html. È lo stesso giro di `coda`,
-   un piano più su. */
+   And there is the free-text box, which is not a fallback: it is the valve
+   that keeps the vocabulary honest. A free text that recurs becomes a label, a
+   label that recurs becomes a measurement in score.html. Same loop as `coda`,
+   one floor up. */
+/* The ids are not labels and must not be translated with them: judgements
+   written against `forte`, `noia`, `impasto`, `melodia` and `ok` already exist
+   in somebody's localStorage, and renaming an id silently orphans them. */
 const GROUPS = [
-  ['Livelli', [
-    ['forte',    'troppo forte'],
-    ['piano',    'troppo piano'],
-    ['impasto',  'impastato'],
-    ['mudbass',  'impastato in basso'],
-    ['duro',     'duro sugli acuti'],
-    ['bagnato',  'troppo bagnato'],
-    ['asciutto', 'troppo asciutto'],
-    ['ecotroppo', 'troppa eco'],
+  ['Levels', [
+    ['forte',    'too loud'],
+    ['piano',    'too quiet'],
+    ['impasto',  'muddy'],
+    ['mudbass',  'muddy low end'],
+    ['duro',     'harsh on top'],
+    ['bagnato',  'too wet'],
+    ['asciutto', 'too dry'],
+    ['ecotroppo', 'too much echo'],
   ]],
-  ['Ritmo', [
-    ['noia',     'si annoia'],
-    ['pieno',    'non respira'],
-    ['vuota',    'troppo vuota'],
-    ['spinta',   'non spinge'],
-    ['lenta',    'troppo lenta'],
-    ['veloce',   'troppo veloce'],
-    ['tempo',    'il tempo balla'],
+  ['Rhythm', [
+    ['noia',     'gets boring'],
+    ['pieno',    'does not breathe'],
+    ['vuota',    'too empty'],
+    ['spinta',   'no push'],
+    ['lenta',    'too slow'],
+    ['veloce',   'too fast'],
+    ['tempo',    'tempo wanders'],
   ]],
-  ['Melodia', [
-    ['melodia',  'la melodia non regge'],
-    ['stona',    'stona'],
-    ['basso',    'il basso non segue'],
-    ['alta',     'tonalità troppo alta'],
-    ['bassa',    'tonalità troppo bassa'],
+  ['Melody', [
+    ['melodia',  'tune does not hold'],
+    ['stona',    'out of tune'],
+    ['basso',    'bass does not follow'],
+    ['alta',     'key too high'],
+    ['bassa',    'key too low'],
   ]],
-  ['Suono', [
-    ['finto',    'sa di finto'],
-    ['suono',    'il suono non va'],
-    ['taglio',   'la voce è tagliata male'],
+  ['Sound', [
+    ['finto',    'sounds fake'],
+    ['suono',    'wrong sound'],
+    ['taglio',   'clip trimmed badly'],
   ]],
-  ['Buona', [
-    ['ok',       'va bene'],
-    ['bella',    'bella'],
-    ['top',      'la migliore'],
+  ['Good', [
+    ['ok',       'fine'],
+    ['bella',    'good'],
+    ['top',      'the best'],
   ]],
 ];
 const TAGS = GROUPS.reduce((a, g) => a.concat(g[1]), []);
 const LABEL = TAGS.reduce((o, t) => (o[t[0]] = t[1], o), {});
 const POS = ['ok', 'bella', 'top'];
-// queste tre non dicono niente se non si sa *quale* traccia
+// these three say nothing unless you know *which* track
 const NEEDS_TRACK = ['forte', 'piano', 'suono'];
 const noteWho = $('noteWho'), noteTagsEl = $('noteTags'), noteTracksEl = $('noteTracks');
 const noteOut = $('noteOut'), noteBox = $('noteBox'), noteText = $('noteText');
@@ -3744,7 +3951,7 @@ function readNotes() {
 }
 function writeNotes(o) {
   try { localStorage.setItem(NOTE_KEY, JSON.stringify(o)); }
-  catch (e) { say('Non riesco a salvare il giudizio: ' + msg(e)); }
+  catch (e) { say('Could not save the verdict: ' + msg(e)); }
 }
 function noteFor() {
   const all = readNotes();
@@ -3771,7 +3978,7 @@ function paintNotes() {
   if (noteBox.hidden) return;
   noteWho.textContent = noteGroove || '—';
   const cur = noteFor();
-  // primo livello: le categorie. Aperta quella che contiene già qualcosa.
+  // first level: the categories. The one already holding something is open.
   if (!noteOpen) {
     const g = GROUPS.find(gr => gr[1].some(t => cur.tags.indexOf(t[0]) >= 0));
     noteOpen = g ? g[0] : GROUPS[0][0];
@@ -3783,7 +3990,7 @@ function paintNotes() {
     cats.appendChild(chip(gr[0] + (n ? ' ' + n : ''), gr[0] === noteOpen,
       () => { noteOpen = gr[0]; paintNotes(); }));
   });
-  // secondo livello: le voci della categoria aperta
+  // second level: the labels inside the open category
   const open = GROUPS.find(gr => gr[0] === noteOpen) || GROUPS[0];
   noteTagsEl.innerHTML = '';
   open[1].forEach(t => {
@@ -3791,9 +3998,9 @@ function paintNotes() {
       edit(e => {
         const k = e.tags.indexOf(t[0]);
         if (k >= 0) e.tags.splice(k, 1); else e.tags.push(t[0]);
-        /* Un elogio e una lamentela sullo stesso pezzo non stanno insieme: la
-           lista serve a dirmi cosa fare, e "bella però impastata" è una
-           lamentela. */
+        /* Praise and a complaint about the same piece do not sit together: the
+           list is there to say what to do next, and "nice but muddy" is a
+           complaint. */
         const pos = POS.indexOf(t[0]) >= 0;
         if (pos && e.tags.indexOf(t[0]) >= 0) { e.tags = [t[0]]; e.tracks = []; }
         else if (!pos) e.tags = e.tags.filter(x => POS.indexOf(x) < 0);
@@ -3801,7 +4008,7 @@ function paintNotes() {
       paintNotes();
     }));
   });
-  // e la traccia, quando l'etichetta da sola non dice niente
+  // and the track, for when the label alone says nothing
   const wants = cur.tags.some(x => NEEDS_TRACK.indexOf(x) >= 0);
   noteTracksEl.hidden = !wants;
   noteTracksEl.innerHTML = '';
@@ -3816,19 +4023,19 @@ function paintNotes() {
   });
   if (noteText.value !== (cur.nota || '')) noteText.value = cur.nota || '';
   const all = readNotes(), n = Object.keys(all).length;
-  noteOut.textContent = n ? n + (n === 1 ? ' groove' : ' grooves') + ' con un giudizio'
-                          : 'nessun giudizio ancora';
+  noteOut.textContent = n ? n + (n === 1 ? ' groove' : ' grooves') + ' with a verdict'
+                          : 'nothing judged yet';
 }
 noteText.addEventListener('input', () => {
   edit(e => { e.nota = noteText.value.slice(0, 400); });
   const all = readNotes(), n = Object.keys(all).length;
-  noteOut.textContent = n + (n === 1 ? ' groove' : ' grooves') + ' con un giudizio';
+  noteOut.textContent = n + (n === 1 ? ' groove' : ' grooves') + ' with a verdict';
 });
-/* Testo leggibile e non JSON: questo va incollato in una conversazione, non
-   letto da un programma, e una riga per groove si legge a colpo d'occhio. */
+/* Readable text and not JSON: this gets pasted into a conversation rather
+   than read by a program, and one line per groove reads at a glance. */
 function notesText() {
   const all = readNotes(), names = Object.keys(all).sort();
-  if (!names.length) return 'nessun giudizio';
+  if (!names.length) return 'nothing judged';
   return names.map(g => {
     const e = all[g], bits = [];
     (e.tags || []).forEach(t => {
@@ -3843,14 +4050,14 @@ function notesText() {
       bits.push(l);
     });
     if ((e.nota || '').trim()) bits.push('«' + e.nota.trim() + '»');
-    return g + ' — ' + (bits.join(' · ') || '(vuoto)');
+    return g + ' — ' + (bits.join(' · ') || '(empty)');
   }).join('\n');
 }
 $('noteCopy').addEventListener('click', async () => {
   const txt = notesText();
-  try { await navigator.clipboard.writeText(txt); noteOut.textContent = 'copiato negli appunti'; }
+  try { await navigator.clipboard.writeText(txt); noteOut.textContent = 'copied to the clipboard'; }
   catch (e) {
-    // su iOS un download finisce in un visore da cui non si salva: mostralo
+    // on iOS a download lands in a viewer you cannot save from: show it instead
     noteOut.textContent = txt;
   }
 });
@@ -3861,12 +4068,12 @@ $('noteClear').addEventListener('click', () => {
 });
 
 /* ---- modo autore ---- */
-/* Il pannello Giudizio non è una funzione dell'app, è uno strumento di lavoro, e
-   non deve comparire a chi apre il link. Si accende una volta per telefono con
-   ?autore=1 e resta acceso; ?autore=0 lo spegne. È un interruttore di
-   visibilità e non una serratura — chiunque leggesse questo sorgente saprebbe
-   come accenderlo — ma i giudizi di un altro non arriverebbero comunque da
-   nessuna parte: stanno nel suo localStorage e ci restano. */
+/* The Verdict panel is not a feature of the app, it is a working tool, and it
+   must not appear to whoever opens the link. It is switched on once per phone
+   with ?autore=1 and stays on; ?autore=0 switches it off. It is a visibility
+   switch and not a lock — anyone reading this source would know how to turn it
+   on — but somebody else's verdicts would not reach anywhere anyway: they sit
+   in their localStorage and stay there. */
 const AUTHOR_KEY = 'doveclem.autore';
 function setAuthor(on) {
   try {
@@ -3889,11 +4096,11 @@ function setAuthor(on) {
   noteBox.hidden = !on;
 })();
 
-/* Una pressione lunga sul logo accende e spegne il modo autore.
-   `?autore=1` da solo non basta: l'app installata apre start_url "./" senza
-   barra degli indirizzi, quindi su un telefono che ha già la porta aperta non
-   esisteva nessun modo di accendere il pannello. Un secondo sul titolo sì, e
-   nessuno ci arriva per caso. */
+/* A long press on the wordmark turns author mode on and off. `?autore=1` on
+   its own is not enough: the installed app opens start_url "./" with no
+   address bar, so on a phone that already has the door open there was no way
+   at all to switch the panel on. A second on the title is, and nobody arrives
+   there by accident. */
 (function () {
   const mark = document.querySelector('.wordmark');
   if (!mark) return;
@@ -3904,8 +4111,8 @@ function setAuthor(on) {
       hold = 0;
       const on = noteBox.hidden;
       setAuthor(on);
-      say(on ? 'Modo autore acceso: il pannello Giudizio è in fondo.'
-             : 'Modo autore spento. I giudizi restano dove sono.');
+      say(on ? 'Author mode on: the Verdict panel is at the bottom.'
+             : 'Author mode off. The verdicts stay where they are.');
     }, 900);
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
@@ -3986,14 +4193,8 @@ async function restore(o) {
   notes = TRACKS.map((_, i) => row(o.notes, i));
   TRACKS.forEach((trk, i) => {
     vol[i] = scalar(o.vol, i, 1);
-    mute[i] = !!scalar(o.mute, i, false);
     send[i] = scalar(o.send, i, trk.echo);
-    if (trkEls[i]) {
-      trkEls[i].dataset.mute = mute[i] ? '1' : '0';
-      const m = trkEls[i].querySelector('.trk-m');
-      if (m) m.setAttribute('aria-pressed', String(mute[i]));
-    }
-    reChan(i);
+    setMute(i, !!scalar(o.mute, i, false));
   });
   (o.voice || []).forEach((v, i) => { if (vparams[i]) Object.assign(vparams[i], v); });
   // same defaults as loadGroove: a snapshot written before the strings existed
@@ -4115,6 +4316,12 @@ async function renderOffline(gi, bars, only) {
   await loadPack();
   noAutoKit = true;
   try { loadGroove(gi); } finally { noAutoKit = false; }
+  /* Everything on. A groove now loads with all but the kick and the bass muted,
+     which is an opening position for a pair of hands and not a property of the
+     music — measuring it would report every groove as two tracks wide, mono and
+     with no novelty, which is true of the first four seconds and of nothing
+     else. What is written is what gets measured. */
+  TRACKS.forEach((_, i) => { mute[i] = false; reChan(i); });
   /* loadGroove fires these without waiting, which is right on the phone and
      wrong here: an offline render is finished before a fetch lands. */
   await loadKit(kitForce || g.kit || 'machine');
@@ -4130,11 +4337,11 @@ async function renderOffline(gi, bars, only) {
   let t = 0.05;
   for (let s = 0; s < total; s++) {
     const st = s % patLen, tt = t + swingAt(st);
-    // stessa regola dello scheduler, o il fill non finirebbe nella misura
+    // same rule as the scheduler, or the fill would not reach the measurement
     if (st === 0 && rise && filt && filtV === 1) {
       const dur = patLen * stepDur(), wide = filtHz();
       filt.frequency.cancelScheduledValues(tt);
-      if (loops % 2) {                             // il giro che si chiude
+      if (loops % 2) {                             // the turn that closes
         filt.frequency.setValueAtTime(wide, tt);
         filt.frequency.exponentialRampToValueAtTime(RISE_LOW, tt + dur * 0.97);
       } else {                                     // e quello che riapre
@@ -4167,14 +4374,18 @@ window.dev = {
   grooves: () => GROOVES.map((g, i) => ({ i: i, name: g.name, pack: g.pack || 'any',
     bpm: g.bpm, bars: g.bars || 4, meter: g.meter || '4/4', timbre: g.timbre || 'italo',
     genre: g.genre || '',
-    kit: g.kit || 'machine', hits: Object.keys(g.steps).reduce((n, k) => n + g.steps[k].length, 0) })),
+    kit: g.kit || 'machine',
+    // which lanes the groove actually writes, so a harness can pick by what a
+    // groove plays instead of by what it is called
+    lanes: Object.keys(g.steps),
+    hits: Object.keys(g.steps).reduce((n, k) => n + g.steps[k].length, 0) })),
   set organic(v) { organic = v ? 1 : 0; },
   get organic() { return organic; },
   set kit(v) { kitForce = v || ''; },
   get kit() { return kitForce; },
   set timbre(v) { timbreForce = v || ''; },
   get timbre() { return timbreForce; },
-  // la rubrica ha bisogno di leggere lo stato dopo un caricamento
+  // the rubric needs to read the state after a load
   state: () => snapshot(),
   slots: () => KITS.reduce((o, k) => (k.slots && (o[k.id] = Object.assign({}, k.slots)), o), {}),
   setSlot: (kitId, slot, g) => { const K = KITS.find(k => k.id === kitId); if (K && K.slots) K.slots[slot] = g; },

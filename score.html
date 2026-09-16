@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Come suona questa base — misure</title>
+<title>How this thing sounds — measurements</title>
 <meta name="robots" content="noindex, nofollow">
 <style>
   :root { color-scheme:light dark; font-family:ui-monospace,Menlo,monospace; }
@@ -34,22 +34,21 @@
 </head>
 <body>
 
-<h1>Come suona questa base</h1>
-<p>Ogni groove viene renderizzata dentro un <code>OfflineAudioContext</code> — lo stesso
-motore dell'app, gli stessi nodi, nessuna approssimazione — e misurata. Serve a rispondere
-a "questa modifica ha migliorato qualcosa?" con un numero invece che con un'opinione.
-<b>Non è un giudizio di gusto</b>: dice se un difetto meccanico c'è o non c'è più.</p>
-<p class="note">Pagina per sviluppo. Carica <code>index.html</code> in un iframe nascosto e
-azzera <code>Math.random</code> con un seme fisso, così due misure della stessa groove
-differiscono solo per ciò che è cambiato davvero nel codice.</p>
+<h1>How this thing sounds</h1>
+<p>Every groove is rendered inside an <code>OfflineAudioContext</code> — the app's own
+engine, the same nodes, no approximation — and measured. It is here to answer "did that
+change improve anything?" with a number instead of an opinion.
+<b>This is not a judgement of taste</b>: it says whether a mechanical fault is there or gone.</p>
+<p class="note">Development page. It loads <code>index.html</code> in a hidden iframe and reseeds <code>Math.random</code> with a fixed seed, so two measurements of the same groove
+differ only by what actually changed in the code.</p>
 
 <div class="bar">
-  <button id="mix">Misura tutte le grooves</button>
-  <button id="voices">Prima / dopo sui singoli colpi</button>
-  <button id="kits">Pareggiare i due kit</button>
-  <button id="levels">Livelli delle voci nuove</button>
-  <button id="overlap">Note che si sovrappongono</button>
-  <button id="rubric">Rubriche di genere</button>
+  <button id="mix">Measure every groove</button>
+  <button id="voices">Before / after, hit by hit</button>
+  <button id="kits">Match the two kits</button>
+  <button id="levels">Levels of the new voices</button>
+  <button id="overlap">Notes landing on each other</button>
+  <button id="rubric">Genre rubrics</button>
 </div>
 <div id="log"></div>
 
@@ -78,15 +77,15 @@ function ready() {
   });
 }
 
-/* Un seme fisso. Senza questo il jitter per colpo sposta ogni numero di qualche
-   punto percentuale e due misure non sono confrontabili.
+/* A fixed seed. Without it the per-hit jitter moves every number by a few
+   per cent and two measurements are not comparable.
 
-   Ma un seme fisso confronta due misure solo finché il *numero di estrazioni*
-   non cambia: se una modifica consuma Math.random un numero diverso di volte —
-   come è successo riscrivendo l'impulso del riverbero — tutte le estrazioni a
-   valle slittano e le due rese non sono più la stessa esecuzione con una cosa
-   cambiata. Da qui `?seed=`, che serve a misurare quanto un numero si muove per
-   solo effetto del seme, cioè quanto rumore c'è sotto qualunque confronto. */
+   But a fixed seed only compares two measurements while the *number of draws*
+   stays the same: if a change consumes Math.random a different number of times
+   — as rewriting the reverb impulse did — every draw downstream shifts and the
+   two renders are no longer the same performance with one thing changed. Hence
+   `?seed=`, which is there to measure how far a number moves on the seed
+   alone, that is, how much noise sits under any comparison at all. */
 const SEED = Number(new URLSearchParams(location.search).get('seed')) || 4242;
 function seed(w, s) {
   let x = (s || 12345) >>> 0;
@@ -178,9 +177,9 @@ function bandBalance(fr, sr) {
   return o;
 }
 
-/* Quanto la battuta 2 somiglia alla 1, la 3 alla 2, la 4 alla 3. Zero significa
-   quattro battute identiche, che è esattamente il difetto per cui una base
-   suona come un loop e non come un brano. */
+/* How much bar 2 resembles bar 1, bar 3 bar 2, bar 4 bar 3. Zero means four
+   identical bars, which is exactly the fault that makes a backing track sound
+   like a loop rather than like a piece. */
 function novelty(fr, sr, t0, barDur, bars) {
   const LB = 14, LO = 60, HI = 12000, SLOTS = 8;
   const edge = k => LO * Math.pow(HI / LO, k / LB);
@@ -220,12 +219,12 @@ function novelty(fr, sr, t0, barDur, bars) {
   return n ? r2(acc / n) : 0;
 }
 
-/* La novità guarda una battuta contro la precedente, cioè un orizzonte di una
-   battuta — e una salita del filtro è un arco di otto. Il numero non la vede, e
-   anzi la penalizza: chiudendo il filtro spariscono gli acuti che portavano la
-   differenza fra le battute, quindi la novità *scende* mentre il brano si muove
-   di più. Questo confronta la prima metà della resa con la seconda, che è la
-   scala su cui una salita esiste. */
+/* Novelty looks at one bar against the previous one, a horizon of one bar —
+   and a filter riser is an arc of eight. The number cannot see it, and in fact
+   punishes it: closing the filter removes the highs that carried the
+   difference between bars, so novelty *falls* while the piece moves more. This
+   compares the first half of the render against the second, which is the scale
+   a riser exists on. */
 function arc(fr, sr, t0, dur) {
   const LB = 14, LO = 60, HI = 12000;
   const edge = k => LO * Math.pow(HI / LO, k / LB);
@@ -255,8 +254,8 @@ function arc(fr, sr, t0, dur) {
   return r2(1 - dot / Math.sqrt(Math.max(1e-12, nx * ny)));
 }
 
-/* Energia sul battere contro energia sul levare. Un disco senza levare è una
-   marcia; una tarantella senza battere non sta in piedi. */
+/* On-beat energy against off-beat energy. A disco record with no off-beat is
+   a march; a tarantella with no downbeat does not stand up. */
 function pulse(d, sr, r) {
   const win = Math.round(0.055 * sr);
   const q = [], e = [];
@@ -304,18 +303,19 @@ function mixStats(res) {
 }
 
 /* ------------------------------------------------------------------ *
- * Misure su una traccia sola: è qui che si vede se due colpi          *
- * consecutivi sono lo stesso suono o due suoni.                       *
+ * One track at a time: this is where you see whether two consecutive  *
+ * hits are the same sound or two sounds.                              *
  * ------------------------------------------------------------------ */
 function trackStats(res, id) {
   const buf = res.buf, sr = buf.sampleRate, d = monoOf(buf);
   const all = res.hits.filter(h => h.id === id);
   if (all.length < 2) return null;
 
-  /* Solo colpi della stessa velocity. Il primo giro di questa misura li mischiava
-     tutti, e allora un charleston con accenti e fantasmi scritti a mano risultava
-     "variabile" per merito del pattern, non del suono: la dinamica voluta copriva
-     la domanda, che è se due colpi *uguali* suonino uguali. */
+  /* Only hits of the same velocity. The first version of this mixed them all
+     together, and then a hi-hat with hand-written accents and ghosts came out
+     "variable" on the strength of the pattern rather than the sound: the
+     dynamics you wrote covered the question, which is whether two *equal* hits
+     sound equal. */
   const byVel = {};
   all.forEach(h => (byVel[h.vel] = byVel[h.vel] || []).push(h));
   const hits = Object.keys(byVel).map(k => byVel[k])
@@ -324,14 +324,14 @@ function trackStats(res, id) {
                                 variazionePicco: null, piccoMedio: null, coppie: 0,
                                 leanMs: r2(all.reduce((a, h) => a + (h.at - h.grid) * 1000, 0) / all.length) };
 
-  // Il picco di ogni colpo, per vedere quanta dinamica c'è davvero.
+  // Each hit's peak, to see how much dynamics there really is.
   const win = Math.round(0.045 * sr);
   const pk = hits.map(h => peakRms(d, h.at * sr, h.at * sr + win).peak);
 
-  /* Somiglianza fra colpi consecutivi *della stessa velocity*, con una ricerca
-     di ritardo di ±4 ms: senza quella, il jitter di tempo da solo abbasserebbe
-     la correlazione e la misura direbbe "diversi" quando sono identici e solo
-     spostati. 1.000 = lo stesso campione due volte. */
+  /* Similarity between consecutive hits *of the same velocity*, searching a
+     lag of ±4 ms: without that, the timing jitter alone would drop the
+     correlation and the measurement would say "different" when they are
+     identical and merely moved. 1.000 = the same sample twice. */
   const L = Math.round(0.028 * sr), lag = Math.round(0.004 * sr);
   const cors = [];
   for (let i = 1; i < hits.length; i++) {
@@ -357,10 +357,10 @@ function trackStats(res, id) {
     gruppo: hits.length,                                  // quanti alla stessa velocity
     piccoMedio: r2(dB(mp)),
     variazionePicco: r2(sd / Math.max(1e-9, mp) * 100),   // in %, dentro il gruppo
-    /* null, non zero. Nel primo giro un gruppo senza coppie confrontabili
-       stampava 0, che nella colonna "somiglianza" si legge come il risultato
-       migliore possibile mentre vuol dire "non misurato". Una metrica che mente
-       verso il bello è peggio di una metrica che manca. */
+    /* null, not zero. In the first version a group with no comparable pairs
+       printed 0, which in the "similarity" column reads as the best possible
+       result while meaning "not measured". A metric that lies towards the
+       flattering answer is worse than a metric that is missing. */
     somiglianza: cors.length ? r2(mean(cors) * 1000) / 1000 : null,
     leanMs: r2(lean),
     coppie: cors.length,
@@ -368,12 +368,12 @@ function trackStats(res, id) {
 }
 
 /* ------------------------------------------------------------------ *
- * Soglie. Non sono verità: sono le righe oltre le quali vale la pena  *
- * andare a sentire. Dichiarate qui in chiaro, non nascoste nel codice.*
+ * Thresholds. Not truths: the lines past which it is worth going and  *
+ * listening. Declared here in the open, not buried in the code.       *
  * ------------------------------------------------------------------ */
 const LIMITS = {
   somiglianza:      { bad: 0.9,  warn: 0.7, dir: 'hi', why: '1.000 = lo stesso campione due volte' },
-  variazionePicco:  { bad: 1,    warn: 4,   dir: 'lo', why: '% di variazione fra i colpi; sotto l\'1% è una macchina' },
+  variazionePicco:  { bad: 1,    warn: 4,   dir: 'lo', why: '% di variazione fra i colpi; sotto l\'1% is a machine' },
   novita:           { bad: 0.02, warn: 0.06, dir: 'lo', why: 'differenza fra battute consecutive; 0 = quattro battute identiche' },
   crest:            { bad: 8,    warn: 11,  dir: 'lo', why: 'dB fra picco e RMS; sotto 8 è schiacciato' },
   arco:             { bad: 0.01, warn: 0.03, dir: 'lo', why: 'movimento sulle otto battute; 0 = le due metà sono la stessa cosa' },
@@ -381,10 +381,10 @@ const LIMITS = {
   sovrappPct:       { bad: 70,   warn: 35,  dir: 'hi', why: '% di attacchi che trovano il posto occupato' },
   colpiPerBattuta:  { bad: 55,   warn: 40,  dir: 'hi', why: 'oltre 55 è un muro, non un groove' },
   stereo:           { bad: 0.97, warn: 0.9, dir: 'hi', why: '1 = mono' },
-  /* Attenzione a questa: quattro semi diversi spostano il picco di una stessa
-     groove fino a 0.64 dB, quindi un confronto prima/dopo sotto quella soglia
-     non dice niente — mentre lo stereo si muove di 0.01, e lì un confronto
-     regge. Se una colonna diventa rossa, provala con due o tre `?seed=`. */
+  /* Careful with this one: four different seeds move the same groove's peak by
+     up to 0.64 dB, so a before/after comparison under that threshold says
+     nothing — while the stereo figure moves by 0.01, and there a comparison
+     holds. If a column turns red, try it with two or three `?seed=`. */
   peak:             { bad: -0.1, warn: -1,  dir: 'hi', why: 'dBFS: sopra -0.1 sta tosando; ma il seme da solo lo muove di 0.6 dB' },
 };
 function cls(k, v) {
@@ -432,30 +432,29 @@ async function runMix() {
   for (const g of gs) {
     log('Renderizzo ' + g.pack + ' / ' + g.name + '  (' + (rows.length + 1) + ' di ' + gs.length + ')');
     seed(w, SEED);
-    /* Otto battute, non quattro: il fill cade ogni secondo giro, quindi su
-       quattro non lo si vedrebbe mai e la novità direbbe che non è cambiato
-       nulla. */
+    /* Eight bars, not four: the fill falls every second turn, so over four you
+       would never see it and novelty would report that nothing had changed. */
     const res = await w.dev.render(g.i, 8);
     rows.push(Object.assign({ pack: g.pack, name: g.name, bpm: g.bpm, timbre: g.timbre, kit: g.kit },
                             mixStats(res)));
   }
-  log('Fatto: ' + rows.length + ' grooves.');
+  log('Done: ' + rows.length + ' grooves.');
   show(table(rows, [
     ['groove', r => r.pack + ' / ' + r.name],
     ['bpm', r => r.bpm], ['strum.', r => r.timbre], ['kit', r => r.kit],
-    ['picco dBFS', r => r.peak, 'peak'],
+    ['peak dBFS', r => r.peak, 'peak'],
     ['RMS dBFS', r => r.rms],
     ['crest dB', r => r.crest, 'crest'],
-    ['novità', r => r.novita, 'novita'],
-    ['arco', r => r.arco],
+    ['novelty', r => r.novita, 'novita'],
+    ['arc', r => r.arco],
     ['batt/lev dB', r => r.battere],
     ['stereo', r => r.stereo, 'stereo'],
-    ['din. battute dB', r => r.dinBattute],
-    ['colpi/batt', r => r.colpiPerBattuta, 'colpiPerBattuta'],
+    ['bar dynamics dB', r => r.dinBattute],
+    ['hits/bar', r => r.colpiPerBattuta, 'colpiPerBattuta'],
     ['sub', r => r.bande.sub], ['basso', r => r.bande.basso], ['medbas', r => r.bande.medbas],
     ['medio', r => r.bande.medio], ['alto', r => r.bande.alto], ['aria', r => r.bande.aria],
-  ], 'Il mix, quattro battute per groove',
-     'Bande in dB sul totale. <b>novità</b> è quanto ogni battuta differisce dalla precedente: 0 vuol dire quattro battute identiche. <b>arco</b> è la stessa distanza fra la prima e la seconda metà della resa — l\'orizzonte lungo, quello su cui vivono la salita del filtro e il fill, e che la novità per costruzione non vede. <b>batt/lev</b> positivo = l\'energia sta sul battere.'),
+  ], 'The mix, four bars a groove',
+     'Bands in dB against the total. <b>novelty</b> is how far each bar differs from the one before: 0 means four identical bars. <b>arc</b> is the same distance between the first and second halves of the render — the long horizon, the one the filter riser and the fill live on, and the one novelty by construction cannot see. <b>on/off</b> positive = the energy sits on the beat.'),
     rows);
   return rows;
 }
@@ -463,61 +462,77 @@ async function runMix() {
 async function runVoices() {
   const w = await ready();
   const gs = w.dev.grooves();
-  /* Balera porta cassa, rullante, clap e charleston chiuso; Liana porta il
-     charleston aperto. Insieme coprono tutte e cinque le voci del kit. */
-  const pick = [];
-  ['clem', 'nonni'].forEach(p => ['Balera', 'Liana'].forEach(n => {
-    const g = gs.find(x => x.pack === p && x.name === n);
-    if (g) pick.push(g);
-  }));
   const ids = ['kick', 'snare', 'clap', 'hat', 'ohat'];
+  /* Two grooves a pack, chosen for coverage rather than by name. It used to
+     name Balera and Liana, which between them carried all five kit voices —
+     until Liana stopped existing on one of the packs and the open hat quietly
+     dropped out of the table with nothing to say it had. A harness that names
+     a groove is a harness that goes half blind the day that groove is
+     renamed. */
+  const pick = [];
+  ['clem', 'nonni'].forEach(p => {
+    const mine = gs.filter(g => g.pack === p);
+    const need = new Set(ids);
+    // the busiest first, then whatever still brings something new
+    mine.sort((a, b) => b.hits - a.hits).forEach(g => {
+      const brings = ids.filter(id => need.has(id) && (g.lanes || []).indexOf(id) >= 0);
+      if (!brings.length || pick.filter(x => x.pack === p).length >= 2) return;
+      brings.forEach(id => need.delete(id));
+      pick.push(g);
+    });
+    if (need.size) log('no groove on ' + p + ' plays: ' + [...need].join(', '));
+  });
   const rows = [];
   for (const g of pick) {
     for (const org of [0, 1]) {
       w.dev.organic = org;
       for (const id of ids) {
-        log((org ? 'dopo' : 'prima') + ' — ' + g.pack + ' / ' + id);
+        log((org ? 'after' : 'before') + ' — ' + g.pack + ' / ' + id);
         seed(w, SEED);
         let res;
         try { res = await w.dev.render(g.i, 2, id); }
         catch (e) { rows.push({ pack: g.pack, kit: g.kit, voce: id,
-                                stato: 'ERRORE: ' + (e && e.message || e) }); continue; }
+                                stato: 'ERROR: ' + (e && e.message || e) }); continue; }
         const st = trackStats(res, id);
         if (st) rows.push(Object.assign({ pack: g.pack, kit: g.kit, voce: id,
-                                          stato: org ? 'dopo' : 'prima' }, st));
+                                          stato: org ? 'after' : 'before' }, st));
       }
     }
   }
   w.dev.organic = 1;
-  log('Fatto: ' + rows.length + ' misure per voce.');
+  log('Done: ' + rows.length + ' per-voice measurements.');
   show(table(rows, [
     ['pack / kit', r => r.pack + ' / ' + r.kit],
-    ['voce', r => r.voce],
-    ['stato', r => r.stato],
-    ['colpi', r => r.colpi],
-    ['gruppo', r => r.gruppo],
-    ['picco medio dBFS', r => r.piccoMedio],
-    ['variaz. picco %', r => r.variazionePicco, 'variazionePicco'],
-    ['somiglianza', r => r.somiglianza, 'somiglianza'],
+    ['voice', r => r.voce],
+    ['state', r => r.stato],
+    ['hits', r => r.colpi],
+    ['group', r => r.gruppo],
+    ['mean peak dBFS', r => r.piccoMedio],
+    ['peak spread %', r => r.variazionePicco, 'variazionePicco'],
+    /* The third element is the LIMITS key, not the heading: translating it
+       silently drops the colouring off the one column that judges the
+       round-robin kit, and a 0.95 renders in plain text like a pass. */
+    ['similarity', r => r.somiglianza, 'somiglianza'],
     ['lean ms', r => r.leanMs],
     ['coppie', r => r.coppie],
-  ], 'Colpo per colpo: prima e dopo',
-     '<b>somiglianza</b> è la correlazione fra due colpi consecutivi della stessa velocity, cercando il ritardo migliore entro ±4 ms — quindi 1.000 significa <i>lo stesso suono</i>, non solo lo stesso tempo. È la misura che dice se una batteria è timbrata a stampo. <b>gruppo</b> è quanti colpi condividono la velocity più frequente: è su quelli che si misura. Un valore alto sulla <b>cassa</b> non è un difetto — la cassa è l\'orologio e deve essere costante; il punto sono rullante, clap e charleston.'),
+  ], 'Hit by hit: before and after',
+     '<b>similarity</b> is the correlation between two consecutive hits of the same velocity, searching for the best lag within ±4 ms — so 1.000 means <i>the same sound</i>, not merely the same timing. It is the measurement that says whether a kit is stamped from one mould. <b>group</b> is how many hits share the most common velocity: those are the ones measured. A high figure on the <b>kick</b> is not a fault — the kick is the clock and has to be constant; the point is the snare, the clap and the hats.'),
     rows);
   return rows;
 }
 
-/* Qui stavano due misure — il guadagno di ricupero del bus batteria e quanto
-   il bus stringesse — e hanno fatto il loro lavoro: hanno bocciato il bus. Da
-   −14 a −32 dB e da 3:1 a 6:1 il crest del mix si muoveva di un dB, e sul kit
-   sintetico saliva. Il compressore è stato tolto da index.html e le misure con
-   lui. Se torna, tornano: rendere la stessa groove con e senza e leggere il
-   crest è tutto quello che servivano. */
+/* Two measurements lived here — the drum bus makeup gain and how hard the bus
+   squeezed — and they did their job: they failed the bus. From -14 to -32 dB
+   and from 3:1 to 6:1 the mix crest moved by one dB, and on the synthesised kit
+   it moved up. The compressor came out of index.html and the measurements came
+   out with it. If it comes back, they come back: rendering the same groove with
+   and without it and reading the crest is all they ever were. */
 
-/* I due kit non erano pareggiati: sul primo giro di misure il charleston folk
-   risultava 9 dB sotto quello sintetico e il clap folk 7 sopra. Ma quelle erano
-   grooves diverse a bpm diversi, quindi la conclusione non stava in piedi:
-   questa misura rende la *stessa* groove con i due kit e non lascia scampo. */
+/* The two kits were not matched: on the first round of measurements the folk
+   hi-hat came out 9 dB under the synthesised one and the folk clap 7 dB over.
+   But those were different grooves at different tempos, so the conclusion did
+   not stand up: this renders the *same* groove with both kits and leaves
+   nowhere to hide. */
 async function runKits() {
   const w = await ready();
   const gs = w.dev.grooves();
@@ -564,52 +579,62 @@ async function runKits() {
              slotSuRms: Math.round(slots[id] * corr * 1000) / 1000 };
   });
   show(table(rows, [
-    ['voce', r => r.voce],
-    ['picco macchina', r => r.piccoMacchina], ['picco folk', r => r.piccoFolk],
-    ['RMS macchina', r => r.rmsMacchina], ['RMS folk', r => r.rmsFolk],
-    ['scarto picco dB', r => r.scartoPicco],
-    ['scarto RMS dB', r => r.scartoRms],
-    ['slot ora', r => r.slotOra],
-    ['slot su picco', r => r.slotSuPicco], ['slot su RMS', r => r.slotSuRms],
-  ], 'I due kit, sulla stessa groove',
-     'Misurato nelle finestre dei colpi, non su tutta la traccia, così i silenzi non diluiscono l\'RMS. <b>Le due ultime colonne non concordano, e non è un difetto della misura</b>: un cajon è più corto di una cassa 808, quindi a picco uguale ha meno RMS. Pareggiare sull\'RMS lo manderebbe a tosare. Quando il picco è già pari entro un dB o due, gli slot vanno lasciati stare — la differenza di RMS è la forma dello strumento, non un errore di livello.'),
+    ['voice', r => r.voce],
+    ['peak machine', r => r.piccoMacchina], ['peak folk', r => r.piccoFolk],
+    ['RMS machine', r => r.rmsMacchina], ['RMS folk', r => r.rmsFolk],
+    ['peak offset dB', r => r.scartoPicco],
+    ['RMS offset dB', r => r.scartoRms],
+    ['slot now', r => r.slotOra],
+    ['slot by peak', r => r.slotSuPicco], ['slot by RMS', r => r.slotSuRms],
+  ], 'The two kits, on the same groove',
+     'Measured inside the hit windows rather than over the whole track, so the silences do not dilute the RMS. <b>The last two columns disagree, and that is not a fault in the measurement</b>: a cajon is shorter than an 808 kick, so at equal peak it has less RMS. Matching on RMS would send it into clipping. When the peak is already level within a dB or two, leave the slots alone — the RMS difference is the shape of the instrument, not an error of level.'),
     rows);
   return rows;
 }
 
-/* Le tre voci nuove — archi, arpeggio, chitarra ritmica — vanno messe in scala
-   contro quelle che c'erano, non a orecchio di chi le ha scritte. Rende ogni
-   voce da sola sulla groove che la usa e misura picco e RMS nelle finestre dei
-   colpi, così i silenzi non diluiscono niente. Lo stab è il riferimento: è la
-   voce armonica che esisteva già ed era stata pareggiata alle altre. */
+/* A new voice has to be put in scale against the ones already here, not set
+   by the ear of whoever wrote it. This renders each voice alone on the groove
+   that uses it and measures peak and RMS inside the hit windows, so the
+   silences dilute nothing. The stab is the reference: it is the harmonic voice
+   that already existed and had already been matched to the others. */
 async function runLevels() {
   const w = await ready();
   const gs = w.dev.grooves();
   const want = [
     ['Fantasia',   ['bass', 'stab', 'pad', 'lead']],
     ['Cristallo',  ['bass', 'arp', 'pad', 'lead']],
+    /* The brass. An FM sample and a sawtooth stack have no reason at all to
+       arrive at the same loudness, and Cometa is the groove that is nothing
+       but brass — if it is wrong anywhere it is wrong here. */
+    ['Cometa',     ['bass', 'stab', 'pad', 'lead']],
+    ['Nottata',    ['bass', 'stab', 'pad', 'lead']],
+    /* The recorded bass. These two run on bellows and strings, which is where
+       the sampled Yamaha plays instead of a synthesised button. */
     ['Permanente', ['bass', 'arp', 'pad', 'lead']],
-    ['Sanremo',    ['bass', 'stab', 'pad', 'lead']],
+    ['Balera',     ['bass', 'stab', 'lead']],
     ['Testaccio',  ['bass', 'stab', 'chank', 'pad', 'lead']],
   ];
-  /* La chitarra ritmica ha due percorsi — i campioni sulla Chitarra e il
-     ripiego sintetico su tutto il resto — e uno solo dei due era misurato.
-     Testaccio gira sulla fisarmonica, quindi la seconda passata la forza. */
+  /* The rhythm guitar has two paths — the samples on the Guitar setting and
+     the synthetic stand-in everywhere else — and only one of them was being
+     measured. Testaccio runs on the accordion, so the second pass forces it. */
   const forced = [['Testaccio', 'chit', ['chank', 'stab']]];
   const rows = [];
   for (const [name, ids] of want) {
-    const g = gs.find(x => x.name === name);
-    if (!g) { rows.push({ groove: name, voce: '— non trovata —' }); continue; }
+    /* By name and by pack: Balera exists on both packs and `find` would take
+       whichever came first, which is a silent way to measure the wrong one. */
+    const g = gs.find(x => x.name === name && (!x.pack || x.pack === 'nonni')) ||
+              gs.find(x => x.name === name);
+    if (!g) { rows.push({ groove: name, voce: '— not found —' }); continue; }
     for (const id of ids) {
-      log('livelli — ' + name + ' / ' + id);
+      log('levels — ' + name + ' / ' + id);
       seed(w, SEED);
       let res;
       try { res = await w.dev.render(g.i, 2, id); }
-      catch (e) { rows.push({ groove: name, voce: id, colpi: 'ERRORE: ' + (e && e.message || e) }); continue; }
+      catch (e) { rows.push({ groove: name, voce: id, colpi: 'ERROR: ' + (e && e.message || e) }); continue; }
       const hits = res.hits.filter(h => h.id === id);
       if (!hits.length) { rows.push({ groove: name, voce: id, colpi: 0 }); continue; }
       const d = monoOf(res.buf), sr = res.buf.sampleRate;
-      // una finestra generosa: il pad tiene per battute, non per millisecondi
+      // a generous window: the pad holds for bars, not for milliseconds
       const win = Math.round((id === 'pad' ? 0.5 : 0.12) * sr);
       let pk = 0, sq = 0, n = 0;
       hits.forEach(h => {
@@ -628,7 +653,7 @@ async function runLevels() {
     if (!g) continue;
     w.dev.timbre = tb;
     for (const id of ids) {
-      log('livelli — ' + name + ' su ' + tb + ' / ' + id);
+      log('levels — ' + name + ' su ' + tb + ' / ' + id);
       seed(w, SEED);
       let res;
       try { res = await w.dev.render(g.i, 2, id); } catch (e) { continue; }
@@ -650,34 +675,36 @@ async function runLevels() {
   }
   w.dev.timbre = '';
 
-  // lo scarto di ogni voce contro lo stab (o l'arpeggio dove lo stab non c'è)
+  // each voice's offset against the stab (or the arpeggio where there is none)
   rows.forEach(r => {
     const ref = rows.find(x => x.groove === r.groove && (x.voce === 'stab' || x.voce === 'arp'));
     r.vsRif = (ref && r.picco !== undefined && ref.picco !== undefined)
       ? r2(r.picco - ref.picco) : undefined;
   });
-  log('fatto: ' + rows.length + ' misure di livello.');
+  log('done: ' + rows.length + ' level measurements.');
   show(table(rows, [
-    ['groove', r => r.groove], ['voce', r => r.voce], ['colpi', r => r.colpi],
-    ['picco dBFS', r => r.picco], ['RMS dBFS', r => r.rms],
-    ['scarto dal rif. dB', r => r.vsRif],
-  ], 'Livelli delle voci nuove',
-     'Il riferimento di ogni riga è lo stab della stessa groove, o l\'arpeggio dove lo stab non c\'è. Il pad deve stare <b>sotto</b>: è un letto, non una parte. Arpeggio e chitarra ritmica intorno allo stab.'),
+    ['groove', r => r.groove], ['voice', r => r.voce], ['hits', r => r.colpi],
+    ['peak dBFS', r => r.picco], ['RMS dBFS', r => r.rms],
+    ['offset from ref dB', r => r.vsRif],
+  ], 'Levels of the new voices',
+     'The reference on every row is the stab of the same groove, or the arpeggio where there is no stab. The pad has to sit <b>under</b> it: it is a bed, not a part. Arpeggio and rhythm guitar around the stab.'),
     rows);
   return rows;
 }
 
-/* Quanto una nota è ancora lì quando arriva la successiva.
+/* How much of a note is still there when the next one arrives.
 
-   È nata da una lamentela: "la fisarmonica della tarantella fa cagare". Il
-   sospetto era meccanico e non di gusto — su quella groove gli stab stanno a
-   due step l'uno dall'altro, cioè 0.31 s, e la fisarmonica campionata li tiene
-   0.47 s più 0.09 di rilascio. Ogni accordo si sovrappone al successivo per un
-   quarto di secondo, quattro alla volta, e non è un arrangiamento, è una poltiglia.
+   It was born from a complaint: "the tarantella's accordion is terrible". The
+   suspicion was mechanical rather than a matter of taste — on that groove the
+   stabs sit two steps apart, which is 0.31 s, and the sampled accordion held
+   them 0.47 s plus 0.09 of release. Every chord overlapped the next by a
+   quarter of a second, four at a time, and that is not an arrangement, it is
+   mush.
 
-   Misurato dall'audio e non dai parametri, perché la domanda percettiva
-   comprende la stanza: l'RMS nei 12 ms *prima* di ogni attacco, contro il picco
-   medio della traccia. Sopra −12 dB la nota precedente è ancora in campo. */
+   Measured from the audio and not from the parameters, because the perceptual
+   question includes the room: the RMS in the 12 ms *before* each onset,
+   against the track's mean peak. Over -12 dB the previous note is still in
+   play. */
 async function runOverlap() {
   const w = await ready();
   const gs = w.dev.grooves();
@@ -687,13 +714,13 @@ async function runOverlap() {
     for (const id of PITCHED) {
       seed(w, SEED);
       let res;
-      /* Non inghiottire: la prima versione faceva `catch { continue }`, e quando
-         VOICES.stab ha iniziato a lanciare per un parametro mancante tre grooves
-         sono semplicemente scomparse dalla tabella. Una misura che tace su un
-         errore è peggio che non misurare, perché sembra un risultato. */
+      /* Do not swallow it: the first version did `catch { continue }`, and when
+         VOICES.stab began throwing over a missing parameter three grooves
+         simply vanished from the table. A measurement that goes quiet on an
+         error is worse than no measurement, because it looks like a result. */
       try { res = await w.dev.render(g.i, 2, id); }
       catch (e) {
-        rows.push({ groove: g.pack + '/' + g.name, voce: id, colpi: 'ERRORE: ' + (e && e.message || e) });
+        rows.push({ groove: g.pack + '/' + g.name, voce: id, colpi: 'ERROR: ' + (e && e.message || e) });
         continue;
       }
       const hits = res.hits.filter(h => h.id === id);
@@ -724,34 +751,36 @@ async function runOverlap() {
     }
   }
   rows.sort((a, b) => b.coda - a.coda);
-  log('fatto: ' + rows.length + ' voci intonate misurate.');
+  log('done: ' + rows.length + ' pitched voices measured.');
   show(table(rows, [
-    ['groove', r => r.groove], ['voce', r => r.voce], ['colpi', r => r.colpi],
-    ['passo ms', r => r.passoMs],
+    ['groove', r => r.groove], ['voice', r => r.voce], ['hits', r => r.colpi],
+    ['step ms', r => r.passoMs],
     ['coda dB', r => r.coda, 'coda'],
-    ['sovrapposte %', r => r.sovrappPct, 'sovrappPct'],
-  ], 'La nota precedente è ancora lì?',
-     'Ordinato dal peggio. <b>coda</b> è l\'RMS nei 12 ms prima di ogni attacco, in dB sotto il picco medio della traccia: più è vicino a zero, più la nota precedente sta ancora suonando quando arriva la prossima. <b>sovrapposte</b> è la percentuale di attacchi che trovano il posto già occupato sopra −12 dB. Un pad alto è normale, è il suo lavoro; uno stab o un lead alti sono poltiglia.'),
+    ['overlapped %', r => r.sovrappPct, 'sovrappPct'],
+  ], 'Is the previous note still there?',
+     'Worst first. <b>coda</b> is the RMS in the 12 ms before each onset, in dB under the track\'s mean peak: the closer to zero, the more of the previous note is still sounding when the next one arrives. <b>overlapped</b> is the percentage of onsets that find the place already taken above −12 dB. A high pad is normal, that is its job; a high stab or lead is mush.'),
     rows);
   return rows;
 }
 
 
 /* ------------------------------------------------------------------ *
- * Cancello 2: l'intenzione.                                          *
+ * Gate 2: the intention.                                             *
  * ------------------------------------------------------------------ *
- * Ogni groove dichiara un genere, e la rubrica di quel genere afferma
- * come controlli eseguibili le cose che quel genere richiede.
+ * Every groove declares a genre, and that genre's rubric asserts, as
+ * executable checks, the things the genre requires.
  *
- * Serve a due scopi, e il secondo conta più del primo. Il primo è
- * ovvio: accorgersi che una groove che si chiama house non ha niente sul
- * levare. Il secondo è che prende quello che oggi vive nei commenti —
- * "Fantasia è poche cose messe larghe, alla Mind Enterprises" — e lo
- * rende falsificabile. Se un giorno riempissi Fantasia, un controllo mi
- * boccerebbe invece di lasciarmi il commento che dice il contrario.
+ * It serves two purposes, and the second matters more than the first.
+ * The first is obvious: noticing that a groove calling itself house has
+ * nothing on the off-beat. The second is that it takes what today lives
+ * in the comments — "Fantasia is few things placed wide, after Mind
+ * Enterprises" — and makes it falsifiable. If one day I filled Fantasia
+ * in, a check would fail me instead of leaving me the comment that says
+ * the opposite.
  *
- * Non misura la bellezza. Misura se una groove è la cosa che dice di
- * essere, che è una domanda molto più piccola e molto più rispondibile. */
+ * It does not measure beauty. It measures whether a groove is the thing
+ * it says it is, which is a much smaller and much more answerable
+ * question. */
 
 const BARLEN = { '4/4': 16, '3/4': 12, '6/8': 12 };
 const barLenOf = st => BARLEN[st.meter] || 16;
@@ -772,7 +801,7 @@ function sendOf(st, id) {
 const has = (st, id) => lane(st, id).length > 0;
 const covers = (list, want) => want.every(w => list.indexOf(w) >= 0);
 
-// i quarti esistono solo in 4/4; in 6/8 la domanda non si pone
+// quarters only exist in 4/4; in 6/8 the question does not arise
 const everyQuarter = (st, id) =>
   st.meter !== '4/4' ? true : covers(inBar0(st, id), [0, 4, 8, 12]);
 
@@ -788,79 +817,98 @@ const voices = st => st.tracks.filter((id, k) =>
   id[0] === 'v' && st.pattern[k] && st.pattern[k].some(Boolean)).length;
 const pitchedOn = st => ['bass', 'pad', 'stab', 'chank', 'arp', 'lead']
   .filter(id => has(st, id)).length;
-/* Un controllo può tornare `true`, oppure una stringa che dice *cosa* non
-   torna. "Niente poltiglia oltre il 70%" senza dire quale voce lascia il lavoro
-   a metà: il primo giro ha bocciato Testaccio e Balera senza nominare nessuno,
-   e sono andato a cercarle a mano. */
-function mush(ov, pct) {
+/* A check may return `true`, or a string saying *what* is wrong. "No mush
+   over 70%" without naming the voice leaves the job half done: the first round
+   failed Testaccio and Balera without naming anything, and I went looking for
+   them by hand. */
+/* How many, *and* how loud. The percentage alone is a knife edge: it counts
+   onsets whose tail is over a fixed -12 dB line, so a voice sitting at -11.7 dB
+   reads 100% and one at -12.3 dB reads 0% with nothing audible between them —
+   which is how raising the accordion 4.8 dB to its measured level flipped two
+   grooves from "fine" to "every onset is mush" without either of them sounding
+   any muddier. The depth alone is no better: one chord left ringing over the
+   next is a real fault and barely moves a mean.
+
+   So both have to be true. `depth` sits between the two lines LIMITS already
+   draws for coda, -14 to warn and -6 to fail, and it is the one that decides:
+   the funk groove reads 100% at -9.9 dB and passes, because a delay is a thing
+   you can hear under the next chord and mud is a thing you cannot hear
+   through. */
+function mush(ov, pct, depth) {
   const bad = ov.filter(r =>
-    ['stab', 'lead', 'arp', 'chank'].indexOf(r.voce) >= 0 && r.sovrappPct > pct);
-  return bad.length ? bad.map(r => r.voce + ' ' + r.sovrappPct + '%').join(', ') : true;
+    ['stab', 'lead', 'arp', 'chank'].indexOf(r.voce) >= 0 &&
+    r.sovrappPct > pct && r.coda !== null && r.coda > depth);
+  return bad.length
+    ? bad.map(r => r.nota || (r.voce + ' ' + r.sovrappPct + '% at ' + r.coda + ' dB')).join(', ')
+    : true;
 }
 
 const COMMON = [
-  ['non tosa',                              (st, mx) => mx.peak < 0],
-  ['crest almeno 10 dB',                    (st, mx) => mx.crest >= 10],
-  ['le quattro battute non sono una sola',   (st, mx) => mx.novita > 0.07],
-  ['niente poltiglia oltre il 70%',          (st, mx, ov) => mush(ov, 70)],
+  ['does not clip',                              (st, mx) => mx.peak < 0],
+  ['crest at least 10 dB',                    (st, mx) => mx.crest >= 10],
+  ['the four bars are not one bar',   (st, mx) => mx.novita > 0.07],
+  ['no mush over 70% and -8 dB',            (st, mx, ov) => mush(ov, 70, -8)],
 ];
 
 const RUBRICS = {
   italo: [
-    ['cassa su tutti e quattro i quarti',    st => everyQuarter(st, 'kick')],
-    ['tre levare di ottavo su quattro',      st => offbeat(st) >= 0.75],
-    ['basso almeno otto volte per battuta',  st => perBar(st, 'bass') >= 8],
-    ["una voce melodica dentro l'eco",       st => ['stab', 'lead', 'arp'].some(id => sendOf(st, id) >= 0.3)],
-    ['non più di 40 colpi per battuta',      (st, mx) => mx.colpiPerBattuta <= 40],
+    ['kick on all four quarters',    st => everyQuarter(st, 'kick')],
+    ['three off-beat eighths in four',      st => offbeat(st) >= 0.75],
+    ['bass at least eight times a bar',  st => perBar(st, 'bass') >= 8],
+    ["a melodic voice inside the echo",       st => ['stab', 'lead', 'arp'].some(id => sendOf(st, id) >= 0.3)],
+    ['no more than 40 hits a bar',      (st, mx) => mx.colpiPerBattuta <= 40],
   ],
   house: [
-    ['cassa su tutti e quattro i quarti',    st => everyQuarter(st, 'kick')],
-    ['tutti i levare di ottavo coperti',     st => offbeat(st) >= 0.99],
-    ['clap sul due e sul quattro',           st => covers(inBar0(st, 'clap'), [4, 12])],
+    ['kick on all four quarters',    st => everyQuarter(st, 'kick')],
+    ['every off-beat eighth covered',     st => offbeat(st) >= 0.99],
+    ['clap on two and four',           st => covers(inBar0(st, 'clap'), [4, 12])],
   ],
   balera: [
-    ['swing acceso',                         st => st.swing > 0],
-    ['rullante o clap sul due e sul quattro', st => covers(inBar0(st, 'snare'), [4, 12]) ||
+    ['swing on',                         st => st.swing > 0],
+    ['snare or clap on two and four', st => covers(inBar0(st, 'snare'), [4, 12]) ||
                                                    covers(inBar0(st, 'clap'), [4, 12])],
-    /* 1.5 e non 2. Il primo giro bocciava le due Notte, che hanno la cassa 1.75
-       volte per battuta — ed è giusto così: sono grooves lente da notte tarda, e
-       la cassa rada è il punto. Era il controllo sbagliato, non la groove. */
-    ['cassa almeno una volta e mezza per battuta', st => perBar(st, 'kick') >= 1.5],
+    /* 1.5 and not 2. The first round failed both Notte grooves, which have the
+       kick 1.75 times a bar — and rightly so: they are slow late-night grooves
+       and the sparse kick is the point. It was the wrong check, not the wrong
+       groove. */
+    ['kick at least one and a half times a bar', st => perBar(st, 'kick') >= 1.5],
   ],
   tarantella: [
-    ['metro 6/8',                            st => st.meter === '6/8'],
-    ['tamburello su tutti gli step',         st => allSteps(st, 'ohat')],
-    ['almeno 120 di bpm',                    st => st.bpm >= 120],
-    ['niente poltiglia oltre il 35%',        (st, mx, ov) => mush(ov, 35)],
-    ['senza eco',                            st => sendOf(st, 'lead') === 0],
+    ['6/8 metre',                            st => st.meter === '6/8'],
+    ['tambourine on every step',         st => allSteps(st, 'ohat')],
+    ['at least 120 bpm',                    st => st.bpm >= 120],
+    /* Stricter on both counts, and it is the groove this whole measurement
+       came from: "the accordion is terrible" was a tarantella. */
+    ['no mush over 35% and -12 dB',          (st, mx, ov) => mush(ov, 35, -12)],
+    ['no echo',                            st => sendOf(st, 'lead') === 0],
   ],
   folk: [
-    ['senza eco',                            st => sendOf(st, 'lead') === 0],
-    ['non più di 25 colpi per battuta',      (st, mx) => mx.colpiPerBattuta <= 25],
-    ['un timbro a corda o a mantice',        st => ['chit', 'mando', 'fisa'].indexOf(st.timbre) >= 0],
+    ['no echo',                            st => sendOf(st, 'lead') === 0],
+    ['no more than 25 hits a bar',      (st, mx) => mx.colpiPerBattuta <= 25],
+    ['a strung or bellows timbre',        st => ['chit', 'mando', 'fisa'].indexOf(st.timbre) >= 0],
   ],
   funk: [
-    ['qualcosa sui sedicesimi',              st => allSteps(st, 'chank') || allSteps(st, 'hat')],
-    ['clap o rullante fuori dal battere',    st => inBar0(st, 'clap').some(x => x % 4 !== 0) ||
+    ['something on the sixteenths',              st => allSteps(st, 'chank') || allSteps(st, 'hat')],
+    ['clap or snare off the beat',    st => inBar0(st, 'clap').some(x => x % 4 !== 0) ||
                                                    inBar0(st, 'snare').some(x => x % 4 !== 0)],
-    ['basso sincopato',                      st => inBar0(st, 'bass').some(x => x % 2 !== 0)],
+    ['syncopated bass',                      st => inBar0(st, 'bass').some(x => x % 2 !== 0)],
   ],
   voce: [
-    /* Una, non due. Bocciava Coro, la cui idea è *una* voce sola raddoppiata dal
-       chorus: il controllo aveva codificato una mia assunzione e non un
-       requisito del genere. */
-    ['almeno una clip in gioco',             st => voices(st) >= 1],
-    ['non più di tre voci intonate',         st => pitchedOn(st) <= 3],
+    /* One, not two. It failed Coro, whose whole idea is *one* voice doubled by
+       the chorus: the check had encoded an assumption of mine rather than a
+       requirement of the genre. */
+    ['at least one clip in play',             st => voices(st) >= 1],
+    ['no more than three pitched voices',         st => pitchedOn(st) <= 3],
   ],
   pop: [
-    ['gli archi ci sono',                    st => has(st, 'pad')],
-    ['basso almeno otto volte per battuta',  st => perBar(st, 'bass') >= 8],
-    ['rullante sul due e sul quattro',       st => covers(inBar0(st, 'snare'), [4, 12])],
+    ['the strings are there',                    st => has(st, 'pad')],
+    ['bass at least eight times a bar',  st => perBar(st, 'bass') >= 8],
+    ['snare on two and four',       st => covers(inBar0(st, 'snare'), [4, 12])],
   ],
   sequencer: [
-    ["l'arpeggio copre tutti gli step",      st => allSteps(st, 'arp')],
-    ['gli archi ci sono',                    st => has(st, 'pad')],
-    ['cassa su tutti e quattro i quarti',    st => everyQuarter(st, 'kick')],
+    ["the arpeggio covers every step",      st => allSteps(st, 'arp')],
+    ['the strings are there',                    st => has(st, 'pad')],
+    ['kick on all four quarters',    st => everyQuarter(st, 'kick')],
   ],
 };
 
@@ -870,7 +918,7 @@ async function runRubric() {
   const PITCHED = ['stab', 'lead', 'arp', 'chank'];
   const rows = [];
   for (const g of gs) {
-    log('rubrica — ' + g.pack + '/' + g.name + ' (' + (g.genre || 'senza genere') + ')');
+    log('rubric — ' + g.pack + '/' + g.name + ' (' + (g.genre || 'no genre') + ')');
     seed(w, SEED);
     let res, st;
     try {
@@ -878,11 +926,11 @@ async function runRubric() {
       st = await w.dev.state();
     } catch (e) {
       rows.push({ groove: g.pack + '/' + g.name, genre: g.genre,
-                  esito: 'ERRORE: ' + (e && e.message || e) });
+                  esito: 'ERROR: ' + (e && e.message || e) });
       continue;
     }
     const mx = mixStats(res);
-    // solo le voci intonate che suonano davvero, per non rendere a vuoto
+    // only the pitched voices that actually play, so nothing renders for nothing
     const ov = [];
     for (const id of PITCHED) {
       const k = st.tracks.indexOf(id);
@@ -890,7 +938,12 @@ async function runRubric() {
       seed(w, SEED);
       let r2r;
       try { r2r = await w.dev.render(g.i, 2, id); }
-      catch (e) { ov.push({ voce: id, sovrappPct: 0, nota: 'errore' }); continue; }
+      /* The error goes in the row. Pushing a 0% with a note nobody reads made a
+         voice that *threw* score as the cleanest thing in the table — and
+         mush() reads `coda`, so an undefined one passes every comparison. This
+         is the same failure the comment fifteen lines up warns about. */
+      catch (e) { ov.push({ voce: id, sovrappPct: 100, coda: 0,
+                            nota: 'ERROR: ' + (e && e.message || e) }); continue; }
       const hits = r2r.hits.filter(h => h.id === id);
       if (hits.length < 3) continue;
       const d = monoOf(r2r.buf), sr = r2r.buf.sampleRate;
@@ -901,35 +954,42 @@ async function runRubric() {
         peakSum += peakRms(d, a, a + pk).peak;
         if (j) n++;
       });
+      /* The depth, not only the count. mush() prints it, and without it the
+         rubric was reporting "stab 100% at undefined dB" — a number and a
+         hole where the number that decides whether it matters should be. */
       const mp = peakSum / hits.length;
+      let resSum = 0;
       hits.forEach((h, j) => {
         if (!j) return;
         const a = Math.round(h.at * sr);
-        if (dB(peakRms(d, a - pre, a).rms) - dB(mp) > -12) over++;
+        const r = peakRms(d, a - pre, a).rms;
+        resSum += r;
+        if (dB(r) - dB(mp) > -12) over++;
       });
-      ov.push({ voce: id, sovrappPct: n ? r2(over / n * 100) : 0 });
+      ov.push({ voce: id, sovrappPct: n ? r2(over / n * 100) : 0,
+                coda: n ? r2(dB(resSum / n) - dB(mp)) : null });
     }
 
     const checks = COMMON.concat(RUBRICS[g.genre] || []);
     const failed = [];
     checks.forEach(c => {
       let r;
-      try { r = c[1](st, mx, ov); } catch (e) { r = 'errore nel controllo'; }
+      try { r = c[1](st, mx, ov); } catch (e) { r = 'the check itself threw'; }
       if (r === true) return;
       failed.push(c[0] + (typeof r === 'string' ? ' [' + r + ']' : ''));
     });
     rows.push({ groove: g.pack + '/' + g.name, genre: g.genre || '—',
                 controlli: checks.length, passati: checks.length - failed.length,
-                esito: failed.length ? failed.join(' · ') : 'tutto a posto' });
+                esito: failed.length ? failed.join(' · ') : 'all good' });
   }
   const bad = rows.filter(r => r.passati !== r.controlli).length;
-  log('fatto: ' + rows.length + ' grooves, ' + bad + ' con qualcosa da guardare.');
+  log('done: ' + rows.length + ' grooves, ' + bad + ' with something to look at.');
   show(table(rows, [
-    ['groove', r => r.groove], ['genere', r => r.genre],
-    ['passati', r => (r.passati === undefined ? '—' : r.passati + '/' + r.controlli)],
-    ['cosa non torna', r => r.esito],
-  ], 'Ogni groove è la cosa che dice di essere?',
-     'Quattro controlli valgono per tutte, il resto dipende dal genere dichiarato. <b>Non è un giudizio di bellezza</b>: dice se una groove mantiene la promessa del suo genere e dei commenti che le stanno attorno. Un controllo che boccia una groove che ti piace è il controllo sbagliato, non la groove — cambialo qui.'),
+    ['groove', r => r.groove], ['genre', r => r.genre],
+    ['passed', r => (r.passati === undefined ? '—' : r.passati + '/' + r.controlli)],
+    ['what does not add up', r => r.esito],
+  ], 'Is every groove the thing it says it is?',
+     'Four checks apply to every groove, the rest depend on the genre it declares. <b>This is not a judgement of beauty</b>: it says whether a groove keeps the promise of its genre and of the comments around it. A check that fails a groove you like is the wrong check, not the wrong groove — change it here.'),
     rows);
   return rows;
 }
@@ -942,8 +1002,9 @@ document.getElementById('kits').addEventListener('click', e => { e.target.disabl
 document.getElementById('mix').addEventListener('click', e => { e.target.disabled = true; runMix(); });
 document.getElementById('voices').addEventListener('click', e => { e.target.disabled = true; runVoices(); });
 
-/* Headless: ?auto=mix|voices|makeup. Il titolo diventa SCORE_DONE quando ha
-   finito, così una esecuzione senza schermo sa quando leggere il risultato. */
+/* Headless: ?auto=mix|voices|kits|levels|overlap|rubric|all. The title becomes
+   SCORE_DONE when it has finished, so a run with no screen knows when to read
+   the result. */
 (async () => {
   const q = new URLSearchParams(location.search).get('auto');
   if (!q) return;
@@ -957,7 +1018,7 @@ document.getElementById('voices').addEventListener('click', e => { e.target.disa
     else if (q === 'all') { await runVoices(); await runKits(); await runMix(); }
     document.title = 'SCORE_DONE';
   } catch (e) {
-    document.getElementById('json').textContent = 'ERRORE: ' + (e && e.stack || e);
+    document.getElementById('json').textContent = 'ERROR: ' + (e && e.stack || e);
     document.title = 'SCORE_FAIL';
   }
 })();

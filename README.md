@@ -1,9 +1,17 @@
 # Dov’è Clem
 
-A four-bar, 64-step drum machine built around voice memos. Eight synthesised voices — five
-drums, a bass arp, a chord stab and a lead you write note by note — plus a
-swappable pack of recordings, each with speed, start-point, chop-length and
-reverse controls, so a spoken phrase can be played as a rhythmic part.
+A four-bar, 64-step drum machine built around voice memos. Eleven voices — five
+drums, a bass, strings, a chord stab, a rhythm guitar, an arpeggio and a lead
+you write note by note — plus a swappable pack of recordings, each with speed,
+start-point, chop-length and reverse controls, so a spoken phrase can be played
+as a rhythmic part.
+
+**A pattern is the band, not the song.** The presets write the instruments and
+leave the voices to you: nothing in them touches a recording. They also arrive
+half off — the kick and the bass play, everything else is written and muted —
+so a pattern is somewhere to start building rather than a finished loop that
+arrives at full height. Bring the chips up one at a time and you have an
+arrangement; that is the whole interaction.
 
 Two packs ship with it. **Clem** is the italo-disco one it started as. **Nonni**
 is Roman: accordion reeds instead of saws, major and harmonic-minor scales, and
@@ -32,10 +40,11 @@ icons/*.png                home-screen and maskable icons
 
 ## The drums
 
-**Macchina** is the synthesised set the app started with. **Tamburello** swaps
+**Machine** is the synthesised set the app started with. **Tambourine** swaps
 all five for recordings: a cajón bass tone for the kick, a cajón slap for the
 snare, a hand clap, an egg shaker for the closed hat and a tambourine for the
-open one.
+open one — **three takes of each**, so no two consecutive hits are the same
+waveform.
 
 They come from the [FreePats World Percussion](https://github.com/freepats/world-percussion)
 library, which is CC0 — public domain, no attribution required. Crediting it
@@ -44,10 +53,25 @@ where each one's energy sits rather than by listening: the cajón bass tone puts
 93% of itself under 250 Hz, the slap 89% in the mids, the shaker and the
 tambourine 100% above 2.5 kHz. The per-slot gains then match each one's peak to
 the synth drum it replaces, so switching kit changes the sound and not the
-level. The whole kit is 24 KB.
+level. The whole kit is 69 KB — fifteen files where there were five.
+
+**Three takes, and which three was measured too.** A recorded one-shot played
+twice is the same waveform twice, and no amount of the rate and level jitter the
+engine applies moves a normalised correlation, because a normalised correlation
+ignores gain. The recorded kit measured 0.4 to 1.0 hit to hit against the
+machine kit's 0.13 to 0.32 — a drum that has been stamped from one mould. Round
+robin is the only thing that moves it, and the three takes are chosen by
+correlating every candidate in the library's round-robin pool against every
+other and keeping the three that sound least like each other; picking the first
+three off the top moved the number far less. It now reads 0.31 to 0.64. Better,
+not equal: three strikes of the same cajón by the same hand at the same mic
+genuinely do resemble each other, and this is as far as a bank of recordings
+goes. `app/tools/build-banks.py` does the choosing and prints what it picked.
 
 A slot that fails to load quietly keeps its synthesised voice, so a bad
-connection degrades the kit rather than silencing the drums.
+connection degrades the kit rather than silencing the drums. A slot that loses
+one take of three plays on with the other two and says nothing, because a
+warning about something you cannot hear is noise.
 
 ## Strings, a sequencer and a muted guitar
 
@@ -84,7 +108,7 @@ instead, which is roughly a clavinet.
 
 That fallback hid a bug worth recording. `sampled()` plays whatever bank is
 loaded, so the first version cheerfully chopped the *accordion* into
-45-millisecond bursts on the Fisarmonica setting while its own comment claimed it
+45-millisecond bursts on the Accordion setting while its own comment claimed it
 was falling through to the synth. It was not. `score.html` caught it as 8.4 dB
 under the stab; the two paths are now matched to each other at −8.7 and −9.1
 dBFS, because switching timbre should change the sound and not the volume.
@@ -108,7 +132,7 @@ without its fill. Both are fixed and both are tested: a v1-shaped snapshot
 restores with its six stab hits on the stab, and the strings, the guitar and
 the sequencer empty rather than holding somebody else's part.
 
-### Five grooves from five records
+### Six grooves from six records
 
 - **Clem / Fantasia** — Mind Enterprises. The bassline *is* the piece:
   `bassIv:[0,12,0,7,0,12,10,7]`, eight degrees closing exactly in a bar. Dry kick,
@@ -119,16 +143,20 @@ the sequencer empty rather than holding somebody else's part.
 - **Nonni / Permanente** — the bridge, and the groove the sequencer exists for.
   A sixteenth machine in a major key under an accordion tune, drum machine and
   tambourine in the same bar.
-- **Nonni / Sanremo** — Cutugno. Major, eighth-note push, guitar strumming,
-  strings behind everything, and the melody carried by a clip rather than by the
-  lead, because that is the singer's part.
 - **Nonni / Testaccio** — the funk one. The accordion keeps the Roman half, the
   rhythm guitar runs sixteenths on its synth fallback, and the recorded kit's
   cajón slap does the job a conga would.
+- **Nonni / Nottata** — the italo-disco one, and the reason there is a DX7 brass
+  bank. Everything sits where the genre puts it and none of that is what makes
+  it work; the riser is. Four bars with the filter closing, the fill at the
+  bottom of it, the whole thing snapping open at the top.
+- **Clem / Cometa** — the same brass with nothing else near it. An FM brass
+  chord is wide and loud and does not want a second chord voice anywhere in the
+  bar, which is why there is so little else in it.
 
-The five measure at 11.2 to 13.7 dB of crest, novelty 0.12 to 0.28, and peaks
-between −0.48 and −0.77 dBFS with nothing clipping. They are denser than the
-older grooves — 30 to 40 hits a bar against 11 to 28 — because a sequencer or a
+They measure at 11.3 to 14.4 dB of crest, novelty 0.12 to 0.25, and peaks
+between −0.29 and −0.76 dBFS with nothing clipping. They are denser than the
+older grooves — 24 to 37 hits a bar against 11 to 28 — because a sequencer or a
 muted guitar *is* sixteen notes. The crest is what says that is a texture rather
 than a wall.
 
@@ -354,8 +382,8 @@ waveform, do notes play on top of each other, are the levels sane. It finds
 **Gate two, intention.** Every groove now declares a `genre`, and the rubric for
 that genre asserts, as executable checks, what the genre requires — a house
 groove needs a kick on all four quarters and something on every off-beat eighth;
-a tarantella needs 6/8, a tambourine on every step, and no pitched voice above
-35% overlap. Four checks apply to everything.
+a tarantella needs 6/8, a tambourine on every step, and no pitched voice muddy
+past 35%. Four checks apply to everything.
 
 The second reason for it matters more than the first. It takes what currently
 lives in comments — *"Fantasia is a few things placed wide, in the Mind
@@ -365,18 +393,24 @@ a check fails instead of a comment continuing to claim otherwise.
 The first run bounced five grooves and **three of them were wrong checks, not
 wrong grooves**: the balera rubric wanted a kick at least twice a bar and both
 Nottes run it 1.75 times, which is the point of a late-night groove; the voce
-rubric wanted two clips and Coro's whole idea is *one* voice doubled by the
+rubric wanted two clips and Coro's whole idea was *one* voice doubled by the
 chorus. Those were my assumptions written as requirements, and they were
 relaxed. A check that fails a groove you like is the wrong check — it is in
 `RUBRICS` in `score.html`, go and change it.
 
-Twenty-one of twenty-two pass now. The one left is `nonni/Balera — stab 85.71%`,
-and it is left on purpose: the residue is reverb rather than envelope, so whether
-a wet accordion in a dance hall is right is not a question a number can answer.
-It is a located, specific question, which is exactly what gate one and two are
-for handing to gate three.
+It happened again, and the second time it was subtler. The mush check counted
+onsets whose tail cleared a fixed -12 dB line, which is a knife edge: a voice at
+-11.7 dB reads 100% and one at -12.3 dB reads 0%, and nothing audible sits
+between them. Raising the accordion to its measured level flipped two grooves
+from clean to "every onset is mush" without either of them sounding any
+different. The check now needs the count *and* the depth, and prints both — the
+funk groove reads 100% at -9.9 dB and passes, because a delay is something you
+hear under the next chord and mush is something you cannot hear through.
 
-**Gate three, taste.** The app has a **Giudizio** panel, and it is not a feature
+**Sixteen of sixteen pass.** Which is not a target and should not become one:
+the thresholds are there to say "go and listen to this one".
+
+**Gate three, taste.** The app has a **Verdict** panel, and it is not a feature
 of the app — it is a working tool, so it does not appear to whoever opens the
 link. Two ways to turn it on, and neither needs a URL:
 
@@ -397,18 +431,18 @@ sit in their own `localStorage` and stay there.
 
 **One trap worth knowing.** On iOS a home-screen web app and Safari are separate
 storage. A judgment written in the installed app is not visible in Safari and the
-other way round, so `Copia tutto` has to be pressed in the same place the
-judgments were written. The panel's own counter tells you which context you are
+other way round, so `Copy all` has to be pressed in the same place the
+judgments were written. `Copy all` is the button. The panel's own counter tells you which context you are
 in: it says how many judgments *this* one holds.
 
 Which is also the thing to know about your own. **The judgments never leave the
-phone by themselves.** There is no server; `Copia tutto` puts them on the
+phone by themselves.** There is no server; `Copy all` puts them on the
 clipboard as one readable line per groove, and that line has to be pasted
 somewhere a person will read it:
 
 ```
-nonni/Balera — troppo forte: Stab · impastato
-clem/Chop — si annoia · «la voce si taglia a metà parola»
+nonni/Balera — too loud: Stab · muddy
+clem/Cristallo — gets boring · «the arp never stops»
 ```
 
 The vocabulary is twenty-two labels on two levels — tap a category, its entries
@@ -416,13 +450,16 @@ open — so a precise complaint is still two taps rather than a wall of
 twenty-two chips. Five labels was too few for somebody with something to say
 about nearly every groove.
 
-Livelli: *troppo forte · troppo piano · impastato · impastato in basso · duro
-sugli acuti · troppo bagnato · troppo asciutto · troppa eco*. Ritmo: *si annoia ·
-non respira · troppo vuota · non spinge · troppo lenta · troppo veloce · il tempo
-balla*. Melodia: *la melodia non regge · stona · il basso non segue · tonalità
-troppo alta · troppo bassa*. Suono: *sa di finto · il suono non va · la voce è
-tagliata male*. Buona: *va bene · bella · la migliore*. Three of them ask which
-track, because "too loud" without saying what is not actionable.
+Levels: *too loud · too quiet · muddy · muddy low end · harsh on top · too wet ·
+too dry · too much echo*. Rhythm: *gets boring · does not breathe · too empty ·
+no push · too slow · too fast · tempo wanders*. Melody: *tune does not hold ·
+out of tune · bass does not follow · key too high · key too low*. Sound: *sounds
+fake · wrong sound · clip trimmed badly*. Good: *fine · good · the best*. Three
+of them ask which track, because "too loud" without saying what is not
+actionable.
+
+The ids underneath are unchanged, including the five original ones, so verdicts
+written before the labels were translated still mean what they meant.
 
 And there is a free-text box, which is not a fallback but the valve that keeps
 the vocabulary honest: **free text that recurs becomes a label, a label that
@@ -556,8 +593,8 @@ app does on launch (`navigator.audioSession`); on older iOS the switch still win
 ## Playing it
 
 The tracks live in three racks, each under the picker that decides what it is
-played on: **Batteria** for the five drums, **Strumenti** for the bass, stab and
-lead, **Voci** for the current pack's clips. It used to be one box called Mixer
+played on: **Drums** for the five drums, **Instruments** for the bass, stab and
+lead, **Voices** for the current pack's clips. It used to be one box called Mixer
 with a header inside reading "Machine", which named neither the thing nor what
 the picker two inches away would do to it.
 
@@ -570,11 +607,11 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | --- | --- |
 | Play / Space | Start and stop the sequencer |
 | BPM ± | Tempo, 50–200 |
-| Filtro | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
+| Filter | One lowpass across the whole record, 200 Hz to wide open. The echo returns through it too |
 | 4/4 · 3/4 · 6/8 | The metre, beside the tempo. A bar is sixteen steps in common time and twelve in the other two — but a waltz is three beats of four and 6/8 is two beats of three, which is the whole difference between them |
 | 1 bar · 4 bars | How many bars go round |
-| Batteria | The drums: the synthesised **Macchina**, or **Tamburello** — a real cajón, tambourine, shaker and hand claps. It sits in the header of the rack it governs |
-| Strumenti | Bass, stab and lead: Synth italo, Fisarmonica, Mandolino, Rhodes, Organo |
+| Drums | The synthesised **Machine**, or **Tambourine** — a real cajón, tambourine, shaker and hand claps, three takes of each. It sits in the header of the rack it governs |
+| Instruments | Bass, stab and lead: Synth italo, Accordion, Guitar, Mandolin, Rhodes, Organ, Brass |
 | Bar 1–4 | Which bar the Pattern lane is showing. The playhead marks the bar it is in, so you can edit one bar while another plays |
 | Key | Opens a one-octave keyboard — tap a note to set the root for Bass, Stab and Lead, and hear it |
 | Giro | Four-bar chord move the Bass and Stab follow; **Fermo** stays on the root. The giro also picks the Lead's scale |
@@ -588,7 +625,7 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Waveform | Drag the two handles to set where the clip starts and ends. Press anywhere and the nearer handle comes to you; arrow keys nudge, Shift+arrow finer |
 | Chop | Snaps the end to 1, 2, 4 or 8 steps, or Full |
 | Forward / Reverse | Sample direction — the waveform mirrors so you are still looking at what you hear |
-| Cut / Overlap | Whether re-firing a voice stops the one already playing or lets them stack |
+| Cut / Overlap | Whether re-firing a voice stops the one already playing or lets them stack. **Overlap** is the default: re-triggering is the thing people do with a voice, and a phrase that cuts itself dead the second time you tap it is the less musical answer |
 | Record | Captures whatever is playing, for as long as you leave it running. Trim the result on its wave; **Save** writes a WAV — shared on a phone, downloaded on a desktop |
 | Copy bar | Puts the bar you are looking at over the other three |
 | Hold a track | Solo it. Hold again to let the rest back in |
@@ -630,9 +667,13 @@ dots on a mixer chip would be under two pixels each. Tiling is decided **per lan
 across the rest; one that names a step beyond it is taken as authored, which is
 how a pattern earns a fill or a bar that drops out. Deciding it for the whole
 pattern is a trap: a single voice dropped at step 40 switched tiling off for the
-drums as well, and Trastevere played one bar followed by three of silence. **Liana** is the one authored across the whole pattern — a four-bar lead,
-a stab that sits out the last half bar, a fill into the top. Put it next to any
-of the others and the difference is the point of the change.
+drums as well, and Trastevere played one bar followed by three of silence.
+
+Every base writes its lead across all four bars for the same reason, and the
+drums tile underneath, which is what a drum machine does. What stops the four
+bars being one bar is `vary` — a per-bar edit list applied at load, so the
+change lands in the lane where you can see it and edit it rather than happening
+invisibly at playback.
 
 ### Accents
 
@@ -692,13 +733,14 @@ doing it. Fixing Talk alone took its novelty from 0.01 to 0.55.
 
 Which lanes needed it was arithmetic, not taste: a clip is 1.3 to 7.2 seconds,
 a bar is 1.9 to 2.9 depending on the tempo, and anything longer than its bar
-cannot be retriggered every bar. Clips longer than two bars now use `once`,
-which says "do not repeat this lane" in words — the only way to say it before
-was to put a step number bigger than sixteen somewhere in the lane, and a phrase
-that should start once per turn has no such step to place.
+cannot be retriggered every bar. Clips longer than two bars used `once`, which
+says "do not repeat this lane" in words — the only way to say it before was to
+put a step number bigger than sixteen somewhere in the lane, and a phrase that
+should start once per turn has no such step to place.
 
-Across the sixteen grooves the median novelty went from 0.06 to 0.22, the worst
-from 0.00 to 0.09, and nothing peaks above −0.4 dBFS.
+No base writes a voice lane any more, so none of this is load-bearing for the
+presets. The arithmetic is still yours the moment you drop a long clip on step
+zero by hand, and `once` still works, which is why both are still here.
 
 **The bass is a line now, not a counter.** Its arpeggio degree used to come from
 how many times the bass had fired since Play, so the line was a function of hit
@@ -796,17 +838,39 @@ moves the Stab and the Bass with it:
 
 | | |
 | --- | --- |
-| Synth italo | Detuned sawtooths straight into the delay |
-| Fisarmonica | A recorded Hohner button accordion — eight notes, the rest repitched between them, never more than two semitones. The synthesised reeds remain as the fallback if the notes do not load |
-| Chitarra | A recorded Spanish classical guitar — eleven notes from A1 to B5, the only sampled instrument that reaches low enough to play the bass too. Chords are strummed: the notes of one arrive as a hand crosses the strings |
-| Mandolino | Karplus-Strong, the one instrument here still modelled: a burst of noise going round a loop one period long, losing its top on every pass. No CC0 mandolin exists to record from |
+| Synth italo | Three sawtooths for the lead — two detuned, one an octave under — and two a note for the stab, through one filter that opens bright and shuts inside a tenth of a second. The stab is the filter *moving*; a chord under a filter sitting open is a chord, not a stab |
+| Accordion | A recorded Hohner button accordion — eight notes, the rest repitched between them, never more than two semitones. The synthesised reeds remain as the fallback if the notes do not load |
+| Guitar | A recorded Spanish classical guitar — eleven notes from A1 to B5. Chords are strummed: the notes of one arrive as a hand crosses the strings |
+| Mandolin | Karplus-Strong, the one instrument here still modelled: a burst of noise going round a loop one period long, losing its top on every pass. No CC0 mandolin exists to record from |
 | Rhodes | A struck tine — a sine body under a bright partial that dies at once |
-| Organo | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
+| Organ | Drawbars at whole multiples of the note, held flat, under a Leslie tremolo |
+| Brass | [Synth Brass 2](https://freepats.zenvoid.org/Synthesizer/synth-brass.html) from FreePats, CC0: a DX7 BRASS 7 patch recorded through Dexed. This is the italo-disco stab and it is the one sound here that could not be faked — FM brass is six operators beating against each other, and two sawtooths through a lowpass sound like two sawtooths through a lowpass |
 
-All four are levelled against each other, so changing instrument changes the
-sound and not the volume. Select
-it and the Pattern strip becomes eight rows — one per degree of the giro's scale
-from the Key, root rows tinted so you can find the octave. Tap a row to
+**The bass is not one of them.** On the accordion, guitar and mandolin settings
+it is a recorded [fingered Yamaha RBX](https://freepats.zenvoid.org/ElectricGuitar/clean-electric-bass.html)
+(FreePats, CC0); on the electronic settings it stays a pair of detuned saws
+through a resonant filter with a soft clipper after it — the drive is the part
+that was missing, because a clean saw is a polite sound and italo was not
+played through polite equipment. An accordion band has a bass player and an
+italo record has a synthesiser, and picking the accordion should not have to
+mean picking both.
+
+The bank is one octave, E1 to D#2, because that is what was sampled. Rather
+than stretch a bass string half an octave past its top note, anything above it
+folds down an octave — which is also what a bassist does, since the register
+above the fourth fret of the G string is not where a bass line lives.
+
+All of them are levelled against each other by measurement rather than by ear,
+so changing instrument changes the sound and not the volume. The accordion's
+chord had been sitting 4 to 6 dB under every other setting's for as long as it
+had existed, and the reason it was never corrected is that it looked like a
+five-groove rebalance. It was not: `score.html` renders Testaccio on the
+accordion and on the guitar — same notes, same bar — and read -13.6 dBFS
+against -8.78. One number, one reference. They are now within half a decibel.
+
+**The Lead is written note by note.** Select it and the Pattern strip becomes
+eight rows — one per degree of the giro's scale from the Key, root rows tinted
+so you can find the octave. Tap a row to
 place a note, drag to draw a line, tap a lit cell again to erase. The lead stays
 in the key's scale rather than transposing with the chords, which is what lets a
 tune stay recognisable while the harmony moves under it.
@@ -815,72 +879,96 @@ tune stay recognisable while the harmony moves under it.
 
 They are called **basi** — backing tracks — rather than grooves, because a
 groove is a rhythmic feel and these are more than that: each one carries the
-pattern, the tempo, the key, the four-bar giro, the instrument, the mix and the
-clip trims. Loading one replaces everything.
+pattern, the tempo, the key, the four-bar giro, the instrument, the room and the
+mix. Loading one replaces all of it, and leaves your clips alone.
+
+**A base is the band, and the talking is yours.** These used to write the voice
+lanes too — which clip, chopped how, at what speed — and it made every one of
+them a finished thing you listened to rather than a place to start. Nothing in
+them touches a recording now. Load one, then drop your own voices in where you
+want them, at speed and whole, which is how they arrive.
+
+**And they arrive half off.** Everything is written; the kick and the bass are
+the only tracks you hear. The rest sit in the racks with their patterns visible
+and their mute bars lit, and you bring them up one at a time — **tap a dimmed
+chip and it comes in**, because a chip labelled "select and play" that makes no
+sound is a broken app rather than a muted track. The bar down its right edge
+takes it back out. A preset that
+starts at full height has already made the arrangement for you and the only
+move left is to take things away; starting from a pulse and a bass line means
+the first minute is a build, which is what these records are made of. It is one
+constant — `START_ON` — and a base can override it with `on:`.
+
+Voice tracks are never muted by this. They have no steps, so they are already
+silent, and a muted one would swallow the tap that auditions it.
 
 Eight per pack, ordered by how finished they sound — a structural judgement,
 not a verdict on taste; reorder them freely, it is one array.
 
-**There is no such thing as a base that does not care which voices are loaded.**
-Four of these used to be shared between the packs, and a shared base can only
-ever touch `v0`, whole and unchopped, because that is all any pack is
-guaranteed to have — which is the weakest possible use of the one thing this
-app is for. Every base belongs to a pack now. Where two packs have a base with
-the same name the machine underneath is the same; what it does with the talking
-is not. Clem's *Liana* states Clementina twice and lets Marco answer in the
-third bar; Nonni's chops "Ho un disturbo" into the beat and drops "A Già, sta
-zitto" across the break.
-
-| | BPM | Drums | Instrument | Voices |
+| Clem | BPM | Genre | Drums | Instrument |
 | --- | --- | --- | --- | --- |
-| Liana | 118 | machine · folk | Synth italo | Clementina whole / Disturbo chopped |
-| Balera | 126 · 112 | machine · folk | Rhodes · Fisarmonica | two long clips whole |
-| Notte | 104 | machine | Organo | one whole, one chopped |
-| Discoteca *(clem)* | 124 | machine | Synth italo | Theory whole under the beat |
-| Campagna *(nonni)* | 92 | folk | Mandolino | the two longest, whole |
-| Riviera *(clem)* | 126 | machine | Synth italo | Marco chopped |
-| Coro *(clem)* | 104 | folk | Rhodes | Clementina, doubled |
-| Chop *(clem)* | 96 | machine | Synth italo | four, sliced to two steps |
-| Talk *(clem)* | 84 | machine | — | two, whole |
-| Stornello *(nonni)* | 100 | folk | Mandolino | whole and chopped |
-| Osteria *(nonni)* | 126 | folk | Fisarmonica | two long clips whole |
-| Trastevere *(nonni)* | 88 | folk | Mandolino | two, whole |
-| Tarantella *(nonni)* | 96 · 6/8 | folk | Fisarmonica | one, stuttered |
+| Liana | 118 | italo | machine | Synth italo |
+| Cometa | 122 | italo | machine | Brass |
+| Fantasia | 118 | italo | machine | Synth italo |
+| Cristallo | 124 | italo | machine | Synth italo |
+| Discoteca | 124 | house | machine | Synth italo |
+| Riviera | 126 | italo | machine | Synth italo |
+| Balera | 126 | balera | machine | Rhodes |
+| Notte | 104 | balera | machine | Organ |
 
-Five names exist in both packs with the same machine under them and different
-talking on top. **Long clips are left whole** — a four-second recording running
-across four bars is a vocal; the same recording cut into eighths is confetti.
+| Nonni | BPM | Genre | Drums | Instrument |
+| --- | --- | --- | --- | --- |
+| Nottata | 120 | italo | machine | Brass |
+| Lungomare | 126 | italo | machine | Synth italo |
+| Permanente | 116 | sequencer | folk | Accordion |
+| Testaccio | 112 | funk | folk | Accordion |
+| Balera | 112 | balera | folk | Accordion |
+| Campagna | 92 | folk | folk | Guitar |
+| Tarantella | 132 · 6/8 | tarantella | folk | Accordion |
+| Pizzica | 160 · 6/8 | tarantella | folk | Mandolin |
 
-Five of them were rewritten again after listening notes, and the reasons are
-worth keeping:
+Half of Nonni is the dancefloor and half is the tradition, which was the point
+of the rebuild. **Nottata** is the italo-disco one and the reason the brass bank
+exists: everything is where the genre puts it — kick on the four, clap on two
+and four, hats on the sixteenths, bass on the eighths — and none of that is what
+makes it work. The riser is: four bars with the filter closing, the fill at the
+bottom of it, and the whole thing snapping open at the top. **Lungomare** is the
+other side of the same night, no brass and no hats, an arpeggio inside a
+dotted-eighth echo with the strings holding underneath.
 
-- **Autostrada** was a carousel. 132 BPM with sixteenth hats, a sixteenth bass
-  *and* a lead running over both. The lead is gone, the bass is eighths with a
-  pickup into each bar, and it is eight BPM slower.
-- **Coro** had no chorus in it and sat too low to hear anything. It is up a
-  fourth, on an octave bass, and the voice now genuinely sings with itself —
-  three copies a few cents apart and a few milliseconds late, which is the only
-  way to get several people saying the same words when a track holds one clip.
-- **Osteria** sounded like a pop song. A tavern has no snare drum: hands clap
-  along on two and four, the tambourine rolls underneath, the accordion fills
-  every gap.
-- **Trastevere** read as broken because it was — hits on 1, 7, 11, 13 and 15 and
-  nothing on two, so there was no pulse to be sparse against.
-- **Tarantella** was not one, twice over. A tarantella is in 6/8 and the app
-  could only count to sixteen, so the first version was a fast 4/4 wearing the
-  name; the second had the twelve steps but grouped them in threes, which draws
-  four dotted-eighth beats and is a different metre again. It is two beats of
-  three eighths now: cajón on the two downbeats, tambourine on the six eighths
-  with only the beats struck hard, hands on the third of each group.
-- **Sanremo** never worked and is gone. **Carosone** takes its place — swung
-  eighths, a walking bass, and the piano stabbing the off-beat instead of
-  landing on it, over a minor giro with a major dominant, which is where that
-  music lives.
+The four traditional ones are not the ones that were here. **Balera** has a bass
+player now instead of a synthesised accordion button, and a tune to play as well
+— it used to do nothing but comp, which is why it read as a backing track
+waiting for a singer who never turned up. **Campagna** gained a real strummed
+guitar under the mandolin; country music is gentle, not absent. **Tarantella**
+and **Pizzica** keep the same giro on purpose: the step changes, not the
+harmony, and that is exactly the difference between the two.
 
-**Breaks.** Liana and Carosone each lose a bar: in Liana's third the kick and
-claps step out and the bass carries it alone, in Carosone's the whole rhythm
-section drops and the Rhodes plays a chorus by itself. Four bars that all do
-the same thing are a loop; four where one of them stops are an arrangement.
+Six went, and they went for one reason each. *Coro*, *Chop* and *Talk* were
+built out of voice lanes and have nothing left once the voices come out.
+*Liana*, *Sanremo*, *Osteria*, *Stornello* and *Trastevere* on Nonni were four
+folk grooves and a balera doing very nearly the same job, and eight slots is not
+enough to spend two of them on the difference between a *stornello* and a
+*serenata*.
+
+**Every one of them passes its genre rubric**, which is sixteen out of sixteen
+on the four common checks plus whatever the declared genre demands. Two of them
+did not, at first, and both were worth chasing rather than waving through — the
+brass lead was putting 100% of its onsets on top of a note still sounding, and
+nonni/Balera measured 0.07 on bar-to-bar novelty, sitting exactly on the line
+and falling under it between one render and the next.
+
+One check was wrong rather than one groove. The mush test counted onsets whose
+tail cleared a fixed -12 dB line, so a voice sitting at -11.7 dB read 100% and
+one at -12.3 dB read 0% with nothing audible between them — which is how
+raising the accordion to its measured level flipped two grooves from fine to
+"every onset is mush" without either of them sounding any muddier. It now needs
+the count *and* the depth, and prints both.
+
+**Breaks.** Every base varies at least two of its four bars — a lane dropping
+out, the hats thinning to quarters, an open hat arriving on the last sixteenth.
+Four bars that all do the same thing are a loop; four where one of them stops
+are an arrangement.
 
 Every one of them uses accents and ghost notes — a backbeat that leans, hats
 with every other sixteenth lightened. An unaccented pattern is a metronome

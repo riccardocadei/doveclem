@@ -21,39 +21,44 @@ os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 src = io.open(SRC, encoding='utf-8').read()
 
-m = re.search(r'^const PACKS = (\[.*?\n\]);$', src, re.M | re.S)
-if not m:
-    sys.exit('could not find the PACKS array in app/index.html')
-packs = json.loads(m.group(1))
+# The clips. PACKS is readable JS rather than JSON now, so this rewrites each
+# url in place instead of parsing the array and printing it back — which also
+# means adding a field to a clip cannot break the build.
+def inline(path):
+    """base64 of a file under app/, and a running total of what we embedded."""
+    raw = io.open(os.path.join(ROOT, 'app', path), 'rb').read()
+    sizes.append(len(raw))
+    return base64.b64encode(raw).decode('ascii')
 
-total = 0
-for pack in packs:
-    for clip in pack['clips']:
-        path = os.path.join(ROOT, 'app', clip.pop('url'))
-        raw = io.open(path, 'rb').read()
-        total += len(raw)
-        clip['b64'] = base64.b64encode(raw).decode('ascii')
-    print('%-8s %d clips' % (pack['id'], len(pack['clips'])))
+sizes = []
+n_clips = [0]
+def clip_url(m):
+    n_clips[0] += 1
+    return "b64:'%s'" % inline(m.group(1))
 
-inlined = 'const PACKS = ' + json.dumps(packs, ensure_ascii=True) + ';'
-src = src[:m.start()] + inlined + src[m.end():]
+src, n = re.subn(r"url:'([^']+)'", clip_url, src)
+if not n:
+    sys.exit('could not find any clip urls in app/index.html')
+print('%-8s %d clips' % ('packs', n_clips[0]))
 
 # the drum kits go in the same way — an artifact has no origin to fetch from
 km = re.search(r'^(const KITS = \[.*?\n\];)$', src, re.M | re.S)
 if not km:
     sys.exit('could not find the KITS array in app/index.html')
 kits_src = km.group(1)
+tm_takes = re.search(r'^const TAKES = (\d+);$', src, re.M)
+takes = int(tm_takes.group(1)) if tm_takes else 1
 for kid in re.findall(r"id:'(\w+)'", kits_src):
     d = os.path.join(ROOT, 'app', 'audio', 'kit', kid)
     if not os.path.isdir(d):
         continue
     b64 = {}
+    # one entry per take, keyed the way loadKit asks for it
     for name in ('kick', 'snare', 'clap', 'hat', 'ohat'):
-        f = os.path.join(d, name + '.m4a')
-        if os.path.exists(f):
-            raw = io.open(f, 'rb').read()
-            total += len(raw)
-            b64[name] = base64.b64encode(raw).decode('ascii')
+        for k in range(1, takes + 1):
+            f = '%s-%d' % (name, k)
+            if os.path.exists(os.path.join(d, f + '.m4a')):
+                b64[f] = inline(os.path.join('audio', 'kit', kid, f + '.m4a'))
     if b64:
         kits_src = kits_src.replace("id:'%s'," % kid,
                                     "id:'%s', b64:%s," % (kid, json.dumps(b64)), 1)
@@ -67,17 +72,34 @@ if not tm:
 tb_src = tm.group(1)
 for tid, notes in re.findall(r"id:'(\w+)',[^}]*?notes:\[([^\]]*)\]", tb_src):
     b64 = {}
-    for n in [x.strip() for x in notes.split(',') if x.strip()]:
-        f = os.path.join(ROOT, 'app', 'audio', 'instr', tid, n + '.m4a')
+    for nn in [x.strip() for x in notes.split(',') if x.strip()]:
+        f = os.path.join(ROOT, 'app', 'audio', 'instr', tid, nn + '.m4a')
         if os.path.exists(f):
-            raw = io.open(f, 'rb').read()
-            total += len(raw)
-            b64[n] = base64.b64encode(raw).decode('ascii')
+            b64[nn] = inline(os.path.join('audio', 'instr', tid, nn + '.m4a'))
     if b64:
         tb_src = tb_src.replace("id:'%s'," % tid,
                                 "id:'%s', b64:%s," % (tid, json.dumps(b64)), 1)
         print('%-8s %d instrument notes' % (tid, len(b64)))
 src = src[:tm.start(1)] + tb_src + src[tm.end(1):]
+
+# the electric bass, which is not a timbre and so is not in that array
+bm = re.search(r'^const BASS_NOTES = \[([^\]]*)\];$', src, re.M)
+if not bm:
+    sys.exit('could not find BASS_NOTES in app/index.html')
+bass = {}
+for nn in [x.strip() for x in bm.group(1).split(',') if x.strip()]:
+    f = os.path.join(ROOT, 'app', 'audio', 'instr', 'bass', nn + '.m4a')
+    if os.path.exists(f):
+        bass[nn] = inline(os.path.join('audio', 'instr', 'bass', nn + '.m4a'))
+if bass:
+    before = src
+    src = src.replace('const BASS_B64 = null;',
+                      'const BASS_B64 = %s;' % json.dumps(bass), 1)
+    if src == before:
+        sys.exit('could not find the BASS_B64 placeholder in app/index.html')
+    print('%-8s %d bass notes' % ('bass', len(bass)))
+
+total = sum(sizes)
 
 # artifact shell: no doctype/head/body of our own, no service worker
 body = src[src.index('<body>') + len('<body>'):src.rindex('</body>')].strip('\n')
