@@ -1871,7 +1871,7 @@ const VOICES = {
 
      The timbre check is not decoration. `sampled()` plays whatever bank is
      loaded, so the first version of this happily chopped the *accordion* into
-     45-millisecond bursts on the Fisarmonica setting — score.html measured it
+     45-millisecond bursts on the Accordion setting — score.html measured it
      8.4 dB under the stab, and the comment here claimed it was falling through
      to the synth. It was not. */
   chank(t, i, s) {
@@ -2270,8 +2270,8 @@ function say(text) { msgEl.innerHTML = text; msgEl.hidden = false; }
 
 /* ---- mixer ---- */
 /* Three grids rather than one, each under the picker that decides what its
-   tracks are played on: the five drums under Batteria, the bass, stab and lead
-   under Strumenti, the clips under Voci. It used to be one box called Mixer
+   tracks are played on: the five drums under Drums, the bass, stab and lead
+   under Instruments, the clips under Voices. It used to be one box called Mixer
    with a header inside it reading "Machine", which said nothing about what the
    picker two inches away would do to it. */
 const laneOf = trk => trk.kind === 'voice' ? 2 : (trk.kind === 'synth' ? 0 : 1);
@@ -3414,7 +3414,7 @@ const GROOVES = [
 
   /* The funk rewrite. The accordion keeps the Roman part — the off-beat stabs
      and the melody — while the rhythm guitar runs the sixteenths on its
-     synthetic stand-in, which outside the Chitarra timbre is a clavinet and for
+     synthetic stand-in, which outside the Guitar timbre is a clavinet and for
      funk is better than a real guitar. The cajon does the snare and sounds like
      a conga, which is what was wanted. */
   { name:'Testaccio', pack:'nonni', genre:'funk', bpm:112, swing:0, rise:true,
@@ -3465,7 +3465,7 @@ const GROOVES = [
      Country music is gentle, not absent: the tambourine keeps the beat, a
      guitar strums the off-beats the way a rhythm guitar does, the mandolin
      runs a tune over the top, and the bass is a real one. The guitar is the
-     new part and it is a real guitar — on the Chitarra timbre the rhythm
+     new part and it is a real guitar — on the Guitar timbre the rhythm
      track plays the recorded nylon string, not the clavinet. */
   { name:'Campagna', pack:'nonni', genre:'folk', bpm:92, swing:0.55, timbre:'chit',
     kit:'folk', air:0.4, verb:1.25, echo:false,
