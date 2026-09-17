@@ -537,7 +537,10 @@ async function runVoices() {
 async function runPitched() {
   const w = await ready();
   const gs = w.dev.grooves();
-  const want = [['Pizzica',   'mando'],  ['Campagna', 'chit'],
+  /* Pizzica and Campagna were the mandolin and guitar rows until the nonni pack
+     traded them for two more italo. The timbre is forced here anyway, so any
+     groove that carries the lanes will do — Tarantella and Testaccio do. */
+  const want = [['Tarantella', 'mando'], ['Testaccio', 'chit'],
                 ['Notte',     'organo'], ['Testaccio', 'fisa'],
                 ['Cometa',    'brass']];
   const ids = ['stab', 'lead'];
@@ -724,8 +727,8 @@ async function runLevels() {
   const forced = [['Testaccio', 'chit', ['chank', 'stab']],
                   ['Notte', 'organo', ['stab', 'lead']],
                   ['Notte', 'chit',   ['stab', 'lead']],
-                  ['Pizzica', 'mando', ['stab', 'lead']],
-                  ['Pizzica', 'chit',  ['stab', 'lead']]];
+                  ['Tarantella', 'mando', ['stab', 'lead']],
+                  ['Tarantella', 'chit',  ['stab', 'lead']]];
   const rows = [];
   for (const [name, ids] of want) {
     /* By name and by pack: Balera exists on both packs and `find` would take

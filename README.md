@@ -683,12 +683,13 @@ app does on launch (`navigator.audioSession`); on older iOS the switch still win
 
 ## Playing it
 
-The tracks live in three racks, each under the picker that decides what it is
-played on: **Drums** for the five drums, **Instruments** for the tune, **Voices**
-for the current pack's clips. The instrument rack has two pickers over it,
-because what the tune is played on and whether the bass is a real one are two
-questions — they used to have one answer, and the answer to the second was "no"
-on ten grooves out of sixteen. It used to be one box called Mixer
+The tracks live in four racks, each under the picker that decides what it is
+played on: **Drums** for the five drums, **Bass** for the bass alone,
+**Instruments** for the rest of the tune, **Voices** for the current pack's
+clips. Bass and Instruments are separate because what the tune is played on and
+whether the bass is a real one are two questions — they used to have one answer,
+and the answer to the second was "no" on ten bases out of sixteen. The bass
+comes first because that is the order you build a track in. It used to be one box called Mixer
 with a header inside reading "Machine", which named neither the thing nor what
 the picker two inches away would do to it.
 
@@ -729,7 +730,7 @@ the sound. Tap a chip to select and hear it; the bar down its right edge mutes.
 | Forward / Reverse | Sample direction — the waveform mirrors so you are still looking at what you hear |
 | Cut / Overlap | Whether re-firing a voice stops the one already playing or lets them stack. **Overlap** is the default: re-triggering is the thing people do with a voice, and a phrase that cuts itself dead the second time you tap it is the less musical answer |
 | Record | Captures whatever is playing, for as long as you leave it running. Trim the result on its wave; **Save** writes a WAV — shared on a phone, downloaded on a desktop |
-| Copy bar | Puts the bar you are looking at over the other three |
+| Copy bar | Puts the bar you are looking at over the other three. It is hidden at **1 bar**, where there is nowhere to copy to — it used to sit there, do nothing, and report that it had copied |
 | Hold a track | Solo it. Hold again to let the rest back in |
 | Save | Keeps the whole state under a name, in this browser: pattern, mix, clip trims, tempo, key, giro and instrument. Saved ones appear under the presets |
 | Keys 1–9 | Trigger the first nine tracks from a keyboard |
@@ -993,7 +994,7 @@ place a note, drag to draw a line, tap a lit cell again to erase. The lead stays
 in the key's scale rather than transposing with the chords, which is what lets a
 tune stay recognisable while the harmony moves under it.
 
-### Patterns
+### Base
 
 They are called **basi** — backing tracks — rather than grooves, because a
 groove is a rhythmic feel and these are more than that: each one carries the
@@ -1041,12 +1042,14 @@ not a verdict on taste; reorder them freely, it is one array.
 | Permanente | 116 | sequencer | folk | Accordion |
 | Testaccio | 112 | funk | folk | Accordion |
 | Cinecittà | 122 | italo | machine | Synth italo |
-| Campagna | 92 | folk | folk | Guitar |
+| Vetrina | 124 | italo | machine | Organ |
+| Sorpasso | 128 | italo | machine | Synth italo |
 | Tarantella | 120 · 6/8 | tarantella | folk | Accordion |
-| Pizzica | 132 · 6/8 | tarantella | folk | Mandolin |
 
-Half of Nonni is the dancefloor and half is the tradition, which was the point
-of the rebuild. **Nottata** is the italo-disco one and the reason the brass bank
+Nonni is mostly the dancefloor now: five italo, a sequencer, a funk and one
+tarantella. **Campagna** and **Pizzica** came out to make room for two more
+italo and they are not gone, only unshipped — they are in the git history and
+can come back if the pack ever wants the folk end again. **Nottata** is the italo-disco one and the reason the brass bank
 exists: everything is where the genre puts it — kick on the four, clap on two
 and four, hats on the sixteenths, bass on the eighths — and none of that is what
 makes it work. The riser is: four bars with the filter closing, the fill at the
@@ -1054,13 +1057,18 @@ bottom of it, and the whole thing snapping open at the top. **Lungomare** is the
 other side of the same night, no brass and no hats, an arpeggio inside a
 dotted-eighth echo with the strings holding underneath.
 
-The four traditional ones are not the ones that were here. **Balera** has a bass
-player now instead of a synthesised accordion button, and a tune to play as well
-— it used to do nothing but comp, which is why it read as a backing track
-waiting for a singer who never turned up. **Campagna** gained a real strummed
-guitar under the mandolin; country music is gentle, not absent. **Tarantella**
-and **Pizzica** keep the same giro on purpose: the step changes, not the
-harmony, and that is exactly the difference between the two.
+**Vetrina** and **Sorpasso** are the two new ones and neither repeats what the
+other three italo bases do. Vetrina is four-on-the-floor with the closed hat on
+the beat and the open one answering it — the disco hat rather than Nottata's
+sixteenths — with the Hammond on the chords and a giro of its own,
+**Autostrada** (i · VII · iv · VI), which exists because four italo bases a pack
+against three minor progressions meant two of them shared one. Sorpasso is the
+fast one at 128: snare instead of clap, hats on the off-beats only, and the
+sequencer under an italo kit rather than a folk one.
+
+**Balera** has a bass player now instead of a synthesised accordion button, and
+a tune to play as well — it used to do nothing but comp, which is why it read as
+a backing track waiting for a singer who never turned up.
 
 Six went, and they went for one reason each. *Coro*, *Chop* and *Talk* were
 built out of voice lanes and have nothing left once the voices come out.
